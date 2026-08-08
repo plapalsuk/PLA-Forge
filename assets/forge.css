@@ -98,3 +98,37 @@ option{background:#151a20;color:#f6f7f9}
 }
 .exactpart{white-space:nowrap}
 @media(max-width:1000px){.exact-part-panel{grid-template-columns:1fr}}
+
+/* v0.2.7 colour demand / Kitsu print queue */
+.colour-demand-section{overflow:hidden}
+.colour-demand-grid{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+ gap:10px;
+ margin-top:12px
+}
+.colour-demand-card{
+ appearance:none;
+ text-align:left;
+ cursor:pointer;
+ background:linear-gradient(180deg,#171d24,#11161c);
+ border:1px solid #303944;
+ border-radius:12px;
+ padding:14px;
+ color:var(--text);
+ transition:.15s ease;
+}
+.colour-demand-card:hover{
+ transform:translateY(-1px);
+ border-color:rgba(255,106,0,.55);
+ background:linear-gradient(180deg,#1d2229,#15191f)
+}
+.colour-demand-card.selected{
+ border-color:var(--orange);
+ box-shadow:0 0 0 2px rgba(255,106,0,.11);
+}
+.colour-demand-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.colour-demand-top strong{font-size:14px}
+.colour-demand-top span{font-size:10px;background:#242b33;border-radius:999px;padding:4px 7px;color:#cbd1d8}
+.colour-demand-number{font-size:25px;font-weight:850;margin:12px 0 2px;color:var(--orange)}
+.colour-demand-action{font-size:11px;color:var(--orange2);margin-top:11px;font-weight:750}

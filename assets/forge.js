@@ -88,6 +88,8 @@ async function buildPlatePlanner(){
  const plannedKpi=document.querySelector('#plannedKpi');
  const printingKpi=document.querySelector('#printingKpi');
  const completedKpi=document.querySelector('#completedKpi');
+ const colourDemandCards=document.querySelector('#colourDemandCards');
+ const colourDemandEmpty=document.querySelector('#colourDemandEmpty');
 
  let plateDraft={id:null,colour:colours[0]||'',printer:'',name:'',items:[]};
 
@@ -128,6 +130,43 @@ async function buildPlatePlanner(){
      weight_each:Number(x.r.weight_g||0),extra:kind==='extra'
    });
  }
+
+ function colourDemand(){
+   const map={};
+   rs.forEach(r=>{
+     const colour=String(r.filament||'').trim();
+     if(!colour)return;
+     const key=recipeKey(r);
+     const remaining=Math.max(0,demandFor(r)-partQty(s,key)-activePlateQty(s,key));
+     if(remaining<=0)return;
+     if(!map[colour])map[colour]={colour,sets:0,grams:0,groups:0,pals:new Set()};
+     map[colour].sets+=remaining;
+     map[colour].grams+=remaining*Number(r.weight_g||0);
+     map[colour].groups+=1;
+     map[colour].pals.add(r.sku);
+   });
+   return Object.values(map).map(x=>({...x,palCount:x.pals.size})).sort((a,b)=>b.sets-a.sets || b.grams-a.grams);
+ }
+ function drawColourDemand(){
+   if(!colourDemandCards)return;
+   const cards=colourDemand();
+   colourDemandCards.innerHTML=cards.map(x=>`<button class="colour-demand-card ${plateDraft.colour===x.colour?'selected':''}" data-colour="${esc(x.colour)}">
+      <div class="colour-demand-top"><strong>${esc(x.colour)}</strong><span>${x.sets} set${x.sets===1?'':'s'}</span></div>
+      <div class="colour-demand-number">${x.grams.toFixed(1)}g</div>
+      <div class="small">${x.palCount} Pal${x.palCount===1?'':'s'} · ${x.groups} colour group${x.groups===1?'':'s'}</div>
+      <div class="colour-demand-action">Plan this colour →</div>
+   </button>`).join('');
+   if(colourDemandEmpty)colourDemandEmpty.style.display=cards.length?'none':'block';
+   document.querySelectorAll('.colour-demand-card').forEach(btn=>btn.onclick=()=>{
+     const colour=btn.dataset.colour;
+     plateDraft.colour=colour;
+     colourEl.value=colour;
+     plateDraft.items=[];
+     drawAll();
+     document.querySelector('#printChecklistCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+   });
+ }
+
  function drawChecklist(){
    const rows=rowData();
    checklist.innerHTML=rows.length?rows.map((x,idx)=>`<tr class="${x.remain===0?'dimrow':''}">
@@ -209,7 +248,7 @@ async function buildPlatePlanner(){
    const p={...plateDraft,id:plateDraft.id||makeId(),code,status:startNow?'printing':'draft',created_at:plateDraft.created_at||new Date().toISOString()};if(startNow)p.started_at=new Date().toISOString();
    s.plates.push(JSON.parse(JSON.stringify(p)));save(s);plateDraft={id:null,colour:colourEl.value,printer:printerEl.value,name:'',items:[]};nameEl.value='';drawAll();
  }
- function drawAll(){plateDraft.colour=String(colourEl.value||plateDraft.colour||'').trim();plateDraft.printer=printerEl.value||'';plateDraft.name=nameEl.value||'';drawChecklist();drawCurrent();drawPlates();drawKpis()}
+ function drawAll(){plateDraft.colour=String(colourEl.value||plateDraft.colour||'').trim();plateDraft.printer=printerEl.value||'';plateDraft.name=nameEl.value||'';drawColourDemand();drawChecklist();drawCurrent();drawPlates();drawKpis()}
  colourEl.onchange=()=>{plateDraft.colour=String(colourEl.value||'').trim();plateDraft.items=[];drawAll()};
  printerEl.onchange=()=>{plateDraft.printer=printerEl.value||''};
  nameEl.oninput=()=>{plateDraft.name=nameEl.value||''};

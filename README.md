@@ -59,3 +59,11 @@ v0.2 still uses browser localStorage for operational state until the shared back
 - Exact Part expands directly below the same Pal/colour group
 - Select one specific STL and quantity
 - Exact recovery parts are stored separately in Printed Parts Inventory
+
+## v0.2.7 Kitsu Print Queue
+- New `Colours You Need to Print` section above the existing Build Plate Planner
+- Only colours with outstanding production demand are shown
+- Each colour shows outstanding grouped sets, estimated filament grams, number of Pals, and number of recipe groups
+- Colours are prioritised by outstanding quantity
+- Clicking a colour selects it in the existing detailed checklist below
+- Existing Add / + Extra / Exact Part workflow remains unchanged
