@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=024"></head>
 <body><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
@@ -16,17 +16,17 @@
   <a href="data-health.html">! Data Health</a><a href="settings.html">⚙ Settings</a>
  </nav>
 </aside><main><div class="topbar"><div class="pageTitle"><h1>Settings</h1><div class="small">Site-wide configuration for PLA Forge.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Configure once. Use everywhere.</div></div></div></div>
-<div class="settings-grid">
+<div class="printer-help"><strong>Printers are shared settings for PLA Forge.</strong><div class="small">Add each physical printer once here. The Build Plate Planner will then use this list automatically.</div></div><div class="settings-grid">
   <div class="card">
     <div class="section-title"><h2>Printers</h2><span class="small">Site-wide printer register</span></div>
     <div class="settings-form">
       <div><label class="small">Printer name</label><input id="printerName" placeholder="e.g. P1S #1"></div>
       <div><label class="small">Model</label><input id="printerModel" placeholder="e.g. Bambu Lab P1S"></div>
-      <div><label class="small">Nozzle</label><input id="printerNozzle" placeholder="e.g. 0.4mm"></div>
-      <div><label class="small">Build X (mm)</label><input id="printerBuildX" type="number" placeholder="256"></div>
-      <div><label class="small">Build Y (mm)</label><input id="printerBuildY" type="number" placeholder="256"></div>
-      <div><label class="small">Build Z (mm)</label><input id="printerBuildZ" type="number" placeholder="256"></div>
-      <div class="wide"><button class="btn" id="addPrinter">Add Printer</button></div>
+      <div><label class="small">Nozzle</label><input id="printerNozzle" placeholder="0.4mm" value="0.4mm"></div>
+      <div><label class="small">Build X (mm)</label><input id="printerBuildX" type="number" placeholder="256" value="256"></div>
+      <div><label class="small">Build Y (mm)</label><input id="printerBuildY" type="number" placeholder="256" value="256"></div>
+      <div><label class="small">Build Z (mm)</label><input id="printerBuildZ" type="number" placeholder="256" value="256"></div>
+      <div class="wide"><button type="button" class="btn" id="addPrinter">Add Printer</button><div id="settingsMessage" class="settings-message"></div></div>
     </div>
   </div>
 
@@ -47,4 +47,4 @@
     <tbody id="printerRows"></tbody>
   </table>
 </div>
-<div class="footer-note">PLA Forge v0.2.1 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js"></script><script>settingsPage()</script></body></html>
+<div class="footer-note">PLA Forge v0.2.4 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=024"></script><script>settingsPage()</script></body></html>

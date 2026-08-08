@@ -38,3 +38,24 @@ v0.2 still uses browser localStorage for operational state until the shared back
 - Choose a default printer
 - Build Plate Planner now pulls its printer dropdown from Settings
 - No more free-text printer names on plates
+
+
+## v0.2.2 hotfix
+- Fixed Add Printer handling on Settings
+- Added visible success/error feedback
+- Build Plate Planner printer control is now a true Settings-backed dropdown
+- Added cache-busted CSS/JS references so GitHub Pages does not serve the old interface
+- Restyled all text boxes, number fields and dropdowns to the dark PLA Forge theme
+
+## v0.2.3 Build Plate UX
+- Removed the separate Extra / Recovery Part panel
+- Added an `Extra` column directly to every colour-group row
+- `+ Extra` adds one additional grouped print set even when Remaining is zero
+- Extra successful prints are stored in the same Printed Parts inventory and reduce future print demand
+
+## v0.2.4 Exact Part Printing
+- Keeps inline Add and + Extra controls
+- Adds Exact Part on any row with separate recovery STL files
+- Exact Part expands directly below the same Pal/colour group
+- Select one specific STL and quantity
+- Exact recovery parts are stored separately in Printed Parts Inventory

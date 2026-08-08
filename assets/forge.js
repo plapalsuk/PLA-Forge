@@ -73,17 +73,66 @@ async function filament(){
 async function buildPlatePlanner(){
  const s=state(),ps=await load('products'),rs=await load('recipes'),pals=Object.fromEntries(ps.filter(p=>p.type==='pal').map(p=>[p.sku,p])),colours=[...new Set(rs.map(r=>r.filament).filter(Boolean))].sort();
  let plateDraft={id:null,colour:colours[0]||'',printer:'',name:'',items:[]};
- const colourEl=document.querySelector('#plateColour'),printerEl=document.querySelector('#platePrinter'),nameEl=document.querySelector('#plateName'),checklist=document.querySelector('#plateChecklist'),current=document.querySelector('#currentPlateItems'),platesList=document.querySelector('#platesList'),currentTotal=document.querySelector('#currentPlateTotal'),demandKpi=document.querySelector('#demandKpi'),plannedKpi=document.querySelector('#plannedKpi'),printingKpi=document.querySelector('#printingKpi'),completedKpi=document.querySelector('#completedKpi'),recoveryProduct=document.querySelector('#recoveryProduct'),recoveryFile=document.querySelector('#recoveryFile'),recoveryQty=document.querySelector('#recoveryQty');
+ const colourEl=document.querySelector('#plateColour'),printerEl=document.querySelector('#platePrinter'),nameEl=document.querySelector('#plateName'),checklist=document.querySelector('#plateChecklist'),current=document.querySelector('#currentPlateItems'),platesList=document.querySelector('#platesList'),currentTotal=document.querySelector('#currentPlateTotal'),demandKpi=document.querySelector('#demandKpi'),plannedKpi=document.querySelector('#plannedKpi'),printingKpi=document.querySelector('#printingKpi'),completedKpi=document.querySelector('#completedKpi');
  colourEl.innerHTML=colours.map(c=>`<option>${esc(c)}</option>`).join('');
  const activePrinters=(s.printers||[]).filter(p=>p.active!==false);
  printerEl.innerHTML=activePrinters.length?activePrinters.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.model?` · ${esc(p.model)}`:''}</option>`).join(''):`<option value="">No printers configured</option>`;
  if(s.siteSettings.defaultPrinter && activePrinters.some(p=>p.id===s.siteSettings.defaultPrinter)) printerEl.value=s.siteSettings.defaultPrinter;
  recoveryProduct.innerHTML=ps.filter(p=>p.type==='pal').map(p=>`<option value="${p.sku}">${esc(p.name)} · ${p.sku}</option>`).join('');
- function setRecoveryFiles(){const sku=recoveryProduct.value,files=[];rs.filter(r=>r.sku===sku&&r.filament===plateDraft.colour&&r.separate_stls).forEach(r=>r.separate_stls.split(';').map(x=>x.trim()).filter(Boolean).forEach(file=>files.push({file})));recoveryFile.innerHTML=files.length?files.map(x=>`<option value="${esc(x.file)}">${esc(x.file)}</option>`).join(''):`<option value="">No separate recovery files for this colour</option>`}
  function drawChecklist(){const rows=rs.filter(r=>r.filament===plateDraft.colour).map(r=>{const p=pals[r.sku]||{name:r.name||r.animal||r.sku},key=groupKey(r),demand=totalNeed(s,r.sku),inv=partQty(s,key),allocated=activePlateQty(s,key),inDraft=plateDraft.items.filter(i=>i.inventory_key===key).reduce((a,i)=>a+Number(i.qty||0),0),remain=Math.max(0,demand-inv-allocated-inDraft);return{r,p,demand,inv,allocated,remain}}).sort((a,b)=>b.remain-a.remain||a.p.name.localeCompare(b.p.name));
- checklist.innerHTML=rows.map((x,idx)=>`<tr class="${x.remain===0?'dimrow':''}"><td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.r.sku}</span></td><td>${esc(x.r.parts)}</td><td>${x.r.weight_g}g</td><td>${x.demand}</td><td>${x.inv}</td><td>${x.allocated}</td><td><strong>${x.remain}</strong></td><td><input class="number addqty" id="qty${idx}" min="1" type="number" value="${Math.max(1,Math.min(x.remain||1,5))}"></td><td><button class="btn secondary addgroup" data-row="${idx}">Add</button></td></tr>`).join('')||`<tr><td colspan="9">No recipe groups use ${esc(plateDraft.colour)}.</td></tr>`;
- document.querySelectorAll('.addgroup').forEach(btn=>btn.onclick=()=>{const x=rows[Number(btn.dataset.row)],qty=Math.max(1,Number(document.querySelector('#qty'+btn.dataset.row).value||1));plateDraft.items.push({id:makeId(),kind:'group',sku:x.r.sku,product_name:x.p.name,filament:x.r.filament,label:x.r.parts,file:x.r.grouped_stl,inventory_key:groupKey(x.r),qty,weight_each:Number(x.r.weight_g||0)});drawAll()})}
- function drawCurrent(){current.innerHTML=plateDraft.items.length?plateDraft.items.map(i=>`<div class="plate-line"><div><strong>${esc(i.product_name)}</strong><div class="small">${i.kind==='group'?'Grouped print':'Recovery part'} · ${esc(i.label)}</div><code>${esc(i.file)}</code></div><div class="plate-line-right"><input class="number lineqty" data-id="${i.id}" type="number" min="1" value="${i.qty}"><span>${(Number(i.weight_each||0)*Number(i.qty||0)).toFixed(1)}g</span><button class="iconbtn removeitem" data-id="${i.id}">×</button></div></div>`).join(''):`<div class="empty-state">Choose a filament colour, then add colour-groups from the checklist.</div>`;
+ checklist.innerHTML=rows.map((x,idx)=>{
+ const recoveryFiles=(x.r.separate_stls||'').split(';').map(v=>v.trim()).filter(Boolean);
+ return `<tr class="${x.remain===0?'dimrow':''}">
+ <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.r.sku}</span></td>
+ <td>${esc(x.r.parts)}</td>
+ <td>${x.r.weight_g}g</td>
+ <td>${x.demand}</td>
+ <td>${x.inv}</td>
+ <td>${x.allocated}</td>
+ <td><strong>${x.remain}</strong></td>
+ <td><input class="number addqty" id="qty${idx}" min="1" type="number" value="${Math.max(1,Math.min(x.remain||1,5))}"></td>
+ <td><button class="btn secondary addgroup" data-row="${idx}">Add</button></td>
+ <td><button class="btn ghost addextra" data-row="${idx}" title="Add one extra complete colour group">+ Extra</button></td>
+ <td>${recoveryFiles.length?`<button class="btn ghost exactpart" data-row="${idx}">Exact Part</button>`:`<span class="small muted">—</span>`}</td>
+ </tr>
+ ${recoveryFiles.length?`<tr class="exact-row" id="exact-row-${idx}" style="display:none">
+   <td colspan="11">
+     <div class="exact-part-panel">
+       <div><strong>Choose exact STL for ${esc(x.p.name)}</strong><div class="small">${esc(x.r.filament)}</div></div>
+       <select id="exact-file-${idx}" class="select">${recoveryFiles.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select>
+       <label class="small">Qty <input id="exact-qty-${idx}" class="number" type="number" min="1" value="1"></label>
+       <button class="btn addexact" data-row="${idx}">Add Exact Part</button>
+     </div>
+   </td>
+ </tr>`:''}`
+}).join('')||`<tr><td colspan="11">No recipe groups use ${esc(plateDraft.colour)}.</td></tr>`;
+ document.querySelectorAll('.addgroup').forEach(btn=>btn.onclick=()=>{const x=rows[Number(btn.dataset.row)],qty=Math.max(1,Number(document.querySelector('#qty'+btn.dataset.row).value||1));plateDraft.items.push({id:makeId(),kind:'group',sku:x.r.sku,product_name:x.p.name,filament:x.r.filament,label:x.r.parts,file:x.r.grouped_stl,inventory_key:groupKey(x.r),qty,weight_each:Number(x.r.weight_g||0)});drawAll()});
+ document.querySelectorAll('.addextra').forEach(btn=>btn.onclick=()=>{
+   const x=rows[Number(btn.dataset.row)];
+   plateDraft.items.push({
+     id:makeId(),kind:'extra',sku:x.r.sku,product_name:x.p.name,filament:x.r.filament,
+     label:x.r.parts+' · EXTRA STOCK',file:x.r.grouped_stl,inventory_key:groupKey(x.r),
+     qty:1,weight_each:Number(x.r.weight_g||0),extra:true
+   });
+   drawAll()
+ })}
+ 
+ document.querySelectorAll('.exactpart').forEach(btn=>btn.onclick=()=>{
+   const idx=Number(btn.dataset.row), row=document.querySelector('#exact-row-'+idx);
+   if(row) row.style.display=row.style.display==='none'?'table-row':'none';
+ });
+ document.querySelectorAll('.addexact').forEach(btn=>btn.onclick=()=>{
+   const idx=Number(btn.dataset.row), x=rows[idx];
+   const file=document.querySelector('#exact-file-'+idx)?.value;
+   const qty=Math.max(1,Number(document.querySelector('#exact-qty-'+idx)?.value||1));
+   if(!file)return;
+   plateDraft.items.push({
+     id:makeId(),kind:'recovery',sku:x.r.sku,product_name:x.p.name,filament:x.r.filament,
+     label:file,file,inventory_key:recoveryKey(x.r.sku,file),qty,weight_each:0,exact_part:true
+   });
+   drawAll();
+ });
+ function drawCurrent(){current.innerHTML=plateDraft.items.length?plateDraft.items.map(i=>`<div class="plate-line"><div><strong>${esc(i.product_name)}</strong><div class="small">${i.kind==='group'?'Required print':i.kind==='extra'?'Extra grouped set':'Exact recovery part'} · ${esc(i.label)}</div><code>${esc(i.file)}</code></div><div class="plate-line-right"><input class="number lineqty" data-id="${i.id}" type="number" min="1" value="${i.qty}"><span>${(Number(i.weight_each||0)*Number(i.qty||0)).toFixed(1)}g</span><button class="iconbtn removeitem" data-id="${i.id}">×</button></div></div>`).join(''):`<div class="empty-state">Choose a filament colour, then add colour-groups from the checklist.</div>`;
  document.querySelectorAll('.removeitem').forEach(b=>b.onclick=()=>{plateDraft.items=plateDraft.items.filter(i=>i.id!==b.dataset.id);drawAll()});document.querySelectorAll('.lineqty').forEach(el=>el.onchange=()=>{const i=plateDraft.items.find(i=>i.id===el.dataset.id);if(i)i.qty=Math.max(1,Number(el.value||1));drawAll()});
  const grams=plateDraft.items.reduce((a,i)=>a+Number(i.weight_each||0)*Number(i.qty||0),0);currentTotal.textContent=`${plateDraft.items.reduce((a,i)=>a+Number(i.qty||0),0)} print set(s) · ${grams.toFixed(1)}g`}
  function drawKpis(){let openDemand=0;rs.forEach(r=>openDemand+=Math.max(0,totalNeed(s,r.sku)-partQty(s,groupKey(r))-activePlateQty(s,groupKey(r))));demandKpi.textContent=openDemand;plannedKpi.textContent=s.plates.filter(p=>p.status==='draft').length;printingKpi.textContent=s.plates.filter(p=>p.status==='printing').length;completedKpi.textContent=s.plates.filter(p=>p.status==='complete').length}
@@ -96,9 +145,8 @@ async function buildPlatePlanner(){
  document.querySelectorAll('.completeplate').forEach(b=>b.onclick=()=>openCompletion(b.dataset.id))}
  function openCompletion(id){const p=s.plates.find(x=>x.id===id),panel=document.querySelector('#complete-'+id);if(!p||!panel)return;panel.innerHTML=`<div class="completion-box"><strong>Confirm successful prints</strong><div class="small">Enter how many complete grouped sets / recovery parts passed inspection. Anything not passed is recorded as failed.</div>${(p.items||[]).map(i=>`<div class="completion-line"><div><strong>${esc(i.product_name)}</strong><div class="small">${esc(i.label)}</div></div><div>Planned ${i.qty}</div><label>Passed <input class="number passqty" data-item="${i.id}" type="number" min="0" max="${i.qty}" value="${i.qty}"></label></div>`).join('')}<button class="btn confirmcomplete" data-id="${id}">Confirm Completion</button></div>`;panel.querySelector('.confirmcomplete').onclick=()=>confirmCompletion(id,panel)}
  function confirmCompletion(id,panel){const p=s.plates.find(x=>x.id===id);if(!p)return;const passes={};panel.querySelectorAll('.passqty').forEach(el=>passes[el.dataset.item]=Math.max(0,Math.min(Number(el.max),Number(el.value||0))));(p.items||[]).forEach(i=>{const passed=Number(passes[i.id]??i.qty),failed=Math.max(0,Number(i.qty)-passed);if(passed>0)s.parts[i.inventory_key]=partQty(s,i.inventory_key)+passed;if(failed>0)s.failedParts.push({id:makeId(),plate_id:p.id,plate_code:p.code,sku:i.sku,product_name:i.product_name,filament:i.filament,label:i.label,file:i.file,qty:failed,created_at:new Date().toISOString()})});p.status='complete';p.completed_at=new Date().toISOString();p.result=passes;s.printHistory.push({plate_id:p.id,plate_code:p.code,completed_at:p.completed_at,items:p.items,result:passes});save(s);drawAll()}
- function drawAll(){plateDraft.colour=colourEl.value||plateDraft.colour;plateDraft.printer=printerEl.value;plateDraft.name=nameEl.value;setRecoveryFiles();drawChecklist();drawCurrent();drawPlates();drawKpis()}
- colourEl.onchange=()=>{plateDraft.colour=colourEl.value;plateDraft.items=[];drawAll()};printerEl.oninput=()=>plateDraft.printer=printerEl.value;nameEl.oninput=()=>plateDraft.name=nameEl.value;recoveryProduct.onchange=setRecoveryFiles;
- document.querySelector('#addRecovery').onclick=()=>{const sku=recoveryProduct.value,file=recoveryFile.value,qty=Math.max(1,Number(recoveryQty.value||1));if(!file)return;const p=pals[sku]||{name:sku};plateDraft.items.push({id:makeId(),kind:'recovery',sku,product_name:p.name,filament:plateDraft.colour,label:file,file,inventory_key:recoveryKey(sku,file),qty,weight_each:0});drawAll()};
+ function drawAll(){plateDraft.colour=colourEl.value||plateDraft.colour;plateDraft.printer=printerEl.value;plateDraft.name=nameEl.value;drawChecklist();drawCurrent();drawPlates();drawKpis()}
+ colourEl.onchange=()=>{plateDraft.colour=colourEl.value;plateDraft.items=[];drawAll()};printerEl.oninput=()=>plateDraft.printer=printerEl.value;nameEl.oninput=()=>plateDraft.name=nameEl.value;
  document.querySelector('#savePlate').onclick=()=>saveDraft(false);document.querySelector('#startPlate').onclick=()=>saveDraft(true);
  function saveDraft(start){if(!plateDraft.items.length){alert('Add at least one print item to the plate.');return}const code=plateDraft.code||`PLATE-${String(s.plateSeq).padStart(4,'0')}`;if(!plateDraft.code)s.plateSeq++;const p={...plateDraft,id:plateDraft.id||makeId(),code,status:start?'printing':'draft',created_at:plateDraft.created_at||new Date().toISOString()};if(start)p.started_at=new Date().toISOString();s.plates.push(JSON.parse(JSON.stringify(p)));save(s);plateDraft={id:null,colour:colourEl.value,printer:printerEl.value,name:'',items:[]};nameEl.value='';drawAll()}
  drawAll()
@@ -116,63 +164,65 @@ async function printedParts(){
 
 async function settingsPage(){
  const s=state();
- const rows=document.querySelector('#printerRows');
- const name=document.querySelector('#printerName');
- const model=document.querySelector('#printerModel');
- const nozzle=document.querySelector('#printerNozzle');
- const buildX=document.querySelector('#printerBuildX');
- const buildY=document.querySelector('#printerBuildY');
- const buildZ=document.querySelector('#printerBuildZ');
- const addBtn=document.querySelector('#addPrinter');
- const defaultPrinter=document.querySelector('#defaultPrinter');
+ const $=id=>document.getElementById(id);
+ const rows=$('printerRows'), name=$('printerName'), model=$('printerModel'), nozzle=$('printerNozzle');
+ const buildX=$('printerBuildX'), buildY=$('printerBuildY'), buildZ=$('printerBuildZ');
+ const addBtn=$('addPrinter'), defaultPrinter=$('defaultPrinter'), msg=$('settingsMessage');
+ if(!rows||!name||!addBtn||!defaultPrinter){console.error('PLA Forge Settings: required controls missing');return;}
 
+ function flash(text,kind='ok'){
+   if(!msg)return;
+   msg.innerHTML=badge(text,kind);
+   setTimeout(()=>{if(msg)msg.innerHTML=''},2400);
+ }
+ function nextPrinterId(){
+   let n=1; const used=new Set((s.printers||[]).map(p=>p.id));
+   while(used.has('PRN-'+String(n).padStart(3,'0')))n++;
+   return 'PRN-'+String(n).padStart(3,'0');
+ }
  function render(){
-   rows.innerHTML=(s.printers||[]).length?s.printers.map(p=>`
+   const printers=s.printers||[];
+   rows.innerHTML=printers.length?printers.map(p=>`
      <tr>
        <td><strong>${esc(p.name)}</strong><br><span class="sku">${esc(p.id)}</span></td>
        <td>${esc(p.model||'—')}</td>
        <td>${esc(p.nozzle||'—')}</td>
        <td>${p.build_x||'—'} × ${p.build_y||'—'} × ${p.build_z||'—'} mm</td>
        <td>${p.active!==false?badge('Active','ok'):badge('Disabled','danger')}</td>
-       <td>
-         <button class="iconbtn togglePrinter" data-id="${p.id}">${p.active!==false?'Disable':'Enable'}</button>
-         <button class="iconbtn deletePrinter" data-id="${p.id}">Delete</button>
-       </td>
-     </tr>`).join(''):`<tr><td colspan="6">No printers have been added yet.</td></tr>`;
+       <td><button type="button" class="iconbtn togglePrinter" data-id="${p.id}">${p.active!==false?'Disable':'Enable'}</button> <button type="button" class="iconbtn deletePrinter" data-id="${p.id}">Delete</button></td>
+     </tr>`).join(''):`<tr><td colspan="6"><div class="empty-state">No printers yet. Add your first printer above.</div></td></tr>`;
 
-   const active=s.printers.filter(p=>p.active!==false);
-   defaultPrinter.innerHTML=`<option value="">No default</option>`+active.map(p=>`<option value="${p.id}">${esc(p.name)}${p.model?` · ${esc(p.model)}`:''}</option>`).join('');
+   const active=printers.filter(p=>p.active!==false);
+   defaultPrinter.innerHTML='<option value="">No default</option>'+active.map(p=>`<option value="${p.id}">${esc(p.name)}${p.model?` · ${esc(p.model)}`:''}</option>`).join('');
    defaultPrinter.value=s.siteSettings.defaultPrinter||'';
 
-   document.querySelectorAll('.togglePrinter').forEach(b=>b.onclick=()=>{
-     const p=s.printers.find(x=>x.id===b.dataset.id);
-     if(p){p.active=p.active===false?true:false;save(s);render()}
-   });
-   document.querySelectorAll('.deletePrinter').forEach(b=>b.onclick=()=>{
+   document.querySelectorAll('.togglePrinter').forEach(b=>b.addEventListener('click',()=>{
+     const p=s.printers.find(x=>x.id===b.dataset.id); if(!p)return;
+     p.active=p.active===false; save(s); render();
+   }));
+   document.querySelectorAll('.deletePrinter').forEach(b=>b.addEventListener('click',()=>{
+     const p=s.printers.find(x=>x.id===b.dataset.id); if(!p)return;
+     if(!confirm(`Delete ${p.name}?`))return;
      s.printers=s.printers.filter(x=>x.id!==b.dataset.id);
      if(s.siteSettings.defaultPrinter===b.dataset.id)s.siteSettings.defaultPrinter='';
-     save(s);render()
-   });
+     save(s); render(); flash('Printer deleted','warning');
+   }));
  }
 
- addBtn.onclick=()=>{
+ addBtn.type='button';
+ addBtn.addEventListener('click',()=>{
    const n=(name.value||'').trim();
-   if(!n){alert('Enter a printer name.');return}
-   const id='PRN-'+String((s.printers.length+1)).padStart(3,'0')+'-'+Date.now().toString(36).slice(-4);
-   s.printers.push({
-     id,name:n,model:(model.value||'').trim(),nozzle:(nozzle.value||'').trim(),
-     build_x:Number(buildX.value||0),build_y:Number(buildY.value||0),build_z:Number(buildZ.value||0),
-     active:true
-   });
+   if(!n){flash('Enter a printer name','danger');name.focus();return;}
+   const printer={
+     id:nextPrinterId(), name:n, model:(model?.value||'').trim(), nozzle:(nozzle?.value||'0.4mm').trim()||'0.4mm',
+     build_x:Number(buildX?.value||0), build_y:Number(buildY?.value||0), build_z:Number(buildZ?.value||0), active:true
+   };
+   s.printers.push(printer);
+   if(!s.siteSettings.defaultPrinter)s.siteSettings.defaultPrinter=printer.id;
    save(s);
-   [name,model,nozzle,buildX,buildY,buildZ].forEach(el=>el.value='');
-   render();
- };
-
- defaultPrinter.onchange=()=>{
-   s.siteSettings.defaultPrinter=defaultPrinter.value;
-   save(s);
- };
-
+   [name,model,nozzle,buildX,buildY,buildZ].forEach(el=>{if(el)el.value=''});
+   render(); flash(`${printer.name} added`,'ok');
+ });
+ defaultPrinter.addEventListener('change',()=>{s.siteSettings.defaultPrinter=defaultPrinter.value;save(s);flash('Default printer updated','ok')});
  render();
 }

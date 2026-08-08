@@ -54,3 +54,47 @@ table{width:100%;border-collapse:collapse}th{font-size:10px;letter-spacing:.07em
 .settings-form .wide{grid-column:1/-1}
 .settings-form input,.settings-form select{width:100%;background:#11161c;border:1px solid var(--line);color:#fff;padding:10px;border-radius:9px}
 @media(max-width:900px){.settings-grid,.settings-form{grid-template-columns:1fr}}
+
+/* v0.2.2 form controls */
+input, select, textarea{
+  appearance:none;
+  -webkit-appearance:none;
+  background:#10151b !important;
+  color:#f6f7f9 !important;
+  border:1px solid #303944 !important;
+  border-radius:10px !important;
+  padding:10px 12px !important;
+  outline:none;
+  box-shadow:none !important;
+}
+input::placeholder, textarea::placeholder{color:#68717d}
+input:focus, select:focus, textarea:focus{
+  border-color:#ff6a00 !important;
+  box-shadow:0 0 0 3px rgba(255,106,0,.12) !important;
+}
+select{
+  background-image:
+    linear-gradient(45deg,transparent 50%,#aeb6c0 50%),
+    linear-gradient(135deg,#aeb6c0 50%,transparent 50%);
+  background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;
+  background-size:5px 5px,5px 5px;
+  background-repeat:no-repeat;
+  padding-right:34px !important;
+}
+option{background:#151a20;color:#f6f7f9}
+.settings-message{min-height:28px;display:flex;align-items:center;margin-top:10px}
+.printer-help{padding:12px 14px;border-radius:10px;background:rgba(255,106,0,.08);border:1px solid rgba(255,106,0,.2);margin-bottom:14px}
+
+/* v0.2.3 inline extra-stock controls */
+.addextra{white-space:nowrap;border-color:rgba(255,106,0,.35)!important;color:#ff9633!important}
+.addextra:hover{background:rgba(255,106,0,.12)!important}
+
+/* v0.2.4 inline exact-part picker */
+.exact-row td{background:#101419!important;padding:0 12px 12px!important}
+.exact-part-panel{
+ display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,1.4fr) 110px auto;
+ gap:10px;align-items:center;padding:12px;border:1px solid rgba(255,106,0,.22);
+ border-radius:10px;background:rgba(255,106,0,.045)
+}
+.exactpart{white-space:nowrap}
+@media(max-width:1000px){.exact-part-panel{grid-template-columns:1fr}}
