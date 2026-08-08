@@ -22,3 +22,29 @@ table{width:100%;border-collapse:collapse}th{font-size:10px;letter-spacing:.07em
 .recipe-grid{grid-template-columns:repeat(3,minmax(220px,1fr))}.recipe-card h3{margin:0 0 4px}.recipe-card .colour{color:var(--orange2);font-weight:750}.recipe-card code{font-size:10px;color:#b7bec8;word-break:break-all}
 .footer-note{margin-top:20px;color:#69727e;font-size:11px}
 @media(max-width:1050px){.app{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.kpis{grid-template-columns:repeat(2,1fr)}.two,.recipe-grid{grid-template-columns:1fr}}
+
+/* PLA Forge v0.2 - Build Plate Planner */
+.planner-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(340px,.8fr);gap:14px;align-items:start}
+.sticky-panel{position:sticky;top:18px}
+.form-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:9px;margin-bottom:12px}
+.form-field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
+.form-field input,.form-field select{width:100%;background:#11161c;border:1px solid var(--line);color:#fff;padding:10px;border-radius:9px}
+.current-plate{display:flex;flex-direction:column;gap:8px;min-height:160px}
+.plate-line{display:grid;grid-template-columns:1fr auto;gap:10px;padding:11px;background:#10151b;border:1px solid var(--line);border-radius:10px}
+.plate-line code{display:block;color:#777f8a;font-size:9px;margin-top:4px;word-break:break-all}
+.plate-line-right{display:flex;gap:8px;align-items:center;white-space:nowrap}
+.iconbtn{border:1px solid var(--line);background:#242b33;color:#fff;border-radius:7px;padding:5px 9px;cursor:pointer}.iconbtn:hover{background:#323b46}
+.empty-state{padding:24px;text-align:center;color:var(--muted);border:1px dashed #303944;border-radius:10px}
+.plate-summary{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:11px;margin-top:12px}
+.plate-buttons{display:flex;gap:8px;margin-top:10px}.plate-buttons .btn{flex:1}
+.extra-part{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.extra-grid{display:grid;grid-template-columns:1fr 1fr 85px auto;gap:7px}
+.saved-plates{display:flex;flex-direction:column;gap:10px}
+.saved-plate{background:#11161c;border:1px solid var(--line);border-radius:12px;padding:13px}
+.saved-plate-main{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.saved-plate-items{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0}.saved-plate-items span{font-size:10px;color:#b9c0c8;background:#20262e;border-radius:999px;padding:4px 7px}
+.plate-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:#cdd2d9}
+.completion-panel:empty{display:none}.completion-box{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.completion-line{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #242b33}.completion-line label{display:flex;gap:6px;align-items:center}
+.dimrow{opacity:.55}.kpis.four{grid-template-columns:repeat(4,minmax(130px,1fr))}
+@media(max-width:1100px){.planner-layout{grid-template-columns:1fr}.sticky-panel{position:relative;top:auto}.form-row{grid-template-columns:1fr}.extra-grid{grid-template-columns:1fr}.kpis.four{grid-template-columns:repeat(2,1fr)}}

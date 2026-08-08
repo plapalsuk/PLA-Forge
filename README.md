@@ -1,23 +1,30 @@
-# PLA Forge v0.1
+# PLA Forge v0.2
 
-Manufacturing & Inventory System for PLA Pals.
+## Build Plate Planner
+- Colour-first planning
+- Mix different Pals using the same filament
+- Remaining-to-print = demand - printed stock - active plate allocation
+- Add grouped production STLs
+- Add individual recovery/spare STLs manually
+- Draft / Printing / Complete / Cancelled plate states
+- Plate IDs: PLATE-0001, PLATE-0002...
+- Optional printer and plate note
+- Estimated filament grams
+- Passed/failed confirmation on completion
+- Successful output moves to Printed Parts Inventory
+- Failed quantities recorded
+- Printed Parts page with grouped sets and recovery spares
 
-## Run
-GitHub Pages works directly. For local testing use:
-`python3 -m http.server 8000`
+## Updating GitHub Pages
+You only need to replace/upload these changed files for v0.2:
+- assets/forge.js
+- assets/forge.css
+- plates.html
+- parts.html
+- index.html
+- README.md
 
-## Current build
-- PLA Forge dark/orange application shell
-- Kitsu Kitsune system identity
-- 83 Pals and 5 sticker-sheet products loaded from current Master File
-- Recipe viewer with per-colour grouped STL, part count and grams
-- Master-data recipe resolution (does not blindly trust mismatched recipe SKUs)
-- Data Health page
-- Pals / Keyrings / Sticker Sheets pages with editable Boat & Cornwall targets
-- Production-demand page
-- Filament inventory with 250g reorder alerts
-- Build Plates, Printed Parts, Assembly, Packing and Dispatch module scaffolds
+Your existing data folder can stay as it is.
 
-## Important
-Stock is local browser data in v0.1. Shopify Admin credentials must never be placed in GitHub Pages JavaScript.
-The Shopify connection will use a secure backend/API layer.
+## Storage
+v0.2 still uses browser localStorage for operational state until the shared backend is built.

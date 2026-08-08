@@ -1,6 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Build Plates | PLA Forge</title><link rel="stylesheet" href="assets/forge.css"></head>
-<body><div class="app">
-<aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Build Plate Planner | PLA Forge</title><link rel="stylesheet" href="assets/forge.css"></head><body><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
   <div class="navgroup">Forge Control</div>
@@ -16,5 +14,31 @@
   <div class="navgroup">Administration</div>
   <a href="data-health.html">! Data Health</a>
  </nav>
-</aside>
-<main><div class="topbar"><div class="pageTitle"><h1>Build Plates</h1><div class="small">Colour-sorted print plate planning.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="card"><h2 style="margin-top:0">Module scaffold ready</h2><p class="muted">This screen is included in the v0.1 application shell and will be wired into production state in the next build.</p></div><div class="footer-note">PLA Forge v0.1 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js"></script></body></html>
+</aside><main><div class="topbar"><div class="pageTitle"><h1>Build Plate Planner</h1><div class="small">Mix any Pals that use the same filament colour on one printable plate.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div>
+<div class="grid kpis four">
+ <div class="card kpi"><div class="label">Open print demand</div><div class="value accent" id="demandKpi">0</div><div class="small">colour-group sets still required</div></div>
+ <div class="card kpi"><div class="label">Draft plates</div><div class="value" id="plannedKpi">0</div><div class="small">planned, not started</div></div>
+ <div class="card kpi"><div class="label">Printing</div><div class="value" id="printingKpi">0</div><div class="small">active plates</div></div>
+ <div class="card kpi"><div class="label">Completed plates</div><div class="value" id="completedKpi">0</div><div class="small">print history</div></div>
+</div>
+<div class="planner-layout" style="margin-top:14px">
+ <div>
+  <div class="card">
+   <div class="section-title"><h2>Colour-sorted print checklist</h2><span class="small">Demand − printed stock − active plates</span></div>
+   <div class="form-row">
+    <div class="form-field"><label>Filament colour</label><select id="plateColour"></select></div>
+    <div class="form-field"><label>Printer</label><input id="platePrinter" placeholder="e.g. P1S #1"></div>
+    <div class="form-field"><label>Plate name / note</label><input id="plateName" placeholder="Optional"></div>
+   </div>
+   <div style="overflow:auto"><table><thead><tr><th>Pal</th><th>Colour Group</th><th>Weight</th><th>Demand</th><th>Printed</th><th>On Plates</th><th>Remaining</th><th>Qty</th><th></th></tr></thead><tbody id="plateChecklist"></tbody></table></div>
+  </div>
+  <div class="card" style="margin-top:14px"><div class="section-title"><h2>Saved build plates</h2><span class="small">Draft → Printing → Complete</span></div><div class="saved-plates" id="platesList"></div></div>
+ </div>
+ <div class="card sticky-panel">
+  <div class="section-title"><h2>Current plate</h2><span id="currentPlateTotal" class="small">0 print sets · 0g</span></div>
+  <div class="current-plate" id="currentPlateItems"></div>
+  <div class="extra-part"><strong>Add an extra / recovery part</strong><div class="small" style="margin:4px 0 9px">Useful when a single part failed or you want to use spare plate space.</div><div class="extra-grid"><select id="recoveryProduct" class="select"></select><select id="recoveryFile" class="select"></select><input id="recoveryQty" class="number" type="number" min="1" value="1"><button class="btn secondary" id="addRecovery">Add</button></div></div>
+  <div class="plate-summary"><strong>Plate actions</strong><span class="small">One filament colour per plate</span></div><div class="plate-buttons"><button class="btn secondary" id="savePlate">Save Draft</button><button class="btn" id="startPlate">Start Print</button></div>
+ </div>
+</div>
+<div class="footer-note">PLA Forge v0.2 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js"></script><script>buildPlatePlanner()</script></body></html>
