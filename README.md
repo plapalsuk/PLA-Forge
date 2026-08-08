@@ -59,3 +59,9 @@ v0.2 still uses browser localStorage for operational state until the shared back
 - Exact Part expands directly below the same Pal/colour group
 - Select one specific STL and quantity
 - Exact recovery parts are stored separately in Printed Parts Inventory
+
+## v0.2.5 Build Plate hotfix
+- Fixed blank checklist caused by a stale removed recovery-panel reference
+- Exact Part buttons are now wired after the checklist rows are rendered
+- Normalised filament colour values to ignore trailing spaces from spreadsheet data
+- Added cache-busted assets v=025

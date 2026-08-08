@@ -65,21 +65,20 @@ async function dataHealth(){
  body.innerHTML=rows.map(x=>`<tr><td>${badge(x.issue,x.level)}</td><td>${esc(x.item)}</td><td>${esc(x.detail)}</td></tr>`).join('')||'<tr><td colspan="3">No data issues detected.</td></tr>';
 }
 async function filament(){
- const s=state(),rs=await load('recipes'),body=document.querySelector('#fil'),colours=[...new Set(rs.map(r=>r.filament).filter(Boolean))].sort();
+ const s=state(),rs=await load('recipes'),body=document.querySelector('#fil'),colours=[...new Set(rs.map(r=>String(r.filament||'').trim()).filter(Boolean))].sort();
  colours.forEach(c=>{if(!s.filament[c])s.filament[c]={grams:0,reorder:250}});save(s);
  function draw(){body.innerHTML=colours.map(c=>{const x=s.filament[c],low=Number(x.grams)<=Number(x.reorder);return `<tr><td><strong>${esc(c)}</strong></td><td><input class="number fg" data-c="${esc(c)}" data-k="grams" type="number" min="0" value="${x.grams}"></td><td><input class="number fg" data-c="${esc(c)}" data-k="reorder" type="number" min="0" value="${x.reorder}"></td><td>${low?badge('Order','danger'):badge('OK','ok')}</td></tr>`}).join('');document.querySelectorAll('.fg').forEach(el=>el.onchange=()=>{s.filament[el.dataset.c][el.dataset.k]=Number(el.value||0);save(s);draw()})}draw()
 }
 
 async function buildPlatePlanner(){
- const s=state(),ps=await load('products'),rs=await load('recipes'),pals=Object.fromEntries(ps.filter(p=>p.type==='pal').map(p=>[p.sku,p])),colours=[...new Set(rs.map(r=>r.filament).filter(Boolean))].sort();
+ const s=state(),ps=await load('products'),rs=await load('recipes'),pals=Object.fromEntries(ps.filter(p=>p.type==='pal').map(p=>[p.sku,p])),colours=[...new Set(rs.map(r=>String(r.filament||'').trim()).filter(Boolean))].sort();
  let plateDraft={id:null,colour:colours[0]||'',printer:'',name:'',items:[]};
  const colourEl=document.querySelector('#plateColour'),printerEl=document.querySelector('#platePrinter'),nameEl=document.querySelector('#plateName'),checklist=document.querySelector('#plateChecklist'),current=document.querySelector('#currentPlateItems'),platesList=document.querySelector('#platesList'),currentTotal=document.querySelector('#currentPlateTotal'),demandKpi=document.querySelector('#demandKpi'),plannedKpi=document.querySelector('#plannedKpi'),printingKpi=document.querySelector('#printingKpi'),completedKpi=document.querySelector('#completedKpi');
  colourEl.innerHTML=colours.map(c=>`<option>${esc(c)}</option>`).join('');
  const activePrinters=(s.printers||[]).filter(p=>p.active!==false);
  printerEl.innerHTML=activePrinters.length?activePrinters.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.model?` · ${esc(p.model)}`:''}</option>`).join(''):`<option value="">No printers configured</option>`;
  if(s.siteSettings.defaultPrinter && activePrinters.some(p=>p.id===s.siteSettings.defaultPrinter)) printerEl.value=s.siteSettings.defaultPrinter;
- recoveryProduct.innerHTML=ps.filter(p=>p.type==='pal').map(p=>`<option value="${p.sku}">${esc(p.name)} · ${p.sku}</option>`).join('');
- function drawChecklist(){const rows=rs.filter(r=>r.filament===plateDraft.colour).map(r=>{const p=pals[r.sku]||{name:r.name||r.animal||r.sku},key=groupKey(r),demand=totalNeed(s,r.sku),inv=partQty(s,key),allocated=activePlateQty(s,key),inDraft=plateDraft.items.filter(i=>i.inventory_key===key).reduce((a,i)=>a+Number(i.qty||0),0),remain=Math.max(0,demand-inv-allocated-inDraft);return{r,p,demand,inv,allocated,remain}}).sort((a,b)=>b.remain-a.remain||a.p.name.localeCompare(b.p.name));
+ function drawChecklist(){const rows=rs.filter(r=>String(r.filament||'').trim()===String(plateDraft.colour||'').trim()).map(r=>{const p=pals[r.sku]||{name:r.name||r.animal||r.sku},key=groupKey(r),demand=totalNeed(s,r.sku),inv=partQty(s,key),allocated=activePlateQty(s,key),inDraft=plateDraft.items.filter(i=>i.inventory_key===key).reduce((a,i)=>a+Number(i.qty||0),0),remain=Math.max(0,demand-inv-allocated-inDraft);return{r,p,demand,inv,allocated,remain}}).sort((a,b)=>b.remain-a.remain||a.p.name.localeCompare(b.p.name));
  checklist.innerHTML=rows.map((x,idx)=>{
  const recoveryFiles=(x.r.separate_stls||'').split(';').map(v=>v.trim()).filter(Boolean);
  return `<tr class="${x.remain===0?'dimrow':''}">
@@ -106,7 +105,7 @@ async function buildPlatePlanner(){
    </td>
  </tr>`:''}`
 }).join('')||`<tr><td colspan="11">No recipe groups use ${esc(plateDraft.colour)}.</td></tr>`;
- document.querySelectorAll('.addgroup').forEach(btn=>btn.onclick=()=>{const x=rows[Number(btn.dataset.row)],qty=Math.max(1,Number(document.querySelector('#qty'+btn.dataset.row).value||1));plateDraft.items.push({id:makeId(),kind:'group',sku:x.r.sku,product_name:x.p.name,filament:x.r.filament,label:x.r.parts,file:x.r.grouped_stl,inventory_key:groupKey(x.r),qty,weight_each:Number(x.r.weight_g||0)});drawAll()});
+ document.querySelectorAll('.addgroup').forEach(btn=>btn.onclick=()=>{const x=rows[Number(btn.dataset.row)],qty=Math.max(1,Number(document.querySelector('#qty'+btn.dataset.row).value||1));plateDraft.items.push({id:makeId(),kind:'group',sku:x.r.sku,product_name:x.p.name,filament:String(x.r.filament||'').trim(),label:x.r.parts,file:x.r.grouped_stl,inventory_key:groupKey(x.r),qty,weight_each:Number(x.r.weight_g||0)});drawAll()});
  document.querySelectorAll('.addextra').forEach(btn=>btn.onclick=()=>{
    const x=rows[Number(btn.dataset.row)];
    plateDraft.items.push({
@@ -115,8 +114,7 @@ async function buildPlatePlanner(){
      qty:1,weight_each:Number(x.r.weight_g||0),extra:true
    });
    drawAll()
- })}
- 
+ });
  document.querySelectorAll('.exactpart').forEach(btn=>btn.onclick=()=>{
    const idx=Number(btn.dataset.row), row=document.querySelector('#exact-row-'+idx);
    if(row) row.style.display=row.style.display==='none'?'table-row':'none';
@@ -130,6 +128,7 @@ async function buildPlatePlanner(){
      id:makeId(),kind:'recovery',sku:x.r.sku,product_name:x.p.name,filament:x.r.filament,
      label:file,file,inventory_key:recoveryKey(x.r.sku,file),qty,weight_each:0,exact_part:true
    });
+}
    drawAll();
  });
  function drawCurrent(){current.innerHTML=plateDraft.items.length?plateDraft.items.map(i=>`<div class="plate-line"><div><strong>${esc(i.product_name)}</strong><div class="small">${i.kind==='group'?'Required print':i.kind==='extra'?'Extra grouped set':'Exact recovery part'} · ${esc(i.label)}</div><code>${esc(i.file)}</code></div><div class="plate-line-right"><input class="number lineqty" data-id="${i.id}" type="number" min="1" value="${i.qty}"><span>${(Number(i.weight_each||0)*Number(i.qty||0)).toFixed(1)}g</span><button class="iconbtn removeitem" data-id="${i.id}">×</button></div></div>`).join(''):`<div class="empty-state">Choose a filament colour, then add colour-groups from the checklist.</div>`;
