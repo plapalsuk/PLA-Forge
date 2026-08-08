@@ -7,6 +7,7 @@ function state(){
   if(!Object.keys(s).length){try{s=JSON.parse(localStorage.getItem('plaForgeV01')||'{}')}catch(e){}}
   s.targets=s.targets||{}; s.filament=s.filament||{}; s.stock=s.stock||{}; s.parts=s.parts||{};
   s.plates=s.plates||[]; s.printHistory=s.printHistory||[]; s.failedParts=s.failedParts||[]; s.plateSeq=Number(s.plateSeq||1);
+  s.printers=s.printers||[]; s.siteSettings=s.siteSettings||{defaultPrinter:'',defaultLocation:'boat'};
   return s;
 }
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
@@ -73,7 +74,11 @@ async function buildPlatePlanner(){
  const s=state(),ps=await load('products'),rs=await load('recipes'),pals=Object.fromEntries(ps.filter(p=>p.type==='pal').map(p=>[p.sku,p])),colours=[...new Set(rs.map(r=>r.filament).filter(Boolean))].sort();
  let plateDraft={id:null,colour:colours[0]||'',printer:'',name:'',items:[]};
  const colourEl=document.querySelector('#plateColour'),printerEl=document.querySelector('#platePrinter'),nameEl=document.querySelector('#plateName'),checklist=document.querySelector('#plateChecklist'),current=document.querySelector('#currentPlateItems'),platesList=document.querySelector('#platesList'),currentTotal=document.querySelector('#currentPlateTotal'),demandKpi=document.querySelector('#demandKpi'),plannedKpi=document.querySelector('#plannedKpi'),printingKpi=document.querySelector('#printingKpi'),completedKpi=document.querySelector('#completedKpi'),recoveryProduct=document.querySelector('#recoveryProduct'),recoveryFile=document.querySelector('#recoveryFile'),recoveryQty=document.querySelector('#recoveryQty');
- colourEl.innerHTML=colours.map(c=>`<option>${esc(c)}</option>`).join('');recoveryProduct.innerHTML=ps.filter(p=>p.type==='pal').map(p=>`<option value="${p.sku}">${esc(p.name)} · ${p.sku}</option>`).join('');
+ colourEl.innerHTML=colours.map(c=>`<option>${esc(c)}</option>`).join('');
+ const activePrinters=(s.printers||[]).filter(p=>p.active!==false);
+ printerEl.innerHTML=activePrinters.length?activePrinters.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.model?` · ${esc(p.model)}`:''}</option>`).join(''):`<option value="">No printers configured</option>`;
+ if(s.siteSettings.defaultPrinter && activePrinters.some(p=>p.id===s.siteSettings.defaultPrinter)) printerEl.value=s.siteSettings.defaultPrinter;
+ recoveryProduct.innerHTML=ps.filter(p=>p.type==='pal').map(p=>`<option value="${p.sku}">${esc(p.name)} · ${p.sku}</option>`).join('');
  function setRecoveryFiles(){const sku=recoveryProduct.value,files=[];rs.filter(r=>r.sku===sku&&r.filament===plateDraft.colour&&r.separate_stls).forEach(r=>r.separate_stls.split(';').map(x=>x.trim()).filter(Boolean).forEach(file=>files.push({file})));recoveryFile.innerHTML=files.length?files.map(x=>`<option value="${esc(x.file)}">${esc(x.file)}</option>`).join(''):`<option value="">No separate recovery files for this colour</option>`}
  function drawChecklist(){const rows=rs.filter(r=>r.filament===plateDraft.colour).map(r=>{const p=pals[r.sku]||{name:r.name||r.animal||r.sku},key=groupKey(r),demand=totalNeed(s,r.sku),inv=partQty(s,key),allocated=activePlateQty(s,key),inDraft=plateDraft.items.filter(i=>i.inventory_key===key).reduce((a,i)=>a+Number(i.qty||0),0),remain=Math.max(0,demand-inv-allocated-inDraft);return{r,p,demand,inv,allocated,remain}}).sort((a,b)=>b.remain-a.remain||a.p.name.localeCompare(b.p.name));
  checklist.innerHTML=rows.map((x,idx)=>`<tr class="${x.remain===0?'dimrow':''}"><td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.r.sku}</span></td><td>${esc(x.r.parts)}</td><td>${x.r.weight_g}g</td><td>${x.demand}</td><td>${x.inv}</td><td>${x.allocated}</td><td><strong>${x.remain}</strong></td><td><input class="number addqty" id="qty${idx}" min="1" type="number" value="${Math.max(1,Math.min(x.remain||1,5))}"></td><td><button class="btn secondary addgroup" data-row="${idx}">Add</button></td></tr>`).join('')||`<tr><td colspan="9">No recipe groups use ${esc(plateDraft.colour)}.</td></tr>`;
@@ -83,7 +88,8 @@ async function buildPlatePlanner(){
  const grams=plateDraft.items.reduce((a,i)=>a+Number(i.weight_each||0)*Number(i.qty||0),0);currentTotal.textContent=`${plateDraft.items.reduce((a,i)=>a+Number(i.qty||0),0)} print set(s) · ${grams.toFixed(1)}g`}
  function drawKpis(){let openDemand=0;rs.forEach(r=>openDemand+=Math.max(0,totalNeed(s,r.sku)-partQty(s,groupKey(r))-activePlateQty(s,groupKey(r))));demandKpi.textContent=openDemand;plannedKpi.textContent=s.plates.filter(p=>p.status==='draft').length;printingKpi.textContent=s.plates.filter(p=>p.status==='printing').length;completedKpi.textContent=s.plates.filter(p=>p.status==='complete').length}
  function plateSummary(p){const grams=(p.items||[]).reduce((a,i)=>a+Number(i.weight_each||0)*Number(i.qty||0),0);return `${(p.items||[]).reduce((a,i)=>a+Number(i.qty||0),0)} set(s) · ${grams.toFixed(1)}g`}
- function drawPlates(){const items=[...s.plates].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));platesList.innerHTML=items.length?items.map(p=>`<div class="saved-plate"><div class="saved-plate-main"><div><strong>${esc(p.code)} · ${esc(p.name||p.colour)}</strong><div class="small">${esc(p.colour)} · ${esc(p.printer||'No printer assigned')} · ${plateSummary(p)}</div></div><div>${statusLabel(p.status)}</div></div><div class="saved-plate-items">${(p.items||[]).map(i=>`<span>${esc(i.product_name)} ×${i.qty}</span>`).join('')}</div><div class="plate-actions">${p.status==='draft'?`<button class="btn secondary loadplate" data-id="${p.id}">Edit</button><button class="btn startplate" data-id="${p.id}">Start Print</button>`:''}${p.status==='printing'?`<button class="btn completeplate" data-id="${p.id}">Complete Print</button>`:''}${p.status!=='complete'?`<button class="btn ghost cancelplate" data-id="${p.id}">Cancel</button>`:''}${p.status==='complete'?`<span class="small">Completed ${fmtDate(p.completed_at)}</span>`:''}</div><div class="completion-panel" id="complete-${p.id}"></div></div>`).join(''):`<div class="empty-state">No build plates yet.</div>`;
+ function printerLabel(id){const pr=(s.printers||[]).find(x=>x.id===id);return pr?`${pr.name}${pr.model?` · ${pr.model}`:''}`:'No printer assigned'}
+ function drawPlates(){const items=[...s.plates].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));platesList.innerHTML=items.length?items.map(p=>`<div class="saved-plate"><div class="saved-plate-main"><div><strong>${esc(p.code)} · ${esc(p.name||p.colour)}</strong><div class="small">${esc(p.colour)} · ${esc(printerLabel(p.printer))} · ${plateSummary(p)}</div></div><div>${statusLabel(p.status)}</div></div><div class="saved-plate-items">${(p.items||[]).map(i=>`<span>${esc(i.product_name)} ×${i.qty}</span>`).join('')}</div><div class="plate-actions">${p.status==='draft'?`<button class="btn secondary loadplate" data-id="${p.id}">Edit</button><button class="btn startplate" data-id="${p.id}">Start Print</button>`:''}${p.status==='printing'?`<button class="btn completeplate" data-id="${p.id}">Complete Print</button>`:''}${p.status!=='complete'?`<button class="btn ghost cancelplate" data-id="${p.id}">Cancel</button>`:''}${p.status==='complete'?`<span class="small">Completed ${fmtDate(p.completed_at)}</span>`:''}</div><div class="completion-panel" id="complete-${p.id}"></div></div>`).join(''):`<div class="empty-state">No build plates yet.</div>`;
  document.querySelectorAll('.loadplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(!p)return;plateDraft=JSON.parse(JSON.stringify(p));s.plates=s.plates.filter(x=>x.id!==p.id);save(s);colourEl.value=plateDraft.colour;printerEl.value=plateDraft.printer||'';nameEl.value=plateDraft.name||'';drawAll()});
  document.querySelectorAll('.startplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(p){p.status='printing';p.started_at=new Date().toISOString();save(s);drawAll()}});
  document.querySelectorAll('.cancelplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(p){p.status='cancelled';save(s);drawAll()}});
@@ -105,4 +111,68 @@ async function printedParts(){
  const shown=rows.filter(x=>`${x.name} ${x.sku} ${x.filament} ${x.label}`.toLowerCase().includes(text));body.innerHTML=shown.length?shown.map(x=>`<tr><td><strong>${esc(x.name)}</strong><br><span class="sku">${x.sku}</span></td><td>${badge(x.kind,x.kind==='Grouped set'?'ok':'info')}</td><td>${esc(x.filament)}</td><td>${esc(x.label)}</td><td><strong>${x.qty}</strong></td><td><button class="iconbtn adjust" data-key="${esc(x.key)}" data-d="-1">−</button> <button class="iconbtn adjust" data-key="${esc(x.key)}" data-d="1">+</button></td></tr>`).join(''):`<tr><td colspan="6">No printed-part inventory yet. Complete a build plate to add stock.</td></tr>`;
  document.querySelectorAll('.adjust').forEach(b=>b.onclick=()=>{s.parts[b.dataset.key]=Math.max(0,partQty(s,b.dataset.key)+Number(b.dataset.d));save(s);draw()});failures.innerHTML=s.failedParts.slice().reverse().slice(0,20).map(x=>`<tr><td>${esc(x.plate_code)}</td><td>${esc(x.product_name)}</td><td>${esc(x.filament)}</td><td>${esc(x.label)}</td><td>${x.qty}</td><td>${fmtDate(x.created_at)}</td></tr>`).join('')||'<tr><td colspan="6">No failed parts recorded.</td></tr>'}
  q.oninput=draw;draw()
+}
+
+
+async function settingsPage(){
+ const s=state();
+ const rows=document.querySelector('#printerRows');
+ const name=document.querySelector('#printerName');
+ const model=document.querySelector('#printerModel');
+ const nozzle=document.querySelector('#printerNozzle');
+ const buildX=document.querySelector('#printerBuildX');
+ const buildY=document.querySelector('#printerBuildY');
+ const buildZ=document.querySelector('#printerBuildZ');
+ const addBtn=document.querySelector('#addPrinter');
+ const defaultPrinter=document.querySelector('#defaultPrinter');
+
+ function render(){
+   rows.innerHTML=(s.printers||[]).length?s.printers.map(p=>`
+     <tr>
+       <td><strong>${esc(p.name)}</strong><br><span class="sku">${esc(p.id)}</span></td>
+       <td>${esc(p.model||'—')}</td>
+       <td>${esc(p.nozzle||'—')}</td>
+       <td>${p.build_x||'—'} × ${p.build_y||'—'} × ${p.build_z||'—'} mm</td>
+       <td>${p.active!==false?badge('Active','ok'):badge('Disabled','danger')}</td>
+       <td>
+         <button class="iconbtn togglePrinter" data-id="${p.id}">${p.active!==false?'Disable':'Enable'}</button>
+         <button class="iconbtn deletePrinter" data-id="${p.id}">Delete</button>
+       </td>
+     </tr>`).join(''):`<tr><td colspan="6">No printers have been added yet.</td></tr>`;
+
+   const active=s.printers.filter(p=>p.active!==false);
+   defaultPrinter.innerHTML=`<option value="">No default</option>`+active.map(p=>`<option value="${p.id}">${esc(p.name)}${p.model?` · ${esc(p.model)}`:''}</option>`).join('');
+   defaultPrinter.value=s.siteSettings.defaultPrinter||'';
+
+   document.querySelectorAll('.togglePrinter').forEach(b=>b.onclick=()=>{
+     const p=s.printers.find(x=>x.id===b.dataset.id);
+     if(p){p.active=p.active===false?true:false;save(s);render()}
+   });
+   document.querySelectorAll('.deletePrinter').forEach(b=>b.onclick=()=>{
+     s.printers=s.printers.filter(x=>x.id!==b.dataset.id);
+     if(s.siteSettings.defaultPrinter===b.dataset.id)s.siteSettings.defaultPrinter='';
+     save(s);render()
+   });
+ }
+
+ addBtn.onclick=()=>{
+   const n=(name.value||'').trim();
+   if(!n){alert('Enter a printer name.');return}
+   const id='PRN-'+String((s.printers.length+1)).padStart(3,'0')+'-'+Date.now().toString(36).slice(-4);
+   s.printers.push({
+     id,name:n,model:(model.value||'').trim(),nozzle:(nozzle.value||'').trim(),
+     build_x:Number(buildX.value||0),build_y:Number(buildY.value||0),build_z:Number(buildZ.value||0),
+     active:true
+   });
+   save(s);
+   [name,model,nozzle,buildX,buildY,buildZ].forEach(el=>el.value='');
+   render();
+ };
+
+ defaultPrinter.onchange=()=>{
+   s.siteSettings.defaultPrinter=defaultPrinter.value;
+   save(s);
+ };
+
+ render();
 }

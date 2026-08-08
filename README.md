@@ -28,3 +28,13 @@ Your existing data folder can stay as it is.
 
 ## Storage
 v0.2 still uses browser localStorage for operational state until the shared backend is built.
+
+
+## v0.2.1 Settings upgrade
+
+- New site-wide `Settings` page
+- Add / disable / delete printers
+- Store printer name, model, nozzle and build volume
+- Choose a default printer
+- Build Plate Planner now pulls its printer dropdown from Settings
+- No more free-text printer names on plates

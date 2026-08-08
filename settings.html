@@ -1,0 +1,50 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css"></head>
+<body><div class="app"><aside class="sidebar">
+ <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
+ <nav class="nav">
+  <div class="navgroup">Forge Control</div>
+  <a href="index.html">⌂ Dashboard</a>
+  <div class="navgroup">Inventory</div>
+  <a href="pals.html">◆ Pals</a><a href="keyrings.html">◇ Keyrings</a><a href="stickers.html">▣ Sticker Sheets</a>
+  <div class="navgroup">The Workshop</div>
+  <a href="production.html">⚙ Production Planner</a><a href="recipes.html">⌘ Recipes</a><a href="plates.html">▱ Build Plates</a><a href="parts.html">◫ Printed Parts</a><a href="assembly.html">⌁ The Bench</a>
+  <div class="navgroup">Packing & Dispatch</div>
+  <a href="packaging.html">□ Packing Station</a><a href="deliveries.html">⇢ Dispatch</a>
+  <div class="navgroup">Materials</div>
+  <a href="filament.html">≋ Filament</a>
+  <div class="navgroup">Administration</div>
+  <a href="data-health.html">! Data Health</a><a href="settings.html">⚙ Settings</a>
+ </nav>
+</aside><main><div class="topbar"><div class="pageTitle"><h1>Settings</h1><div class="small">Site-wide configuration for PLA Forge.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Configure once. Use everywhere.</div></div></div></div>
+<div class="settings-grid">
+  <div class="card">
+    <div class="section-title"><h2>Printers</h2><span class="small">Site-wide printer register</span></div>
+    <div class="settings-form">
+      <div><label class="small">Printer name</label><input id="printerName" placeholder="e.g. P1S #1"></div>
+      <div><label class="small">Model</label><input id="printerModel" placeholder="e.g. Bambu Lab P1S"></div>
+      <div><label class="small">Nozzle</label><input id="printerNozzle" placeholder="e.g. 0.4mm"></div>
+      <div><label class="small">Build X (mm)</label><input id="printerBuildX" type="number" placeholder="256"></div>
+      <div><label class="small">Build Y (mm)</label><input id="printerBuildY" type="number" placeholder="256"></div>
+      <div><label class="small">Build Z (mm)</label><input id="printerBuildZ" type="number" placeholder="256"></div>
+      <div class="wide"><button class="btn" id="addPrinter">Add Printer</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title"><h2>Defaults</h2><span class="small">Used across PLA Forge</span></div>
+    <label class="small">Default printer</label>
+    <select id="defaultPrinter" class="select" style="width:100%;margin-top:6px"></select>
+    <div class="listitem" style="margin-top:14px">
+      <strong>Future settings</strong>
+      <span class="muted">Locations, filament defaults, packaging levels, Shopify connection and user permissions will live here too.</span>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:auto;margin-top:14px">
+  <table>
+    <thead><tr><th>Printer</th><th>Model</th><th>Nozzle</th><th>Build Volume</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody id="printerRows"></tbody>
+  </table>
+</div>
+<div class="footer-note">PLA Forge v0.2.1 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js"></script><script>settingsPage()</script></body></html>
