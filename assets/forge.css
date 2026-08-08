@@ -159,3 +159,20 @@ option{background:#151a20;color:#f6f7f9}
 .assembly-actions label{display:flex;align-items:center;gap:7px}
 .assembly-actions .number{width:65px}
 button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
+
+/* v0.3.1 The Bench layout */
+.bench-main{min-width:0;width:100%;max-width:none!important}
+.bench-topbar{width:100%}
+.bench-kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
+.bench-toolbar{display:grid;grid-template-columns:minmax(260px,1fr) 210px;gap:10px;margin:14px 0}
+.bench-toolbar .search,.bench-toolbar .select{width:100%}
+.bench-queue,.bench-history{width:100%;box-sizing:border-box}
+.bench-history{margin-top:14px}
+.assembly-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.assembly-card{min-width:0}
+.assembly-part span{min-width:0;overflow-wrap:anywhere}
+@media(max-width:1250px){.assembly-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:850px){
+ .bench-kpis,.assembly-grid{grid-template-columns:1fr!important}
+ .bench-toolbar{grid-template-columns:1fr}
+}

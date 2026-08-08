@@ -502,9 +502,9 @@ async function settingsPage(){
 async function assemblyPage(){
  const s=state(), ps=await load('products'), rs=await load('recipes');
  const pals=ps.filter(p=>p.type==='pal');
- const q=document.querySelector('#q'), readyBox=document.querySelector('#assemblyReady'),
+ const q=document.querySelector('#q'), filter=document.querySelector('#assemblyFilter'), readyBox=document.querySelector('#assemblyReady'),
        history=document.querySelector('#assemblyHistory'), kpiReady=document.querySelector('#assemblyReadyKpi'),
-       kpiAssembled=document.querySelector('#assembledKpi');
+       kpiAssembled=document.querySelector('#assembledKpi'), kpiWaiting=document.querySelector('#assemblyWaitingKpi');
 
  function recipeGroups(sku){return rs.filter(r=>r.sku===sku)}
  function readyQty(p){
@@ -520,13 +520,18 @@ async function assemblyPage(){
  }
  function render(){
    const text=(q.value||'').toLowerCase();
-   const data=pals.map(p=>({p,ready:readyQty(p),groups:missingSummary(p)}))
-     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
-     .sort((a,b)=>b.ready-a.ready||a.p.name.localeCompare(b.p.name));
+   let data=pals.map(p=>({p,ready:readyQty(p),groups:missingSummary(p)}))
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
+   const mode=filter?.value||'all';
+   if(mode==='ready')data=data.filter(x=>x.ready>0);
+   if(mode==='waiting')data=data.filter(x=>x.ready<=0);
+   data.sort((a,b)=>b.ready-a.ready||a.p.name.localeCompare(b.p.name));
 
-   const totalReady=data.reduce((a,x)=>a+x.ready,0);
+   const allData=pals.map(p=>({p,ready:readyQty(p)}));
+   const totalReady=allData.reduce((a,x)=>a+x.ready,0);
    kpiReady.textContent=totalReady;
    kpiAssembled.textContent=Object.values(s.assembled).reduce((a,b)=>a+Number(b||0),0);
+   if(kpiWaiting)kpiWaiting.textContent=allData.filter(x=>x.ready<=0).length;
 
    readyBox.innerHTML=data.map(x=>`<div class="assembly-card ${x.ready>0?'ready':'not-ready'}">
      <div class="assembly-card-head">
@@ -558,5 +563,5 @@ async function assemblyPage(){
 
    history.innerHTML=s.assemblyHistory.slice().reverse().slice(0,30).map(h=>`<tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>${h.qty}</td></tr>`).join('')||'<tr><td colspan="3">No Pals assembled yet.</td></tr>';
  }
- q.oninput=render; render();
+ q.oninput=render; if(filter)filter.onchange=render; render();
 }
