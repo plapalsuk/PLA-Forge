@@ -1,0 +1,24 @@
+
+:root{
+ --bg:#0d1014; --panel:#151a20; --panel2:#1b2129; --line:#2b323c;
+ --text:#f6f7f9; --muted:#929aa6; --orange:#ff6a00; --orange2:#ff9633;
+ --good:#43c17a; --warn:#f4b942; --bad:#f05c63; --blue:#48a8ff;
+}
+*{box-sizing:border-box} html{background:var(--bg)} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+a{color:inherit;text-decoration:none}.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+.sidebar{background:#0a0d11;border-right:1px solid var(--line);padding:20px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;gap:12px;align-items:center;padding:4px 8px 20px}.fox{width:48px;height:48px;border:1px solid #5f452e;background:linear-gradient(145deg,#19120d,#0f1114);border-radius:14px;display:grid;place-items:center;font-size:28px;box-shadow:inset 0 0 24px rgba(255,106,0,.12)}
+.wordmark{font-weight:900;font-size:20px;letter-spacing:.02em}.wordmark b{color:var(--orange)}.tag{font-size:9px;color:var(--muted);letter-spacing:.12em;margin-top:3px}
+.navgroup{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#646d79;margin:18px 10px 7px}.nav a{display:flex;gap:10px;align-items:center;padding:10px 11px;border-radius:9px;color:#c6ccd4;margin:2px 0}.nav a:hover,.nav a.active{background:#1b2027;color:#fff}.nav a.active{border-left:3px solid var(--orange)}
+main{padding:26px 28px;min-width:0}.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}.topbar h1{font-size:28px;margin:0}.small{color:var(--muted);font-size:13px}.kitsu{background:linear-gradient(90deg,rgba(255,106,0,.12),rgba(255,106,0,.02));border:1px solid rgba(255,106,0,.25);border-radius:14px;padding:13px 16px;display:flex;gap:12px;align-items:center;max-width:560px}
+.grid{display:grid;gap:14px}.kpis{grid-template-columns:repeat(5,minmax(130px,1fr))}.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:16px}.kpi .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}.kpi .value{font-size:28px;font-weight:850;margin:5px 0}.accent{color:var(--orange)}
+.two{grid-template-columns:1.2fr .8fr;margin-top:14px}.section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.section-title h2{font-size:17px;margin:0}
+table{width:100%;border-collapse:collapse}th{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px;border-bottom:1px solid var(--line)}td{padding:11px 10px;border-bottom:1px solid #252c34;font-size:13px}tr:hover td{background:#171d24}
+.badge{display:inline-block;padding:4px 7px;border-radius:999px;font-size:10px;font-weight:750}.ok{background:rgba(67,193,122,.12);color:#64db94}.warning{background:rgba(244,185,66,.12);color:#ffd16c}.danger{background:rgba(240,92,99,.12);color:#ff858b}.info{background:rgba(72,168,255,.12);color:#79bcff}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.search,.select,.number{background:#11161c;border:1px solid var(--line);color:#fff;padding:9px 11px;border-radius:9px}.search{min-width:280px}.number{width:76px}.btn{background:var(--orange);border:0;color:#fff;padding:9px 12px;border-radius:8px;font-weight:750;cursor:pointer}.btn.secondary{background:#252c35}.btn:hover{filter:brightness(1.08)}
+.list{display:flex;flex-direction:column;gap:8px}.listitem{padding:11px;border:1px solid var(--line);background:#12171d;border-radius:10px}.listitem strong{display:block;margin-bottom:3px}.muted{color:var(--muted)}
+.product-name{font-weight:700}.sku{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--orange2);font-size:11px}
+.coverage{height:7px;background:#252b33;border-radius:999px;overflow:hidden;margin-top:9px}.coverage span{display:block;height:100%;background:var(--orange)}
+.recipe-grid{grid-template-columns:repeat(3,minmax(220px,1fr))}.recipe-card h3{margin:0 0 4px}.recipe-card .colour{color:var(--orange2);font-weight:750}.recipe-card code{font-size:10px;color:#b7bec8;word-break:break-all}
+.footer-note{margin-top:20px;color:#69727e;font-size:11px}
+@media(max-width:1050px){.app{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.kpis{grid-template-columns:repeat(2,1fr)}.two,.recipe-grid{grid-template-columns:1fr}}
