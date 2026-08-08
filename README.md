@@ -75,3 +75,11 @@ v0.2 still uses browser localStorage for operational state until the shared back
 - Enter failed quantity against the exact STL that went wrong
 - Good parts from an incomplete grouped set are automatically saved into Recovery Parts inventory
 - Failed exact parts are recorded in Failed Prints so they can be added back to a future plate
+
+## v0.3.0 Assembly
+- Assembly Queue calculates how many complete Pals can be built from Printed Parts Inventory
+- The lowest available recipe colour-group determines Ready to Assemble quantity
+- Assemble any quantity up to the available amount
+- Assembly consumes the required grouped printed parts automatically
+- Completed Pals move into Assembled Pals stock ready for Packaging
+- Assembly History records each transaction

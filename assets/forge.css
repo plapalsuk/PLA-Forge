@@ -145,3 +145,17 @@ option{background:#151a20;color:#f6f7f9}
 .part-failure-row{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#171d24;padding:8px 9px;border-radius:8px}
 .part-failure-row span{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#c4cad2;word-break:break-all}
 .completion-summary-note{padding:11px;border-radius:9px;background:#191c20;border:1px solid #303640;margin:12px 0}
+
+/* v0.3.0 Assembly */
+.assembly-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:11px;margin-top:12px}
+.assembly-card{background:#11161c;border:1px solid var(--line);border-radius:12px;padding:13px}
+.assembly-card.ready{border-color:rgba(56,190,112,.35)}
+.assembly-card.not-ready{opacity:.68}
+.assembly-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.assembly-parts{margin:12px 0;display:flex;flex-direction:column;gap:5px}
+.assembly-part{display:flex;justify-content:space-between;gap:10px;background:#171d24;border-radius:7px;padding:7px 8px;font-size:10px}
+.assembly-part span{color:#aeb6c0}
+.assembly-actions{display:flex;justify-content:flex-end;align-items:flex-end;gap:8px;border-top:1px solid #252c34;padding-top:10px}
+.assembly-actions label{display:flex;align-items:center;gap:7px}
+.assembly-actions .number{width:65px}
+button:disabled,input:disabled{opacity:.4;cursor:not-allowed}

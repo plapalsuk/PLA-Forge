@@ -8,6 +8,7 @@ function state(){
   s.targets=s.targets||{}; s.filament=s.filament||{}; s.stock=s.stock||{}; s.parts=s.parts||{};
   s.plates=s.plates||[]; s.printHistory=s.printHistory||[]; s.failedParts=s.failedParts||[]; s.plateSeq=Number(s.plateSeq||1);
   s.printers=s.printers||[]; s.siteSettings=s.siteSettings||{defaultPrinter:'',defaultLocation:'boat'};
+  s.assembled=s.assembled||{}; s.assemblyHistory=s.assemblyHistory||[];
   return s;
 }
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
@@ -495,4 +496,67 @@ async function settingsPage(){
  });
  defaultPrinter.addEventListener('change',()=>{s.siteSettings.defaultPrinter=defaultPrinter.value;save(s);flash('Default printer updated','ok')});
  render();
+}
+
+
+async function assemblyPage(){
+ const s=state(), ps=await load('products'), rs=await load('recipes');
+ const pals=ps.filter(p=>p.type==='pal');
+ const q=document.querySelector('#q'), readyBox=document.querySelector('#assemblyReady'),
+       history=document.querySelector('#assemblyHistory'), kpiReady=document.querySelector('#assemblyReadyKpi'),
+       kpiAssembled=document.querySelector('#assembledKpi');
+
+ function recipeGroups(sku){return rs.filter(r=>r.sku===sku)}
+ function readyQty(p){
+   const groups=recipeGroups(p.sku);
+   if(!groups.length)return 0;
+   return Math.max(0,Math.min(...groups.map(r=>partQty(s,groupKey(r)))));
+ }
+ function missingSummary(p){
+   return recipeGroups(p.sku).map(r=>{
+     const have=partQty(s,groupKey(r));
+     return {r,have};
+   });
+ }
+ function render(){
+   const text=(q.value||'').toLowerCase();
+   const data=pals.map(p=>({p,ready:readyQty(p),groups:missingSummary(p)}))
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
+     .sort((a,b)=>b.ready-a.ready||a.p.name.localeCompare(b.p.name));
+
+   const totalReady=data.reduce((a,x)=>a+x.ready,0);
+   kpiReady.textContent=totalReady;
+   kpiAssembled.textContent=Object.values(s.assembled).reduce((a,b)=>a+Number(b||0),0);
+
+   readyBox.innerHTML=data.map(x=>`<div class="assembly-card ${x.ready>0?'ready':'not-ready'}">
+     <div class="assembly-card-head">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       ${x.ready>0?badge(`${x.ready} Ready`,'ok'):badge('Waiting for parts','warning')}
+     </div>
+     <div class="assembly-parts">
+       ${x.groups.map(g=>`<div class="assembly-part"><span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span><strong>${g.have}</strong></div>`).join('')||'<div class="small">No recipe available.</div>'}
+     </div>
+     <div class="assembly-actions">
+       <label><span class="small">Assemble Qty</span><input class="number assembleQty" id="assemble-${x.p.sku}" type="number" min="1" max="${Math.max(1,x.ready)}" value="${x.ready>0?1:0}" ${x.ready<=0?'disabled':''}></label>
+       <button class="btn assembleBtn" data-sku="${x.p.sku}" ${x.ready<=0?'disabled':''}>Assemble</button>
+     </div>
+   </div>`).join('');
+
+   document.querySelectorAll('.assembleBtn').forEach(btn=>btn.onclick=()=>{
+     const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku);
+     const available=readyQty(p);
+     const qty=Math.max(1,Math.min(available,Number(document.querySelector('#assemble-'+sku)?.value||1)));
+     if(!available||qty>available)return;
+     recipeGroups(sku).forEach(r=>{
+       const key=groupKey(r);
+       s.parts[key]=Math.max(0,partQty(s,key)-qty);
+     });
+     s.assembled[sku]=Number(s.assembled[sku]||0)+qty;
+     s.assemblyHistory.push({id:makeId(),sku,name:p.name,qty,created_at:new Date().toISOString()});
+     save(s);render();
+   });
+
+   history.innerHTML=s.assemblyHistory.slice().reverse().slice(0,30).map(h=>`<tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>${h.qty}</td></tr>`).join('')||'<tr><td colspan="3">No Pals assembled yet.</td></tr>';
+ }
+ q.oninput=render; render();
 }
