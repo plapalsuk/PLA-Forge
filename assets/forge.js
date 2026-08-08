@@ -500,11 +500,20 @@ async function settingsPage(){
 
 
 async function assemblyPage(){
- const s=state(), ps=await load('products'), rs=await load('recipes');
+ const s=state();
+ const ps=await load('products');
+ const rs=await load('recipes');
  const pals=ps.filter(p=>p.type==='pal');
- const q=document.querySelector('#q'), filter=document.querySelector('#assemblyFilter'), readyBox=document.querySelector('#assemblyReady'),
-       history=document.querySelector('#assemblyHistory'), kpiReady=document.querySelector('#assemblyReadyKpi'),
-       kpiAssembled=document.querySelector('#assembledKpi'), kpiWaiting=document.querySelector('#assemblyWaitingKpi');
+
+ const q=document.querySelector('#q');
+ const readyBox=document.querySelector('#assemblyReady');
+ const awaitingBox=document.querySelector('#assemblyAwaiting');
+ const history=document.querySelector('#assemblyHistory');
+ const kpiReady=document.querySelector('#assemblyReadyKpi');
+ const kpiAssembled=document.querySelector('#assembledKpi');
+ const kpiWaiting=document.querySelector('#assemblyWaitingKpi');
+ const readySectionCount=document.querySelector('#readySectionCount');
+ const awaitingSectionCount=document.querySelector('#awaitingSectionCount');
 
  function recipeGroups(sku){return rs.filter(r=>r.sku===sku)}
  function readyQty(p){
@@ -512,56 +521,98 @@ async function assemblyPage(){
    if(!groups.length)return 0;
    return Math.max(0,Math.min(...groups.map(r=>partQty(s,groupKey(r)))));
  }
- function missingSummary(p){
-   return recipeGroups(p.sku).map(r=>{
-     const have=partQty(s,groupKey(r));
-     return {r,have};
-   });
+ function requiredQty(p){
+   return totalNeed(s,p.sku);
  }
- function render(){
-   const text=(q.value||'').toLowerCase();
-   let data=pals.map(p=>({p,ready:readyQty(p),groups:missingSummary(p)}))
-     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
-   const mode=filter?.value||'all';
-   if(mode==='ready')data=data.filter(x=>x.ready>0);
-   if(mode==='waiting')data=data.filter(x=>x.ready<=0);
-   data.sort((a,b)=>b.ready-a.ready||a.p.name.localeCompare(b.p.name));
-
-   const allData=pals.map(p=>({p,ready:readyQty(p)}));
-   const totalReady=allData.reduce((a,x)=>a+x.ready,0);
-   kpiReady.textContent=totalReady;
-   kpiAssembled.textContent=Object.values(s.assembled).reduce((a,b)=>a+Number(b||0),0);
-   if(kpiWaiting)kpiWaiting.textContent=allData.filter(x=>x.ready<=0).length;
-
-   readyBox.innerHTML=data.map(x=>`<div class="assembly-card ${x.ready>0?'ready':'not-ready'}">
+ function groupStock(p){
+   return recipeGroups(p.sku).map(r=>({
+     r,
+     have:partQty(s,groupKey(r)),
+     required:requiredQty(p)
+   }));
+ }
+ function cardHtml(x,isReady){
+   const productionNeed=requiredQty(x.p);
+   return `<div class="assembly-card ${isReady?'ready':'not-ready'}">
      <div class="assembly-card-head">
        <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${x.ready>0?badge(`${x.ready} Ready`,'ok'):badge('Waiting for parts','warning')}
+       ${isReady?badge(`${x.ready} Ready`,'ok'):badge(`Need ${productionNeed}`,'warning')}
      </div>
      <div class="assembly-parts">
-       ${x.groups.map(g=>`<div class="assembly-part"><span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span><strong>${g.have}</strong></div>`).join('')||'<div class="small">No recipe available.</div>'}
+       ${x.groups.map(g=>`<div class="assembly-part ${g.have<=0?'missing':''}">
+         <span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span>
+         <strong>${g.have}</strong>
+       </div>`).join('')||'<div class="small">No recipe available.</div>'}
      </div>
-     <div class="assembly-actions">
-       <label><span class="small">Assemble Qty</span><input class="number assembleQty" id="assemble-${x.p.sku}" type="number" min="1" max="${Math.max(1,x.ready)}" value="${x.ready>0?1:0}" ${x.ready<=0?'disabled':''}></label>
-       <button class="btn assembleBtn" data-sku="${x.p.sku}" ${x.ready<=0?'disabled':''}>Assemble</button>
-     </div>
-   </div>`).join('');
+     ${isReady?`<div class="assembly-actions">
+       <label><span class="small">Assemble Qty</span><input class="number assembleQty" id="assemble-${x.p.sku}" type="number" min="1" max="${x.ready}" value="1"></label>
+       <button class="btn assembleBtn" data-sku="${x.p.sku}">Assemble</button>
+     </div>`:`<div class="awaiting-note"><span class="small">Production Planner requires ${productionNeed}. Waiting for missing printed parts.</span></div>`}
+   </div>`;
+ }
+
+ function render(){
+   const text=(q.value||'').toLowerCase();
+
+   const all=pals.map(p=>({
+     p,
+     ready:readyQty(p),
+     required:requiredQty(p),
+     groups:groupStock(p)
+   }));
+
+   // User rule:
+   // 1) Show if it can be assembled now.
+   // 2) Otherwise only show if Production Planner currently requires it.
+   // 3) Hide everything else.
+   const ready=all
+     .filter(x=>x.ready>0)
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
+     .sort((a,b)=>b.ready-a.ready||a.p.name.localeCompare(b.p.name));
+
+   const awaiting=all
+     .filter(x=>x.ready<=0 && x.required>0)
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
+     .sort((a,b)=>b.required-a.required||a.p.name.localeCompare(b.p.name));
+
+   const totalReady=all.filter(x=>x.ready>0).reduce((a,x)=>a+x.ready,0);
+   kpiReady.textContent=totalReady;
+   kpiAssembled.textContent=Object.values(s.assembled||{}).reduce((a,b)=>a+Number(b||0),0);
+   kpiWaiting.textContent=all.filter(x=>x.ready<=0 && x.required>0).length;
+   readySectionCount.textContent=`${ready.length} Ready`;
+   awaitingSectionCount.textContent=`${awaiting.length} Awaiting`;
+
+   readyBox.innerHTML=ready.length
+     ? ready.map(x=>cardHtml(x,true)).join('')
+     : '<div class="bench-empty">No Pals are ready to assemble yet.</div>';
+
+   awaitingBox.innerHTML=awaiting.length
+     ? awaiting.map(x=>cardHtml(x,false)).join('')
+     : '<div class="bench-empty">Nothing from the Production Planner is currently awaiting parts.</div>';
 
    document.querySelectorAll('.assembleBtn').forEach(btn=>btn.onclick=()=>{
-     const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku);
+     const sku=btn.dataset.sku;
+     const p=pals.find(x=>x.sku===sku);
      const available=readyQty(p);
      const qty=Math.max(1,Math.min(available,Number(document.querySelector('#assemble-'+sku)?.value||1)));
      if(!available||qty>available)return;
+
      recipeGroups(sku).forEach(r=>{
        const key=groupKey(r);
        s.parts[key]=Math.max(0,partQty(s,key)-qty);
      });
+
      s.assembled[sku]=Number(s.assembled[sku]||0)+qty;
      s.assemblyHistory.push({id:makeId(),sku,name:p.name,qty,created_at:new Date().toISOString()});
-     save(s);render();
+     save(s);
+     render();
    });
 
-   history.innerHTML=s.assemblyHistory.slice().reverse().slice(0,30).map(h=>`<tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>${h.qty}</td></tr>`).join('')||'<tr><td colspan="3">No Pals assembled yet.</td></tr>';
+   history.innerHTML=(s.assemblyHistory||[]).slice().reverse().slice(0,30).map(h=>`
+     <tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>${h.qty}</td></tr>
+   `).join('')||'<tr><td colspan="3">No Pals assembled yet.</td></tr>';
  }
- q.oninput=render; if(filter)filter.onchange=render; render();
+
+ q.oninput=render;
+ render();
 }

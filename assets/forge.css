@@ -176,3 +176,11 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
  .bench-kpis,.assembly-grid{grid-template-columns:1fr!important}
  .bench-toolbar{grid-template-columns:1fr}
 }
+
+/* v0.3.2 Bench Ready / Awaiting */
+.ready-section{border-color:rgba(67,193,122,.22)}
+.awaiting-section{margin-top:14px;border-color:rgba(244,185,66,.18)}
+.awaiting-note{border-top:1px solid #252c34;padding-top:10px;margin-top:10px;color:var(--muted)}
+.assembly-part.missing{border:1px solid rgba(244,185,66,.18);background:rgba(244,185,66,.045)}
+.assembly-part.missing strong{color:var(--warn)}
+.bench-empty{grid-column:1/-1;padding:26px;text-align:center;color:var(--muted);border:1px dashed #303944;border-radius:10px}
