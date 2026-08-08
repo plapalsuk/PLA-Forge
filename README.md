@@ -67,3 +67,11 @@ v0.2 still uses browser localStorage for operational state until the shared back
 - Colours are prioritised by outstanding quantity
 - Clicking a colour selects it in the existing detailed checklist below
 - Existing Add / + Extra / Exact Part workflow remains unchanged
+
+## v0.2.8 Granular Print Completion
+- Complete Print can now record an individual failed STL inside a grouped print
+- Full grouped sets passed are still recorded normally
+- `Individual Part Problem` expands the recovery STL list for that colour group
+- Enter failed quantity against the exact STL that went wrong
+- Good parts from an incomplete grouped set are automatically saved into Recovery Parts inventory
+- Failed exact parts are recorded in Failed Prints so they can be added back to a future plate

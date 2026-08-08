@@ -231,16 +231,181 @@ async function buildPlatePlanner(){
    document.querySelectorAll('.cancelplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(p){p.status='cancelled';save(s);drawAll()}});
    document.querySelectorAll('.completeplate').forEach(b=>b.onclick=()=>openCompletion(b.dataset.id));
  }
+
+ function recipeForPlateItem(item){
+   return rs.find(r=>r.sku===item.sku && String(r.filament||'').trim()===String(item.filament||'').trim() && r.grouped_stl===item.file)
+     || rs.find(r=>r.sku===item.sku && String(r.filament||'').trim()===String(item.filament||'').trim());
+ }
+ function recoveryFilesForItem(item){
+   const r=recipeForPlateItem(item);
+   return String(r?.separate_stls||'').split(';').map(v=>v.trim()).filter(Boolean);
+ }
+
  function openCompletion(id){
-   const p=s.plates.find(x=>x.id===id),panel=document.querySelector('#complete-'+id);if(!p||!panel)return;
-   panel.innerHTML=`<div class="completion-box"><strong>Confirm successful prints</strong><div class="small">Enter how many passed inspection.</div>${(p.items||[]).map(i=>`<div class="completion-line"><div><strong>${esc(i.product_name)}</strong><div class="small">${esc(i.label)}</div></div><div>Planned ${i.qty}</div><label>Passed <input class="number passqty" data-item="${i.id}" type="number" min="0" max="${i.qty}" value="${i.qty}"></label></div>`).join('')}<button class="btn confirmcomplete">Confirm Completion</button></div>`;
+   const p=s.plates.find(x=>x.id===id),panel=document.querySelector('#complete-'+id);
+   if(!p||!panel)return;
+
+   panel.innerHTML=`<div class="completion-box">
+     <div class="completion-head">
+       <div>
+         <strong>Confirm print result</strong>
+         <div class="small">Confirm full grouped sets, or record a problem with one exact part.</div>
+       </div>
+     </div>
+     ${(p.items||[]).map((i,idx)=>{
+       const files=i.kind==='recovery'?[i.file]:recoveryFilesForItem(i);
+       return `<div class="completion-item" data-item="${i.id}">
+         <div class="completion-item-top">
+           <div>
+             <strong>${esc(i.product_name)}</strong>
+             <div class="small">${esc(i.label)} · ${esc(i.filament)}</div>
+           </div>
+           <div class="completion-planned">Planned <strong>${i.qty}</strong></div>
+         </div>
+
+         <div class="completion-controls">
+           <label>
+             <span>Complete sets passed</span>
+             <input class="number passqty" data-item="${i.id}" type="number" min="0" max="${i.qty}" value="${i.qty}">
+           </label>
+           ${files.length && i.kind!=='recovery'?`<button class="btn ghost partproblem" data-item="${i.id}" type="button">Individual Part Problem</button>`:''}
+         </div>
+
+         ${files.length && i.kind!=='recovery'?`<div class="part-problem-panel" id="problem-${i.id}" style="display:none">
+           <div class="small" style="margin-bottom:8px">Enter the number of each exact part that failed. Good parts from incomplete sets will be saved as recovery stock.</div>
+           <div class="part-failure-grid">
+             ${files.map(file=>`<label class="part-failure-row">
+               <span>${esc(file)}</span>
+               <input class="number exactfail" data-parent="${i.id}" data-file="${esc(file)}" type="number" min="0" max="${i.qty}" value="0">
+             </label>`).join('')}
+           </div>
+         </div>`:''}
+       </div>`;
+     }).join('')}
+     <div class="completion-summary-note">
+       <strong>How partial failures work</strong>
+       <div class="small">Example: 1 Alex Eye 1 fails. Mark 0 full sets passed for that affected set and enter Eye 1 failed = 1. Forge records Eye 2 as a good spare and Eye 1 as needing reprint.</div>
+     </div>
+     <button class="btn confirmcomplete" type="button">Confirm Completion</button>
+   </div>`;
+
+   panel.querySelectorAll('.partproblem').forEach(btn=>btn.onclick=()=>{
+     const box=panel.querySelector('#problem-'+btn.dataset.item);
+     if(box)box.style.display=box.style.display==='none'?'block':'none';
+   });
+
+   // If exact failures are entered, make sure passed sets cannot exceed
+   // the number of completely unaffected sets.
+   panel.querySelectorAll('.exactfail').forEach(input=>input.oninput=()=>{
+     const parent=input.dataset.parent;
+     const item=p.items.find(x=>x.id===parent);
+     const failInputs=[...panel.querySelectorAll(`.exactfail[data-parent="${parent}"]`)];
+     const maxFailed=Math.max(0,...failInputs.map(x=>Number(x.value||0)));
+     const pass=panel.querySelector(`.passqty[data-item="${parent}"]`);
+     if(item && pass){
+       const maximumComplete=Math.max(0,Number(item.qty)-maxFailed);
+       if(Number(pass.value)>maximumComplete)pass.value=maximumComplete;
+     }
+   });
+
    panel.querySelector('.confirmcomplete').onclick=()=>confirmCompletion(id,panel);
  }
+
  function confirmCompletion(id,panel){
-   const p=s.plates.find(x=>x.id===id);if(!p)return;const passes={};
-   panel.querySelectorAll('.passqty').forEach(el=>passes[el.dataset.item]=Math.max(0,Math.min(Number(el.max),Number(el.value||0))));
-   (p.items||[]).forEach(i=>{const passed=Number(passes[i.id]??i.qty),failed=Math.max(0,Number(i.qty)-passed);if(passed>0)s.parts[i.inventory_key]=partQty(s,i.inventory_key)+passed;if(failed>0)s.failedParts.push({id:makeId(),plate_id:p.id,plate_code:p.code,sku:i.sku,product_name:i.product_name,filament:i.filament,label:i.label,file:i.file,qty:failed,created_at:new Date().toISOString()})});
-   p.status='complete';p.completed_at=new Date().toISOString();p.result=passes;s.printHistory.push({plate_id:p.id,plate_code:p.code,completed_at:p.completed_at,items:p.items,result:passes});save(s);drawAll();
+   const p=s.plates.find(x=>x.id===id);
+   if(!p)return;
+
+   const results={};
+   (p.items||[]).forEach(i=>{
+     const planned=Number(i.qty||0);
+     const passed=Math.max(0,Math.min(planned,Number(panel.querySelector(`.passqty[data-item="${i.id}"]`)?.value||0)));
+     const incomplete=Math.max(0,planned-passed);
+     const files=i.kind==='recovery'?[i.file]:recoveryFilesForItem(i);
+     const exactFailures={};
+
+     if(i.kind!=='recovery'){
+       panel.querySelectorAll(`.exactfail[data-parent="${i.id}"]`).forEach(el=>{
+         exactFailures[el.dataset.file]=Math.max(0,Math.min(planned,Number(el.value||0)));
+       });
+     }
+
+     results[i.id]={planned,passed,incomplete,exactFailures};
+
+     // Full successful grouped/recovery units.
+     if(passed>0){
+       s.parts[i.inventory_key]=partQty(s,i.inventory_key)+passed;
+     }
+
+     if(i.kind==='recovery'){
+       const failed=Math.max(0,planned-passed);
+       if(failed>0){
+         s.failedParts.push({
+           id:makeId(),plate_id:p.id,plate_code:p.code,sku:i.sku,
+           product_name:i.product_name,filament:i.filament,label:i.label,
+           file:i.file,qty:failed,created_at:new Date().toISOString(),
+           failure_type:'exact_part'
+         });
+       }
+       return;
+     }
+
+     if(incomplete<=0)return;
+
+     const hasExactFailures=Object.values(exactFailures).some(v=>v>0);
+
+     if(hasExactFailures && files.length){
+       // For each exact STL, an incomplete set produces one candidate part.
+       // Failed units are logged; surviving units become recovery inventory.
+       files.forEach(file=>{
+         const failed=Math.min(incomplete,Number(exactFailures[file]||0));
+         const good=Math.max(0,incomplete-failed);
+
+         if(good>0){
+           const key=recoveryKey(i.sku,file);
+           s.parts[key]=partQty(s,key)+good;
+         }
+         if(failed>0){
+           s.failedParts.push({
+             id:makeId(),plate_id:p.id,plate_code:p.code,sku:i.sku,
+             product_name:i.product_name,filament:i.filament,
+             label:file,file,qty:failed,created_at:new Date().toISOString(),
+             failure_type:'individual_part'
+           });
+         }
+       });
+
+       // If user marked incomplete sets but did not identify every failed set,
+       // retain an audit warning rather than pretending the set passed.
+       const greatestFailure=Math.max(0,...Object.values(exactFailures));
+       if(greatestFailure<incomplete){
+         s.failedParts.push({
+           id:makeId(),plate_id:p.id,plate_code:p.code,sku:i.sku,
+           product_name:i.product_name,filament:i.filament,
+           label:i.label,file:i.file,qty:incomplete-greatestFailure,
+           created_at:new Date().toISOString(),
+           failure_type:'unallocated_group_failure'
+         });
+       }
+     } else {
+       // No exact failure information: record incomplete grouped sets normally.
+       s.failedParts.push({
+         id:makeId(),plate_id:p.id,plate_code:p.code,sku:i.sku,
+         product_name:i.product_name,filament:i.filament,label:i.label,
+         file:i.file,qty:incomplete,created_at:new Date().toISOString(),
+         failure_type:'group'
+       });
+     }
+   });
+
+   p.status='complete';
+   p.completed_at=new Date().toISOString();
+   p.result=results;
+   s.printHistory.push({
+     plate_id:p.id,plate_code:p.code,completed_at:p.completed_at,
+     items:p.items,result:results
+   });
+   save(s);
+   drawAll();
  }
  function saveDraft(startNow){
    if(!plateDraft.items.length){alert('Add at least one print item to the plate.');return}
