@@ -967,20 +967,120 @@ function printPalBarcode(sku,name){
 }
 async function packingStationPage(){
  const s=state(),ps=await load('products'),pals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku));
- const list=document.querySelector('#packingList'),q=document.querySelector('#q');
+ const readyList=document.querySelector('#packingReadyList');
+ const awaitingList=document.querySelector('#packingAwaitingList');
+ const q=document.querySelector('#q');
+ const readyCount=document.querySelector('#packingReadyCount');
+ const awaitingCount=document.querySelector('#packingAwaitingCount');
+
+ function assembled(sku){
+   // The Bench has used more than one stock key across Forge versions, so read all supported forms.
+   if(s.assembled && s.assembled[sku]!=null)return Number(s.assembled[sku]||0);
+   if(s.assemblyStock && s.assemblyStock[sku]!=null)return Number(s.assemblyStock[sku]||0);
+   if(s.benchStock && s.benchStock[sku]!=null)return Number(s.benchStock[sku]||0);
+   return 0;
+ }
+ function setAssembled(sku,value){
+   value=Math.max(0,Number(value||0));
+   if(s.assembled && s.assembled[sku]!=null)s.assembled[sku]=value;
+   else if(s.assemblyStock && s.assemblyStock[sku]!=null)s.assemblyStock[sku]=value;
+   else if(s.benchStock && s.benchStock[sku]!=null)s.benchStock[sku]=value;
+   else{s.assembled=s.assembled||{};s.assembled[sku]=value}
+ }
  function ins(sku){return Number(s.inserts?.[sku]?.ready||0)}
  function cs(k){return Number(s.consumables?.[k]?.stock||0)}
- function render(){
-  const text=(q.value||'').toLowerCase();
-  const data=pals.filter(p=>`${p.name} ${p.sku}`.toLowerCase().includes(text)).filter(p=>ins(p.sku)>0);
-  list.innerHTML=data.map(p=>{const job=s.packingJobs[p.sku]||{step:1},can=Math.min(ins(p.sku),cs('clear_boxes'),cs('bottom_cards'),cs('stickers'));
+ function blockers(p){
+   const b=[];
+   if(assembled(p.sku)<=0)b.push('Awaiting assembled Pal');
+   if(ins(p.sku)<=0)b.push('Awaiting ready insert');
+   if(cs('clear_boxes')<=0)b.push('Need clear boxes');
+   if(cs('bottom_cards')<=0)b.push('Need bottom card squares');
+   if(cs('stickers')<=0)b.push('Need stickers');
+   return b;
+ }
+ function packable(p){
+   return Math.max(0,Math.min(assembled(p.sku),ins(p.sku),cs('clear_boxes'),cs('bottom_cards'),cs('stickers')));
+ }
+ function stepsHtml(job){
    const steps=['Fold Clear Box','Fold Printed Insert','Place Bottom Card','Place Sticker','Put Printed Insert In','Place Pal','Close Box','Print & Apply Barcode'];
-   return `<div class="packing-card"><div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${can>0?badge(`${can} PACKABLE`,'ok'):badge('WAITING','warning')}</div>
-   <div class="packing-checks"><span>${ins(p.sku)} Ready Inserts</span><span>${cs('clear_boxes')} Clear Boxes</span><span>${cs('bottom_cards')} Bottom Cards</span><span>${cs('stickers')} Stickers</span></div>
-   <div class="packing-steps">${steps.map((n,i)=>`<div class="${job.step>i+1?'done':job.step===i+1?'active':''}"><b>${i+1}</b><span>${n}</span></div>`).join('')}</div>
-   <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}" ${can<=0&&job.step===1?'disabled':''}>${job.step<8?'Complete Step '+job.step:'Print Barcode'}</button>${job.step===8?`<button class="btn secondary barcodeApplied" data-sku="${p.sku}">Barcode Applied · Complete</button>`:''}</div></div>`}).join('')||'<div class="bench-empty">No Pals are currently ready for packing.</div>';
-  document.querySelectorAll('.nextPackStep').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1};if(j.step<8){j.step++;s.packingJobs[sku]=j;save(s);render()}else printPalBarcode(sku,p.name)});
-  document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku);s.inserts[sku].ready=Math.max(0,ins(sku)-1);['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-1));delete s.packingJobs[sku];s.packingHistory.push({id:makeId(),sku,name:p.name,qty:1,created_at:new Date().toISOString()});save(s);render()});
+   return steps.map((n,i)=>`<div class="${job.step>i+1?'done':job.step===i+1?'active':''}"><b>${i+1}</b><span>${n}</span></div>`).join('');
+ }
+ function stockStrip(p){
+   return `<div class="packing-checks">
+    <span class="${assembled(p.sku)>0?'stock-good':'stock-bad'}">${assembled(p.sku)} Assembled Pal${assembled(p.sku)===1?'':'s'}</span>
+    <span class="${ins(p.sku)>0?'stock-good':'stock-bad'}">${ins(p.sku)} Ready Insert${ins(p.sku)===1?'':'s'}</span>
+    <span class="${cs('clear_boxes')>0?'stock-good':'stock-bad'}">${cs('clear_boxes')} Clear Boxes</span>
+    <span class="${cs('bottom_cards')>0?'stock-good':'stock-bad'}">${cs('bottom_cards')} Bottom Cards</span>
+    <span class="${cs('stickers')>0?'stock-good':'stock-bad'}">${cs('stickers')} Stickers</span>
+   </div>`;
+ }
+ function readyCard(p){
+   const can=packable(p),job=s.packingJobs[p.sku]||{step:1};
+   return `<div class="packing-card ready-pack-card">
+    <div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge(`${can} READY TO PACK`,'ok')}</div>
+    ${stockStrip(p)}
+    <div class="packing-steps">${stepsHtml(job)}</div>
+    <div class="packing-actions">
+      <button class="btn nextPackStep" data-sku="${p.sku}">${job.step<8?'Complete Step '+job.step:'Print Barcode'}</button>
+      ${job.step===8?`<button class="btn secondary barcodeApplied" data-sku="${p.sku}">Barcode Applied · Complete</button>`:''}
+    </div>
+   </div>`;
+ }
+ function awaitingCard(p){
+   const b=blockers(p);
+   return `<div class="packing-card awaiting-pack-card">
+    <div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge('AWAITING','warning')}</div>
+    ${stockStrip(p)}
+    <div class="packing-blockers">${b.map(x=>`<span>! ${esc(x)}</span>`).join('')}</div>
+   </div>`;
+ }
+ function render(){
+   const text=(q.value||'').toLowerCase();
+   const filtered=pals.filter(p=>`${p.name} ${p.sku}`.toLowerCase().includes(text));
+
+   // Only show a Pal if it has entered the relevant production/packing pipeline.
+   const relevant=filtered.filter(p=>
+      assembled(p.sku)>0 ||
+      ins(p.sku)>0 ||
+      !!s.packingJobs[p.sku] ||
+      !!s.production?.[p.sku] ||
+      !!s.productionPlan?.[p.sku]
+   );
+
+   const ready=relevant.filter(p=>blockers(p).length===0);
+   const awaiting=relevant.filter(p=>blockers(p).length>0);
+
+   if(readyCount)readyCount.textContent=`${ready.length} Pal${ready.length===1?'':'s'}`;
+   if(awaitingCount)awaitingCount.textContent=`${awaiting.length} Pal${awaiting.length===1?'':'s'}`;
+
+   readyList.innerHTML=ready.length?ready.map(readyCard).join(''):'<div class="bench-empty">No Pals are currently ready to pack.</div>';
+   awaitingList.innerHTML=awaiting.length?awaiting.map(awaitingCard).join(''):'<div class="bench-empty">Nothing is currently awaiting packaging requirements.</div>';
+
+   document.querySelectorAll('.nextPackStep').forEach(btn=>btn.onclick=()=>{
+     const sku=btn.dataset.sku,p=pals.find(x=>x.sku===sku);
+     if(blockers(p).length){render();return}
+     const j=s.packingJobs[sku]||{step:1};
+     if(j.step<8){j.step++;s.packingJobs[sku]=j;save(s);render()}
+     else printPalBarcode(sku,p.name);
+   });
+
+   document.querySelectorAll('.barcodeApplied').forEach(btn=>btn.onclick=()=>{
+     const sku=btn.dataset.sku,p=pals.find(x=>x.sku===sku);
+     if(blockers(p).length){render();return}
+     const j=s.packingJobs[sku]||{step:8};
+     if(j.step!==8)return;
+
+     setAssembled(sku,assembled(sku)-1);
+     if(s.inserts?.[sku])s.inserts[sku].ready=Math.max(0,ins(sku)-1);
+     ['clear_boxes','bottom_cards','stickers'].forEach(k=>{
+       if(s.consumables?.[k])s.consumables[k].stock=Math.max(0,cs(k)-1);
+     });
+
+     delete s.packingJobs[sku];
+     s.packingHistory=s.packingHistory||[];
+     s.packingHistory.push({id:makeId(),sku,name:p.name,qty:1,created_at:new Date().toISOString(),status:'complete'});
+     save(s);render();
+   });
  }
  q.oninput=render;render();
 }

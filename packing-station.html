@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Packing Station | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=062"></head><body><div class="app"><aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Packing Station | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=063"></head><body><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
   <div class="navgroup">Forge Control</div>
@@ -14,7 +14,31 @@
   <div class="navgroup">Administration</div>
   <a href="data-health.html">! Data Health</a><a href="settings.html">⚙ Settings</a>
  </nav>
-</aside><main class="bench-main"><div class="topbar"><div class="pageTitle"><h1>Packing Station</h1><div class="small">Complete the 8-step Pal packaging process.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Barcode prints at final assembly.</div></div></div></div>
+</aside><main class="bench-main">
+<div class="topbar">
+ <div class="pageTitle"><h1>Packing Station</h1><div class="small">Only fully assembled Pals can enter the packaging workflow.</div></div>
+ <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Assembly → Packaging → Barcode.</div></div></div>
+</div>
+
 <div class="toolbar bench-toolbar"><input id="q" class="search" placeholder="Search Pal or SKU"></div>
-<div class="card"><div class="section-title"><div><h2>Pal Packing Queue</h2><div class="small">Packaging stock is deducted only after the barcode is applied and the finished Pal is confirmed.</div></div><span class="badge ok">8 Steps</span></div><div id="packingList" class="packing-list"></div></div>
-<div class="footer-note">PLA Forge v0.6.2 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=062"></script><script>packingStationPage()</script></body></html>
+
+<div class="packing-two-sections">
+ <div class="card packing-section ready-section">
+  <div class="section-title">
+   <div><h2>Ready to Pack</h2><div class="small">Assembled Pal + Ready Insert + all required consumables.</div></div>
+   <span class="badge ok" id="packingReadyCount">0 Pals</span>
+  </div>
+  <div id="packingReadyList" class="packing-list"></div>
+ </div>
+
+ <div class="card packing-section awaiting-section">
+  <div class="section-title">
+   <div><h2>Awaiting</h2><div class="small">Production Pals blocked by assembly, inserts or packaging materials.</div></div>
+   <span class="badge warning" id="packingAwaitingCount">0 Pals</span>
+  </div>
+  <div id="packingAwaitingList" class="packing-list"></div>
+ </div>
+</div>
+
+<div class="footer-note">PLA Forge v0.6.3 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=063"></script><script>packingStationPage()</script></body></html>

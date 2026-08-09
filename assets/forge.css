@@ -336,3 +336,15 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .printer-role-row label{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}
 .printer-role-row select,.printer-role-row input{background:#10151b;color:#fff;border:1px solid var(--line);border-radius:8px;padding:10px}
 @media(max-width:800px){.printer-role-row{grid-template-columns:1fr}}
+
+/* v0.6.3 Assembly gate for Packing Station */
+.packing-two-sections{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+.packing-section{min-width:0}
+.ready-section{border-color:rgba(67,193,122,.22)}
+.awaiting-section{border-color:rgba(244,185,66,.22)}
+.stock-good{color:#64db94!important;border-color:rgba(67,193,122,.25)!important}
+.stock-bad{color:#ff858a!important;border-color:rgba(240,92,99,.3)!important}
+.packing-blockers{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #252c34}
+.packing-blockers span{font-size:9px;color:#ffd16c;background:rgba(244,185,66,.07);border:1px solid rgba(244,185,66,.18);padding:6px 8px;border-radius:7px}
+.awaiting-pack-card{opacity:.9}
+@media(max-width:1150px){.packing-two-sections{grid-template-columns:1fr}}
