@@ -361,3 +361,20 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 
 /* v0.7.3 Packing Awaiting = Production Planner packaging blockers only */
 .awaiting-pack-card .packing-blockers{margin-top:10px}
+
+/* v0.7.4 Grouped dispatch allocation */
+.dispatch-pal-list{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.dispatch-pal-card{background:#11161c;border:1px solid var(--line);border-radius:12px;padding:14px}
+.dispatch-pal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.dispatch-ready-total{text-align:right}.dispatch-ready-total span{display:block;font-size:9px;text-transform:uppercase;color:var(--muted)}.dispatch-ready-total strong{font-size:30px;color:var(--orange)}
+.dispatch-location-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}
+.dispatch-location-card{background:#171d24;border:1px solid #292f37;border-radius:10px;padding:11px}
+.dispatch-location-title{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px}
+.dispatch-stock-line{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:10px;color:var(--muted)}
+.dispatch-stock-line strong{color:#fff}.dispatch-stock-line.need-line{border-top:1px solid #292f37;margin-top:4px;padding-top:8px}.dispatch-stock-line.need-line strong{color:var(--orange)}
+.dispatch-qty-label{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid #292f37;margin-top:8px;padding-top:9px;font-size:9px;text-transform:uppercase;color:var(--muted)}
+.dispatch-qty-label .number{width:80px;font-size:17px;font-weight:800;text-align:center}
+.dispatch-allocation-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;border-top:1px solid #252c34;margin-top:12px;padding-top:11px}
+.dispatch-allocation-summary{font-size:10px;color:var(--muted)}
+.danger-text{color:#ff858a}
+@media(max-width:850px){.dispatch-location-grid{grid-template-columns:1fr}.dispatch-allocation-footer{align-items:stretch;flex-direction:column}}

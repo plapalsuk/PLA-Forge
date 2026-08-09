@@ -139,3 +139,19 @@ v0.2 still uses browser localStorage for operational state until the shared back
 - Split Insert Production into Print Queue and Cut & Score Queue.
 - Print queue links directly to the correct Google Drive PDF by SKU.
 - Cut & Score moves printed inserts into Ready Insert stock.
+
+
+## v0.7.4 — Grouped Dispatch & Split Location Allocation
+
+- Awaiting Dispatch is now grouped by Pal / SKU rather than showing every completed packing batch separately.
+- Multiple packing batches of the same Pal are combined into one `Ready to Dispatch` quantity.
+- Each dispatch card shows current inventory, target and outstanding need for:
+  - Kitsune Boat
+  - Kitsune Cornwall
+- Dispatch suggests quantities based on each location's outstanding target need.
+- Users can manually choose the exact quantity to send to each location.
+- Boat + Cornwall allocation cannot exceed the physically finished quantity available.
+- Unallocated finished stock remains in Awaiting Dispatch for a later decision.
+- Confirming Boat quantity updates Kitsune Boat inventory immediately.
+- Confirming Cornwall quantity updates Kitsune Cornwall inventory immediately and creates an Awaiting Cornwall Delivery record.
+- `Received in Cornwall` confirms physical receipt without increasing inventory a second time.

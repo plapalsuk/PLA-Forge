@@ -1109,6 +1109,7 @@ function recoverAwaitingDispatch(s){
 async function deliveriesPage(){
  const s=state();
  recoverAwaitingDispatch(s);
+
  const unassigned=document.querySelector('#awaitingDispatch');
  const awaiting=document.querySelector('#awaitingDeliveries');
  const received=document.querySelector('#receivedDeliveries');
@@ -1117,27 +1118,104 @@ async function deliveriesPage(){
  const boatKpi=document.querySelector('#boatFinishedKpi');
  const cornKpi=document.querySelector('#cornwallFinishedKpi');
 
+ function groupedDispatch(){
+   const map={};
+   (s.awaitingDispatch||[]).filter(x=>x.status==='awaiting_dispatch' && Number(x.qty||0)>0).forEach(x=>{
+     if(!map[x.sku])map[x.sku]={sku:x.sku,name:x.name||x.sku,qty:0,records:[],oldest:x.packed_at||x.created_at||''};
+     map[x.sku].qty+=Number(x.qty||0);
+     map[x.sku].records.push(x);
+     const dt=x.packed_at||x.created_at||'';
+     if(dt && (!map[x.sku].oldest || dt<map[x.sku].oldest))map[x.sku].oldest=dt;
+   });
+   return Object.values(map).sort((a,b)=>{
+     const an=needed(s,a.sku,'boat')+needed(s,a.sku,'cornwall');
+     const bn=needed(s,b.sku,'boat')+needed(s,b.sku,'cornwall');
+     return bn-an || a.name.localeCompare(b.name);
+   });
+ }
+
+ function consumeDispatchRecords(group,qty){
+   let remaining=Math.max(0,Number(qty||0));
+   const records=[...group.records].sort((a,b)=>(a.packed_at||a.created_at||'').localeCompare(b.packed_at||b.created_at||''));
+   records.forEach(r=>{
+     if(remaining<=0)return;
+     const available=Number(r.qty||0);
+     const used=Math.min(available,remaining);
+     r.qty=available-used;
+     remaining-=used;
+     if(r.qty<=0)r.status='allocated';
+   });
+   return remaining===0;
+ }
+
+ function allocationCard(g){
+   const boatStock=stock(s,g.sku,'boat');
+   const cornStock=stock(s,g.sku,'cornwall');
+   const boatTarget=getTarget(s,g.sku,'boat');
+   const cornTarget=getTarget(s,g.sku,'cornwall');
+   const boatNeed=needed(s,g.sku,'boat');
+   const cornNeed=needed(s,g.sku,'cornwall');
+
+   return `<div class="dispatch-pal-card">
+     <div class="dispatch-pal-head">
+       <div>
+         <strong>${esc(g.name)}</strong>
+         <div class="sku">${g.sku}</div>
+         <div class="small">Oldest packed ${fmtDate(g.oldest)}</div>
+       </div>
+       <div class="dispatch-ready-total">
+         <span>Ready to Dispatch</span>
+         <strong>${g.qty}</strong>
+       </div>
+     </div>
+
+     <div class="dispatch-location-grid">
+       <div class="dispatch-location-card">
+         <div class="dispatch-location-title"><strong>Kitsune Boat</strong>${boatNeed>0?badge(`NEED ${boatNeed}`,'warning'):badge('TARGET MET','ok')}</div>
+         <div class="dispatch-stock-line"><span>Current</span><strong>${boatStock}</strong></div>
+         <div class="dispatch-stock-line"><span>Target</span><strong>${boatTarget}</strong></div>
+         <div class="dispatch-stock-line need-line"><span>Need</span><strong>${boatNeed}</strong></div>
+         <label class="dispatch-qty-label">
+           <span>Send Qty</span>
+           <input class="number dispatchBoatQty" id="boat-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${Math.min(g.qty,boatNeed)}">
+         </label>
+       </div>
+
+       <div class="dispatch-location-card">
+         <div class="dispatch-location-title"><strong>Kitsune Cornwall</strong>${cornNeed>0?badge(`NEED ${cornNeed}`,'warning'):badge('TARGET MET','ok')}</div>
+         <div class="dispatch-stock-line"><span>Current</span><strong>${cornStock}</strong></div>
+         <div class="dispatch-stock-line"><span>Target</span><strong>${cornTarget}</strong></div>
+         <div class="dispatch-stock-line need-line"><span>Need</span><strong>${cornNeed}</strong></div>
+         <label class="dispatch-qty-label">
+           <span>Send Qty</span>
+           <input class="number dispatchCornQty" id="cornwall-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${Math.min(Math.max(0,g.qty-Math.min(g.qty,boatNeed)),cornNeed)}">
+         </label>
+       </div>
+     </div>
+
+     <div class="dispatch-allocation-footer">
+       <div class="dispatch-allocation-summary" id="summary-${g.sku}">Allocate up to ${g.qty} finished Pal${g.qty===1?'':'s'}.</div>
+       <button class="btn allocateSplit" data-sku="${g.sku}">Confirm Dispatch Allocation</button>
+     </div>
+   </div>`;
+ }
+
  function render(){
-   const u=(s.awaitingDispatch||[]).filter(x=>x.status==='awaiting_dispatch');
+   const groups=groupedDispatch();
    const a=(s.transfers||[]).filter(t=>t.destination==='cornwall'&&t.status==='awaiting_delivery');
    const r=(s.transfers||[]).filter(t=>t.destination==='cornwall'&&t.status==='received').slice().reverse();
 
-   dispatchKpi.textContent=u.reduce((x,t)=>x+Number(t.qty||0),0);
+   dispatchKpi.textContent=groups.reduce((x,g)=>x+Number(g.qty||0),0);
    awaitKpi.textContent=a.reduce((x,t)=>x+Number(t.qty||0),0);
    boatKpi.textContent=Object.values(s.finishedStock?.boat||{}).reduce((x,v)=>x+Number(v||0),0);
    cornKpi.textContent=Object.values(s.finishedStock?.cornwall||{}).reduce((x,v)=>x+Number(v||0),0);
 
-   unassigned.innerHTML=u.length?u.map(t=>`<div class="delivery-card dispatch-choice-card">
-      <div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Packed ${fmtDate(t.packed_at)}</div></div>
-      <div class="delivery-qty">× ${t.qty}</div>
-      <div class="dispatch-choice">
-        <button class="btn assignDispatch" data-id="${t.id}" data-dest="boat">Send to Kitsune Boat</button>
-        <button class="btn secondary assignDispatch" data-id="${t.id}" data-dest="cornwall">Send to Kitsune Cornwall</button>
-      </div>
-   </div>`).join(''):'<div class="bench-empty">No finished Pals are awaiting dispatch allocation.</div>';
+   unassigned.innerHTML=groups.length
+     ?groups.map(allocationCard).join('')
+     :'<div class="bench-empty">No finished Pals are awaiting dispatch allocation.</div>';
 
    awaiting.innerHTML=a.length?a.map(t=>`<div class="delivery-card awaiting-delivery">
-      <div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Allocated ${fmtDate(t.dispatched_at||t.packed_at)}</div></div>
+      <div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Dispatched ${fmtDate(t.dispatched_at||t.packed_at)}</div></div>
       <div class="delivery-qty">× ${t.qty}</div>
       <button class="btn receiveDelivery" data-id="${t.id}">Received in Cornwall</button>
    </div>`).join(''):'<div class="bench-empty">No stock is awaiting delivery to Cornwall.</div>';
@@ -1147,35 +1225,59 @@ async function deliveriesPage(){
       <div class="delivery-qty">× ${t.qty}</div>${badge('RECEIVED','ok')}
    </div>`).join(''):'<div class="bench-empty">No Cornwall deliveries received yet.</div>';
 
-   document.querySelectorAll('.assignDispatch').forEach(btn=>btn.onclick=()=>{
-     const t=s.awaitingDispatch.find(x=>x.id===btn.dataset.id);
-     if(!t)return;
-     const dest=btn.dataset.dest;
-     t.destination=dest;
-     t.status='dispatched';
-     t.dispatched_at=new Date().toISOString();
+   function updateSummary(sku){
+     const g=groups.find(x=>x.sku===sku);if(!g)return;
+     const b=Math.max(0,Number(document.querySelector('#boat-'+sku)?.value||0));
+     const c=Math.max(0,Number(document.querySelector('#cornwall-'+sku)?.value||0));
+     const total=b+c;
+     const remain=Math.max(0,g.qty-total);
+     const el=document.querySelector('#summary-'+sku);
+     if(!el)return;
+     if(total>g.qty)el.innerHTML=`<strong class="danger-text">Too many selected: ${total} / ${g.qty}</strong>`;
+     else el.innerHTML=`Boat <strong>${b}</strong> · Cornwall <strong>${c}</strong> · Leave for later <strong>${remain}</strong>`;
+   }
 
-     if(dest==='boat'){
-       addForgeInventory(s,t.sku,'boat',t.qty);
-     }else{
-       // Allocate to Cornwall inventory immediately as requested, but keep
-       // the shipment visibly awaiting physical receipt.
-       addForgeInventory(s,t.sku,'cornwall',t.qty);
+   document.querySelectorAll('.dispatchBoatQty,.dispatchCornQty').forEach(el=>el.oninput=()=>updateSummary(el.dataset.sku));
+   groups.forEach(g=>updateSummary(g.sku));
+
+   document.querySelectorAll('.allocateSplit').forEach(btn=>btn.onclick=()=>{
+     const sku=btn.dataset.sku,g=groups.find(x=>x.sku===sku);if(!g)return;
+     const boatQty=Math.max(0,Math.floor(Number(document.querySelector('#boat-'+sku)?.value||0)));
+     const cornQty=Math.max(0,Math.floor(Number(document.querySelector('#cornwall-'+sku)?.value||0)));
+     const total=boatQty+cornQty;
+
+     if(total<=0){alert('Choose a quantity for Kitsune Boat and/or Kitsune Cornwall.');return}
+     if(total>g.qty){alert(`You only have ${g.qty} ${g.name} ready to dispatch.`);return}
+
+     // Consume grouped finished-dispatch stock once for the total allocation.
+     if(!consumeDispatchRecords(g,total)){alert('Could not allocate this dispatch quantity.');return}
+
+     const now=new Date().toISOString();
+
+     if(boatQty>0){
+       addForgeInventory(s,sku,'boat',boatQty);
        s.transfers.push({
-         id:makeId(),sku:t.sku,name:t.name,qty:t.qty,
-         destination:'cornwall',status:'awaiting_delivery',
-         packed_at:t.packed_at,dispatched_at:t.dispatched_at,received_at:null
+         id:makeId(),sku,name:g.name,qty:boatQty,destination:'boat',
+         status:'received',packed_at:g.oldest,dispatched_at:now,received_at:now
        });
      }
+
+     if(cornQty>0){
+       // Inventory is allocated immediately when destination/qty is confirmed.
+       addForgeInventory(s,sku,'cornwall',cornQty);
+       s.transfers.push({
+         id:makeId(),sku,name:g.name,qty:cornQty,destination:'cornwall',
+         status:'awaiting_delivery',packed_at:g.oldest,dispatched_at:now,received_at:null
+       });
+     }
+
      save(s);render();
    });
 
    document.querySelectorAll('.receiveDelivery').forEach(btn=>btn.onclick=()=>{
-     const t=s.transfers.find(x=>x.id===btn.dataset.id);
-     if(!t)return;
-     t.status='received';
-     t.received_at=new Date().toISOString();
-     // Inventory was already allocated when destination was chosen.
+     const t=s.transfers.find(x=>x.id===btn.dataset.id);if(!t)return;
+     t.status='received';t.received_at=new Date().toISOString();
+     // Location inventory was already updated when dispatch allocation was confirmed.
      save(s);render();
    });
  }
