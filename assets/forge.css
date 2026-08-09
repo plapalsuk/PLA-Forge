@@ -193,3 +193,9 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .box-progress{height:5px;background:#252c34;border-radius:10px;margin:10px 0 13px;overflow:hidden}.box-progress span{display:block;height:100%;background:var(--orange)}
 .box-actions{border-top:1px solid #252c34;margin-top:12px;padding-top:11px;display:flex;gap:9px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
 .box-actions label{display:flex;gap:6px;align-items:center}.box-actions .number{width:65px}
+
+.availability-toolbar{display:grid;grid-template-columns:minmax(260px,1fr) 210px;gap:10px;margin:14px 0}
+.availability-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.availability-row{display:grid;grid-template-columns:minmax(220px,1fr) 150px 180px 130px;gap:12px;align-items:center;background:#11161c;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.availability-row label{display:flex;flex-direction:column;gap:4px}
+@media(max-width:900px){.availability-row{grid-template-columns:1fr 1fr}.availability-toolbar{grid-template-columns:1fr}}

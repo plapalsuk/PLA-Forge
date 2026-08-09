@@ -10,6 +10,7 @@ function state(){
   s.printers=s.printers||[]; s.siteSettings=s.siteSettings||{defaultPrinter:'',defaultLocation:'boat'};
   s.assembled=s.assembled||{}; s.assemblyHistory=s.assemblyHistory||[];
   s.boxes=s.boxes||{}; s.boxHistory=s.boxHistory||[]; s.packagingComponents=s.packagingComponents||{clear_boxes:0,inserts:0,stickers:0,barcode_labels:0};
+  s.productAvailability=s.productAvailability||{};
   return s;
 }
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
@@ -41,6 +42,9 @@ async function dashboard(){
  const mini=document.querySelector('#forgeStatus');
  if(mini){const active=s.plates.filter(p=>p.status==='printing').length,draft=s.plates.filter(p=>p.status==='draft').length,printed=Object.values(s.parts).reduce((a,b)=>a+Number(b||0),0);mini.innerHTML=`<div class="listitem"><strong>${active} plate(s) printing</strong><span class="muted">${draft} draft · ${printed} printed inventory units</span></div>`}
 }
+function isOnSale(s,sku){return s.productAvailability?.[sku]?.on_sale===true}
+function releaseDateFor(s,sku){return s.productAvailability?.[sku]?.release_date||''}
+
 async function inventory(type){
  const s=state(), ps=await load('products'); let items=ps.filter(x=>type==='sticker'?x.type==='sticker':x.type==='pal'&&(type==='pal'||x.keyring));
  const tbody=document.querySelector('#rows'), q=document.querySelector('#q');
@@ -621,7 +625,7 @@ async function assemblyPage(){
 
 async function boxProductionPage(){
  const s=state(), ps=await load('products');
- const pals=ps.filter(p=>p.type==='pal');
+ const pals=ps.filter(p=>p.type==='pal' && isOnSale(s,p.sku));
  const q=document.querySelector('#q'), ready=document.querySelector('#boxReady'), history=document.querySelector('#boxHistory');
  const lowKpi=document.querySelector('#boxLowKpi'), totalKpi=document.querySelector('#boxTotalKpi'), printKpi=document.querySelector('#boxPrintKpi');
 
@@ -650,4 +654,21 @@ async function boxProductionPage(){
    history.innerHTML=s.boxHistory.slice().reverse().slice(0,30).map(h=>`<tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>+${h.qty}</td></tr>`).join('')||'<tr><td colspan="3">No boxes recorded yet.</td></tr>';
  }
  q.oninput=render;render();
+}
+
+async function availabilityPage(){
+ const s=state(),ps=await load('products'),pals=ps.filter(p=>p.type==='pal');
+ const q=document.querySelector('#q'),filter=document.querySelector('#availabilityFilter'),list=document.querySelector('#availabilityList');
+ const saleKpi=document.querySelector('#onSaleKpi'),futureKpi=document.querySelector('#futureKpi'),offKpi=document.querySelector('#offSaleKpi');
+ function status(p){const r=s.productAvailability[p.sku]||{};if(r.on_sale)return'sale';if(r.release_date&&r.release_date>new Date().toISOString().slice(0,10))return'future';return'off'}
+ function render(){
+  const text=(q.value||'').toLowerCase(),mode=filter.value;
+  const all=pals.map(p=>({p,rec:s.productAvailability[p.sku]||{},status:status(p)}));
+  saleKpi.textContent=all.filter(x=>x.status==='sale').length;futureKpi.textContent=all.filter(x=>x.status==='future').length;offKpi.textContent=all.filter(x=>x.status==='off').length;
+  const data=all.filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text)).filter(x=>mode==='all'||x.status===mode).sort((a,b)=>(a.status==='sale'?-2:a.status==='future'?-1:0)-(b.status==='sale'?-2:b.status==='future'?-1:0)||a.p.name.localeCompare(b.p.name));
+  list.innerHTML=data.map(x=>`<div class="availability-row"><div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div><div>${x.status==='sale'?badge('ON SALE','ok'):x.status==='future'?badge('FUTURE RELEASE','warning'):badge('NOT ON SALE','')}</div><label><span class="small">Release Date</span><input class="releaseDate" data-sku="${x.p.sku}" type="date" value="${esc(x.rec.release_date||'')}"></label><button class="btn ${x.status==='sale'?'ghost':''} toggleSale" data-sku="${x.p.sku}">${x.status==='sale'?'Take Off Sale':'Put On Sale'}</button></div>`).join('')||'<div class="bench-empty">No Pals match this view.</div>';
+  document.querySelectorAll('.toggleSale').forEach(btn=>btn.onclick=()=>{const sku=btn.dataset.sku,r=s.productAvailability[sku]||{};r.on_sale=!r.on_sale;if(r.on_sale&&!r.release_date)r.release_date=new Date().toISOString().slice(0,10);s.productAvailability[sku]=r;save(s);render()});
+  document.querySelectorAll('.releaseDate').forEach(el=>el.onchange=()=>{const sku=el.dataset.sku,r=s.productAvailability[sku]||{};r.release_date=el.value;s.productAvailability[sku]=r;save(s);render()});
+ }
+ q.oninput=render;filter.onchange=render;render();
 }
