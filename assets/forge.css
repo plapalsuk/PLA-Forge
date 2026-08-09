@@ -199,3 +199,15 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .availability-row{display:grid;grid-template-columns:minmax(220px,1fr) 150px 180px 130px;gap:12px;align-items:center;background:#11161c;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .availability-row label{display:flex;flex-direction:column;gap:4px}
 @media(max-width:900px){.availability-row{grid-template-columns:1fr 1fr}.availability-toolbar{grid-template-columns:1fr}}
+
+/* v0.4.2 Product Availability inside Settings */
+.settings-availability{width:100%}
+.settings-availability-kpis{margin-top:12px}
+.settings-availability .nested-kpi{background:#11161c}
+.settings-availability .availability-toolbar{margin-top:14px}
+.settings-availability .availability-row{
+  grid-template-columns:minmax(230px,1fr) 150px 180px 130px;
+}
+@media(max-width:900px){
+  .settings-availability .availability-row{grid-template-columns:1fr 1fr}
+}

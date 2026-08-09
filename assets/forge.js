@@ -672,3 +672,74 @@ async function availabilityPage(){
  }
  q.oninput=render;filter.onchange=render;render();
 }
+
+
+async function settingsAvailabilityPage(){
+ const s=state(), ps=await load('products'), pals=ps.filter(p=>p.type==='pal');
+ const q=document.querySelector('#settingsAvailabilitySearch');
+ const filter=document.querySelector('#settingsAvailabilityFilter');
+ const list=document.querySelector('#settingsAvailabilityList');
+ const saleKpi=document.querySelector('#settingsOnSaleKpi');
+ const futureKpi=document.querySelector('#settingsFutureKpi');
+ const offKpi=document.querySelector('#settingsOffSaleKpi');
+
+ if(!q || !filter || !list)return;
+
+ function status(p){
+   const rec=s.productAvailability[p.sku]||{};
+   if(rec.on_sale)return 'sale';
+   if(rec.release_date && rec.release_date>new Date().toISOString().slice(0,10))return 'future';
+   return 'off';
+ }
+
+ function render(){
+   const text=(q.value||'').toLowerCase();
+   const mode=filter.value;
+   const all=pals.map(p=>({p,rec:s.productAvailability[p.sku]||{},status:status(p)}));
+
+   saleKpi.textContent=all.filter(x=>x.status==='sale').length;
+   futureKpi.textContent=all.filter(x=>x.status==='future').length;
+   offKpi.textContent=all.filter(x=>x.status==='off').length;
+
+   const data=all
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
+     .filter(x=>mode==='all'||x.status===mode)
+     .sort((a,b)=>(a.status==='sale'?-2:a.status==='future'?-1:0)-(b.status==='sale'?-2:b.status==='future'?-1:0)||a.p.name.localeCompare(b.p.name));
+
+   list.innerHTML=data.map(x=>`
+     <div class="availability-row">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       <div>${x.status==='sale'?badge('ON SALE','ok'):x.status==='future'?badge('FUTURE RELEASE','warning'):badge('NOT ON SALE','')}</div>
+       <label>
+         <span class="small">Release Date</span>
+         <input class="settingsReleaseDate" data-sku="${x.p.sku}" type="date" value="${esc(x.rec.release_date||'')}">
+       </label>
+       <button class="btn ${x.status==='sale'?'ghost':''} settingsToggleSale" data-sku="${x.p.sku}">
+         ${x.status==='sale'?'Take Off Sale':'Put On Sale'}
+       </button>
+     </div>`).join('') || '<div class="bench-empty">No Pals match this view.</div>';
+
+   document.querySelectorAll('.settingsToggleSale').forEach(btn=>btn.onclick=()=>{
+      const sku=btn.dataset.sku;
+      const rec=s.productAvailability[sku]||{};
+      rec.on_sale=!rec.on_sale;
+      if(rec.on_sale && !rec.release_date)rec.release_date=new Date().toISOString().slice(0,10);
+      s.productAvailability[sku]=rec;
+      save(s);
+      render();
+   });
+
+   document.querySelectorAll('.settingsReleaseDate').forEach(el=>el.onchange=()=>{
+      const sku=el.dataset.sku;
+      const rec=s.productAvailability[sku]||{};
+      rec.release_date=el.value;
+      s.productAvailability[sku]=rec;
+      save(s);
+      render();
+   });
+ }
+
+ q.oninput=render;
+ filter.onchange=render;
+ render();
+}

@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=041"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=042"></head>
 <body><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
@@ -47,4 +47,45 @@
     <tbody id="printerRows"></tbody>
   </table>
 </div>
-<div class="footer-note">PLA Forge v0.4.1 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=041"></script><script>settingsPage()</script></body></html>
+
+<div class="card settings-availability" style="margin-top:14px">
+  <div class="section-title">
+    <div>
+      <h2>Product Availability</h2>
+      <div class="small">Choose which Pals are currently on sale and should participate in production planning.</div>
+    </div>
+    <span class="badge ok">Release Control</span>
+  </div>
+
+  <div class="grid kpis bench-kpis settings-availability-kpis">
+    <div class="card kpi nested-kpi">
+      <div class="label">On Sale</div>
+      <div class="value accent" id="settingsOnSaleKpi">0</div>
+      <div class="small">active released Pals</div>
+    </div>
+    <div class="card kpi nested-kpi">
+      <div class="label">Future Releases</div>
+      <div class="value" id="settingsFutureKpi">0</div>
+      <div class="small">release date set</div>
+    </div>
+    <div class="card kpi nested-kpi">
+      <div class="label">Not On Sale</div>
+      <div class="value" id="settingsOffSaleKpi">0</div>
+      <div class="small">excluded from production</div>
+    </div>
+  </div>
+
+  <div class="toolbar availability-toolbar">
+    <input id="settingsAvailabilitySearch" class="search" placeholder="Search Pal or SKU">
+    <select id="settingsAvailabilityFilter">
+      <option value="all">All Pals</option>
+      <option value="sale">On Sale</option>
+      <option value="future">Future Releases</option>
+      <option value="off">Not On Sale</option>
+    </select>
+  </div>
+
+  <div id="settingsAvailabilityList" class="availability-list"></div>
+</div>
+
+<div class="footer-note">PLA Forge v0.4.2 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=042"></script><script>settingsPage(); settingsAvailabilityPage();</script></body></html>
