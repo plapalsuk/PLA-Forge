@@ -19,6 +19,7 @@ function state(){
   s.consumableHistory=s.consumableHistory||[];
   s.packingJobs=s.packingJobs||{}; s.packingHistory=s.packingHistory||[];
   s.finishedStock=s.finishedStock||{boat:{},cornwall:{}}; s.transfers=s.transfers||[];
+  s.awaitingDispatch=s.awaitingDispatch||[];
   if(s.consumables && s.consumables.barcode_labels) delete s.consumables.barcode_labels;
   s.printerRoles=s.printerRoles||{};
 
@@ -998,12 +999,12 @@ async function packingStationPage(){
   readyCount.textContent=`${ready.length} Pal${ready.length===1?'':'s'}`;awaitingCount.textContent=`${awaiting.length} Pal${awaiting.length===1?'':'s'}`;
 
   readyList.innerHTML=ready.map(p=>{
-    let job=s.packingJobs[p.sku]||{step:1,qty:Math.min(1,maxBatch(p)),destination:'boat'};job.destination=job.destination||'boat';
+    let job=s.packingJobs[p.sku]||{step:1,qty:Math.min(1,maxBatch(p))};
     job.qty=Math.min(Math.max(1,Number(job.qty||1)),maxBatch(p));s.packingJobs[p.sku]=job;
     return `<div class="packing-card ready-pack-card">
       <div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge(`${maxBatch(p)} AVAILABLE`,'ok')}</div>
       ${stockStrip(p)}
-      <div class="batch-pack-bar"><div><strong>Batch Pack</strong><div class="small">Choose how many ${esc(p.name)} you are packing together.</div></div><div class="batch-qty"><button class="iconbtn batchMinus" data-sku="${p.sku}">−</button><input class="number batchQty" id="batch-${p.sku}" data-sku="${p.sku}" type="number" min="1" max="${maxBatch(p)}" value="${job.qty}"><button class="iconbtn batchPlus" data-sku="${p.sku}">+</button></div><label class="destination-label"><span>Destination</span><select class="packDestination" data-sku="${p.sku}"><option value="boat" ${job.destination==='boat'?'selected':''}>Kitsune Boat</option><option value="cornwall" ${job.destination==='cornwall'?'selected':''}>Kitsune Cornwall</option></select></label></div>
+      <div class="batch-pack-bar"><div><strong>Batch Pack</strong><div class="small">Choose how many ${esc(p.name)} you are packing together.</div></div><div class="batch-qty"><button class="iconbtn batchMinus" data-sku="${p.sku}">−</button><input class="number batchQty" id="batch-${p.sku}" data-sku="${p.sku}" type="number" min="1" max="${maxBatch(p)}" value="${job.qty}"><button class="iconbtn batchPlus" data-sku="${p.sku}">+</button></div></div>
       <div class="packing-steps">${steps.map((n,i)=>`<div class="${job.step>i+1?'done':job.step===i+1?'active':''}"><b>${i+1}</b><span>${n}</span>${job.qty>1?`<em>× ${job.qty}</em>`:''}</div>`).join('')}</div>
       <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}">${job.step<8?`Complete Step ${job.step} for all ${job.qty}`:`Print ${job.qty} Barcode${job.qty===1?'':'s'}`}</button>${job.step===8?`<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>`:''}</div>
     </div>`;
@@ -1011,11 +1012,13 @@ async function packingStationPage(){
 
   awaitingList.innerHTML=awaiting.map(p=>`<div class="packing-card awaiting-pack-card"><div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge('AWAITING','warning')}</div>${stockStrip(p)}<div class="packing-blockers">${blockers(p).map(x=>`<span>! ${esc(x)}</span>`).join('')}</div></div>`).join('')||'<div class="bench-empty">Nothing is currently awaiting packaging requirements.</div>';
 
-  document.querySelectorAll('.packDestination').forEach(el=>el.onchange=()=>{const sku=el.dataset.sku,j=s.packingJobs[sku]||{step:1,qty:1,destination:'boat'};j.destination=el.value;save(s);render()});
   document.querySelectorAll('.batchQty').forEach(el=>el.onchange=()=>{const sku=el.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};j.qty=Math.min(maxBatch(p),Math.max(1,Number(el.value||1)));save(s);render()});
   document.querySelectorAll('.batchMinus,.batchPlus').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};j.qty=Math.min(maxBatch(p),Math.max(1,Number(j.qty||1)+(b.classList.contains('batchPlus')?1:-1)));save(s);render()});
   document.querySelectorAll('.nextPackStep').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};if(j.step<8){j.step++;save(s);render()}else{for(let n=0;n<j.qty;n++)printPalBarcode(sku,p.name)}});
-  document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku];if(!j||j.step!==8)return;const qty=Math.min(j.qty,maxBatch(p));setAssembled(sku,assembled(sku)-qty);s.inserts[sku].ready=Math.max(0,ins(sku)-qty);['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-qty));const dest=j.destination||'boat';if(dest==='boat'){s.finishedStock.boat[sku]=Number(s.finishedStock.boat[sku]||0)+qty}else{s.transfers.push({id:makeId(),sku,name:p.name,qty,destination:'cornwall',status:'awaiting_delivery',packed_at:new Date().toISOString(),received_at:null})}delete s.packingJobs[sku];s.packingHistory.push({id:makeId(),sku,name:p.name,qty,destination:dest,created_at:new Date().toISOString(),status:'complete'});save(s);render()});
+  document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku];if(!j||j.step!==8)return;const qty=Math.min(j.qty,maxBatch(p));setAssembled(sku,assembled(sku)-qty);s.inserts[sku].ready=Math.max(0,ins(sku)-qty);['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-qty));s.awaitingDispatch.push({id:makeId(),sku,name:p.name,qty,status:'awaiting_dispatch',packed_at:new Date().toISOString(),destination:null});
+delete s.packingJobs[sku];
+s.packingHistory.push({id:makeId(),sku,name:p.name,qty,created_at:new Date().toISOString(),status:'complete'});
+save(s);render()});
   save(s);
  }
  q.oninput=render;render();
@@ -1041,15 +1044,97 @@ function barcodePrinterSettings(){
  };
 }
 
+
+function addForgeInventory(s,sku,loc,qty){
+ qty=Number(qty||0);
+ if(!qty)return;
+ // Current inventory pages use s.inventory where available.
+ if(s.inventory){
+   s.inventory[sku]=s.inventory[sku]||{};
+   s.inventory[sku][loc]=Number(s.inventory[sku][loc]||0)+qty;
+ }
+ // Some earlier builds use s.stock.
+ if(s.stock){
+   s.stock[sku]=s.stock[sku]||{};
+   s.stock[sku][loc]=Number(s.stock[sku][loc]||0)+qty;
+ }
+ // Finished-stock mirror is always maintained.
+ s.finishedStock=s.finishedStock||{boat:{},cornwall:{}};
+ s.finishedStock[loc]=s.finishedStock[loc]||{};
+ s.finishedStock[loc][sku]=Number(s.finishedStock[loc][sku]||0)+qty;
+}
+
 async function deliveriesPage(){
- const s=state(),a=document.querySelector('#awaitingDeliveries'),r=document.querySelector('#receivedDeliveries');
- const ak=document.querySelector('#awaitingDeliveryKpi'),rk=document.querySelector('#receivedDeliveryKpi'),bk=document.querySelector('#boatFinishedKpi'),ck=document.querySelector('#cornwallFinishedKpi');
- function draw(){
-  const aw=s.transfers.filter(t=>t.status==='awaiting_delivery'),rc=s.transfers.filter(t=>t.status==='received').slice().reverse();
-  ak.textContent=aw.reduce((n,t)=>n+Number(t.qty||0),0);rk.textContent=rc.reduce((n,t)=>n+Number(t.qty||0),0);
-  bk.textContent=Object.values(s.finishedStock.boat||{}).reduce((n,v)=>n+Number(v||0),0);ck.textContent=Object.values(s.finishedStock.cornwall||{}).reduce((n,v)=>n+Number(v||0),0);
-  a.innerHTML=aw.length?aw.map(t=>`<div class="delivery-card"><div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Packed ${fmtDate(t.packed_at)}</div></div><b>× ${t.qty}</b><button class="btn receiveDelivery" data-id="${t.id}">Received in Cornwall</button></div>`).join(''):'<div class="bench-empty">No stock awaiting delivery.</div>';
-  r.innerHTML=rc.length?rc.map(t=>`<div class="delivery-card received-delivery"><div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Received ${fmtDate(t.received_at)}</div></div><b>× ${t.qty}</b>${badge('RECEIVED','ok')}</div>`).join(''):'<div class="bench-empty">No deliveries received yet.</div>';
-  document.querySelectorAll('.receiveDelivery').forEach(b=>b.onclick=()=>{const t=s.transfers.find(x=>x.id===b.dataset.id);if(!t)return;t.status='received';t.received_at=new Date().toISOString();s.finishedStock.cornwall[t.sku]=Number(s.finishedStock.cornwall[t.sku]||0)+Number(t.qty||0);save(s);draw()});
- } draw();
+ const s=state();
+ const unassigned=document.querySelector('#awaitingDispatch');
+ const awaiting=document.querySelector('#awaitingDeliveries');
+ const received=document.querySelector('#receivedDeliveries');
+ const dispatchKpi=document.querySelector('#awaitingDispatchKpi');
+ const awaitKpi=document.querySelector('#awaitingDeliveryKpi');
+ const boatKpi=document.querySelector('#boatFinishedKpi');
+ const cornKpi=document.querySelector('#cornwallFinishedKpi');
+
+ function render(){
+   const u=(s.awaitingDispatch||[]).filter(x=>x.status==='awaiting_dispatch');
+   const a=(s.transfers||[]).filter(t=>t.destination==='cornwall'&&t.status==='awaiting_delivery');
+   const r=(s.transfers||[]).filter(t=>t.destination==='cornwall'&&t.status==='received').slice().reverse();
+
+   dispatchKpi.textContent=u.reduce((x,t)=>x+Number(t.qty||0),0);
+   awaitKpi.textContent=a.reduce((x,t)=>x+Number(t.qty||0),0);
+   boatKpi.textContent=Object.values(s.finishedStock?.boat||{}).reduce((x,v)=>x+Number(v||0),0);
+   cornKpi.textContent=Object.values(s.finishedStock?.cornwall||{}).reduce((x,v)=>x+Number(v||0),0);
+
+   unassigned.innerHTML=u.length?u.map(t=>`<div class="delivery-card dispatch-choice-card">
+      <div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Packed ${fmtDate(t.packed_at)}</div></div>
+      <div class="delivery-qty">× ${t.qty}</div>
+      <div class="dispatch-choice">
+        <button class="btn assignDispatch" data-id="${t.id}" data-dest="boat">Send to Kitsune Boat</button>
+        <button class="btn secondary assignDispatch" data-id="${t.id}" data-dest="cornwall">Send to Kitsune Cornwall</button>
+      </div>
+   </div>`).join(''):'<div class="bench-empty">No finished Pals are awaiting dispatch allocation.</div>';
+
+   awaiting.innerHTML=a.length?a.map(t=>`<div class="delivery-card awaiting-delivery">
+      <div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Allocated ${fmtDate(t.dispatched_at||t.packed_at)}</div></div>
+      <div class="delivery-qty">× ${t.qty}</div>
+      <button class="btn receiveDelivery" data-id="${t.id}">Received in Cornwall</button>
+   </div>`).join(''):'<div class="bench-empty">No stock is awaiting delivery to Cornwall.</div>';
+
+   received.innerHTML=r.length?r.map(t=>`<div class="delivery-card received-delivery">
+      <div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Received ${fmtDate(t.received_at)}</div></div>
+      <div class="delivery-qty">× ${t.qty}</div>${badge('RECEIVED','ok')}
+   </div>`).join(''):'<div class="bench-empty">No Cornwall deliveries received yet.</div>';
+
+   document.querySelectorAll('.assignDispatch').forEach(btn=>btn.onclick=()=>{
+     const t=s.awaitingDispatch.find(x=>x.id===btn.dataset.id);
+     if(!t)return;
+     const dest=btn.dataset.dest;
+     t.destination=dest;
+     t.status='dispatched';
+     t.dispatched_at=new Date().toISOString();
+
+     if(dest==='boat'){
+       addForgeInventory(s,t.sku,'boat',t.qty);
+     }else{
+       // Allocate to Cornwall inventory immediately as requested, but keep
+       // the shipment visibly awaiting physical receipt.
+       addForgeInventory(s,t.sku,'cornwall',t.qty);
+       s.transfers.push({
+         id:makeId(),sku:t.sku,name:t.name,qty:t.qty,
+         destination:'cornwall',status:'awaiting_delivery',
+         packed_at:t.packed_at,dispatched_at:t.dispatched_at,received_at:null
+       });
+     }
+     save(s);render();
+   });
+
+   document.querySelectorAll('.receiveDelivery').forEach(btn=>btn.onclick=()=>{
+     const t=s.transfers.find(x=>x.id===btn.dataset.id);
+     if(!t)return;
+     t.status='received';
+     t.received_at=new Date().toISOString();
+     // Inventory was already allocated when destination was chosen.
+     save(s);render();
+   });
+ }
+ render();
 }
