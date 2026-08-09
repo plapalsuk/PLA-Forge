@@ -342,3 +342,14 @@ Completing rework returns the repaired/replaced unit into Cornwall usable invent
 Production Planner now includes a Damage / Rework Requirements panel so the reason for replacement work remains visible.
 
 This release preserves existing v0.8.x operational data and does not trigger a reset.
+
+
+## v0.8.5 — Confirm Delivery Migration Fix
+
+- Fixed `Confirm Delivery` failing when damage routing is used on browser data created before v0.8.4.
+- Existing PLA Forge state now automatically initialises:
+  - `damageHistory`
+  - `damageReworkJobs`
+  - `damageInsertDemand`
+- Added defensive initialisation inside the Cornwall delivery confirmation handler as a second safeguard.
+- No clean reset is required and existing operational data is preserved.

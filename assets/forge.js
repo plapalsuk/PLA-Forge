@@ -77,6 +77,9 @@ function state(){
   if(s.consumables && s.consumables.barcode_labels) delete s.consumables.barcode_labels;
   s.printerRoles=s.printerRoles||{};
 
+  s.damageHistory=s.damageHistory||[];
+  s.damageReworkJobs=s.damageReworkJobs||[];
+  s.damageInsertDemand=s.damageInsertDemand||{};
   s.productAvailability=s.productAvailability||{};
   return s;
 }
@@ -1422,6 +1425,9 @@ async function deliveriesPage(){
      t.status='received';t.received_at=now;t.good_qty=good;t.damaged_qty=damaged;t.damage_issues=issues.map(x=>({...x}));
 
      if(damaged>0){
+       s.damageHistory=s.damageHistory||[];
+       s.damageReworkJobs=s.damageReworkJobs||[];
+       s.damageInsertDemand=s.damageInsertDemand||{};
        s.stock[t.sku]=s.stock[t.sku]||{};
        s.stock[t.sku].cornwall=Math.max(0,Number(s.stock[t.sku].cornwall||0)-damaged);
        s.finishedStock.cornwall=s.finishedStock.cornwall||{};
