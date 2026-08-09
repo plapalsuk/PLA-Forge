@@ -348,3 +348,8 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .packing-blockers span{font-size:9px;color:#ffd16c;background:rgba(244,185,66,.07);border:1px solid rgba(244,185,66,.18);padding:6px 8px;border-radius:7px}
 .awaiting-pack-card{opacity:.9}
 @media(max-width:1150px){.packing-two-sections{grid-template-columns:1fr}}
+
+/* v0.6.4 Batch Packing */
+.batch-pack-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#171d24;border:1px solid #292f37;border-radius:9px;padding:10px 12px;margin:12px 0}
+.batch-qty{display:flex;align-items:center;gap:6px}.batch-qty .number{width:64px;text-align:center;font-size:16px;font-weight:800}
+.packing-steps em{display:block;margin-top:6px;font-style:normal;font-weight:800;color:var(--orange);font-size:10px}
