@@ -14,10 +14,10 @@ function state(){
   s.consumables=s.consumables||{
     clear_boxes:{name:'Flat Clear Boxes',stock:0,reorder:25,unit:'boxes'},
     bottom_cards:{name:'Bottom Card Squares',stock:0,reorder:25,unit:'cards'},
-    stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'},
-    barcode_labels:{name:'Barcode Labels',stock:0,reorder:50,unit:'labels'}
+    stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'}
   };
   s.consumableHistory=s.consumableHistory||[];
+  s.packingJobs=s.packingJobs||{}; s.packingHistory=s.packingHistory||[];
   s.productAvailability=s.productAvailability||{};
   return s;
 }
@@ -853,8 +853,7 @@ async function consumablesPage(){
  const defaults={
    clear_boxes:{name:'Flat Clear Boxes',stock:0,reorder:25,unit:'boxes'},
    bottom_cards:{name:'Bottom Card Squares',stock:0,reorder:25,unit:'cards'},
-   stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'},
-   barcode_labels:{name:'Barcode Labels',stock:0,reorder:50,unit:'labels'}
+   stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'}
  };
  Object.entries(defaults).forEach(([k,v])=>s.consumables[k]=Object.assign({},v,s.consumables[k]||{}));
  save(s);
@@ -914,4 +913,30 @@ async function consumablesPage(){
    </tr>`).join('')||'<tr><td colspan="4">No consumable movements recorded yet.</td></tr>';
  }
  render();
+}
+
+function printPalBarcode(sku,name){
+ const w=window.open('','_blank','width=520,height=360');
+ if(!w){alert('Please allow pop-ups for PLA Forge.');return}
+ w.document.write(`<!doctype html><html><head><title>${sku} Barcode</title><style>@page{margin:5mm}body{font-family:Arial;text-align:center;padding:15px}.bars{font-family:monospace;font-size:48px;letter-spacing:-5px;overflow:hidden}.sku{font-size:16px;font-weight:bold;margin:8px}</style></head><body><h3>${name}</h3><div class="bars">|||| ||| || |||| | ||| || |||| ||| | || ||||</div><div class="sku">${sku}</div><button onclick="window.print()">Print Barcode</button></body></html>`);
+ w.document.close();
+}
+async function packingStationPage(){
+ const s=state(),ps=await load('products'),pals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku));
+ const list=document.querySelector('#packingList'),q=document.querySelector('#q');
+ function ins(sku){return Number(s.inserts?.[sku]?.ready||0)}
+ function cs(k){return Number(s.consumables?.[k]?.stock||0)}
+ function render(){
+  const text=(q.value||'').toLowerCase();
+  const data=pals.filter(p=>`${p.name} ${p.sku}`.toLowerCase().includes(text)).filter(p=>ins(p.sku)>0);
+  list.innerHTML=data.map(p=>{const job=s.packingJobs[p.sku]||{step:1},can=Math.min(ins(p.sku),cs('clear_boxes'),cs('bottom_cards'),cs('stickers'));
+   const steps=['Fold Clear Box','Fold Printed Insert','Place Bottom Card','Place Sticker','Put Printed Insert In','Place Pal','Close Box','Print & Apply Barcode'];
+   return `<div class="packing-card"><div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${can>0?badge(`${can} PACKABLE`,'ok'):badge('WAITING','warning')}</div>
+   <div class="packing-checks"><span>${ins(p.sku)} Ready Inserts</span><span>${cs('clear_boxes')} Clear Boxes</span><span>${cs('bottom_cards')} Bottom Cards</span><span>${cs('stickers')} Stickers</span></div>
+   <div class="packing-steps">${steps.map((n,i)=>`<div class="${job.step>i+1?'done':job.step===i+1?'active':''}"><b>${i+1}</b><span>${n}</span></div>`).join('')}</div>
+   <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}" ${can<=0&&job.step===1?'disabled':''}>${job.step<8?'Complete Step '+job.step:'Print Barcode'}</button>${job.step===8?`<button class="btn secondary barcodeApplied" data-sku="${p.sku}">Barcode Applied · Complete</button>`:''}</div></div>`}).join('')||'<div class="bench-empty">No Pals are currently ready for packing.</div>';
+  document.querySelectorAll('.nextPackStep').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1};if(j.step<8){j.step++;s.packingJobs[sku]=j;save(s);render()}else printPalBarcode(sku,p.name)});
+  document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku);s.inserts[sku].ready=Math.max(0,ins(sku)-1);['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-1));delete s.packingJobs[sku];s.packingHistory.push({id:makeId(),sku,name:p.name,qty:1,created_at:new Date().toISOString()});save(s);render()});
+ }
+ q.oninput=render;render();
 }
