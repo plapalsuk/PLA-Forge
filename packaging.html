@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Box Production | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=042"></head><body><div class="app"><aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Insert Production | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=051"></head><body><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
   <div class="navgroup">Forge Control</div>
@@ -8,7 +8,7 @@
   <div class="navgroup">The Workshop</div>
   <a href="production.html">⚙ Production Planner</a><a href="recipes.html">⌘ Recipes</a><a href="plates.html">▱ Build Plates</a><a href="parts.html">◫ Printed Parts</a><a href="assembly.html">⌁ The Bench</a>
   <div class="navgroup">Packing & Dispatch</div>
-  <a href="packaging.html">□ Box Production</a><a href="deliveries.html">⇢ Dispatch</a>
+  <a href="packaging.html">□ Insert Production</a><a href="deliveries.html">⇢ Dispatch</a>
   <div class="navgroup">Materials</div>
   <a href="filament.html">≋ Filament</a>
   <div class="navgroup">Administration</div>
@@ -16,22 +16,30 @@
  </nav>
 </aside><main class="bench-main">
 <div class="topbar">
- <div class="pageTitle"><h1>Box Production</h1><div class="small">Keep each Pal's custom printed box ready for the Box Production.</div></div>
- <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Target 10. Alert below 4.</div></div></div>
+ <div class="pageTitle"><h1>Insert Production</h1><div class="small">Print, cut and score each Pal's character-specific insert before it reaches the Packing Station.</div></div>
+ <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Target 10 ready. Alert below 4.</div></div></div>
 </div>
-<div class="grid kpis bench-kpis">
- <div class="card kpi"><div class="label">Print Now</div><div class="value accent" id="boxLowKpi">0</div><div class="small">box designs below 4 in stock</div></div>
- <div class="card kpi"><div class="label">Boxes In Stock</div><div class="value" id="boxTotalKpi">0</div><div class="small">all character boxes</div></div>
- <div class="card kpi"><div class="label">Suggested Print Qty</div><div class="value" id="boxPrintKpi">0</div><div class="small">to restore every Pal to 10</div></div>
+
+<div class="grid kpis four">
+ <div class="card kpi"><div class="label">Urgent</div><div class="value accent" id="insertUrgentKpi">0</div><div class="small">On Sale Pals below 4 ready</div></div>
+ <div class="card kpi"><div class="label">Ready Inserts</div><div class="value" id="insertReadyKpi">0</div><div class="small">cut, scored and usable</div></div>
+ <div class="card kpi"><div class="label">Awaiting Cut & Score</div><div class="value" id="insertCutKpi">0</div><div class="small">printed inserts in WIP</div></div>
+ <div class="card kpi"><div class="label">Need to Print</div><div class="value" id="insertPrintKpi">0</div><div class="small">to restore pipeline to target 10</div></div>
 </div>
-<div class="toolbar bench-toolbar"><input id="q" class="search" placeholder="Search Pal or SKU"></div>
+
+<div class="toolbar bench-toolbar"><input id="q" class="search" placeholder="Search On Sale Pal or SKU"></div>
+
 <div class="card">
- <div class="section-title"><div><h2>Character Box Stock</h2><div class="small">Every Pal has its own printed artwork, but all boxes use the same physical size.</div></div><span class="badge warning">Minimum 4 · Target 10</span></div>
- <div id="boxReady" class="assembly-grid box-grid"></div>
+ <div class="section-title">
+   <div><h2>Insert Production Queue</h2><div class="small">Only currently On Sale Pals are shown. Print demand takes both Ready and Awaiting Cut & Score stock into account.</div></div>
+   <span class="badge warning">Print → Cut & Score → Ready</span>
+ </div>
+ <div id="insertCards" class="assembly-grid insert-grid"></div>
 </div>
+
 <div class="card bench-history">
- <div class="section-title"><div><h2>Box Print History</h2><div class="small">Boxes added into production stock.</div></div></div>
- <div style="overflow:auto"><table><thead><tr><th>Date</th><th>Pal / Box</th><th>Qty Added</th></tr></thead><tbody id="boxHistory"></tbody></table></div>
+ <div class="section-title"><div><h2>Insert Production History</h2><div class="small">Printed and Cut & Scored movements.</div></div></div>
+ <div style="overflow:auto"><table><thead><tr><th>Date</th><th>Pal</th><th>Stage</th><th>Qty</th></tr></thead><tbody id="insertHistory"></tbody></table></div>
 </div>
-<div class="footer-note">PLA Forge v0.4.3 · Manufacturing & Inventory System</div>
-</main></div><script src="assets/forge.js?v=042"></script><script>boxProductionPage()</script></body></html>
+<div class="footer-note">PLA Forge v0.5.1 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=051"></script><script>insertProductionPage()</script></body></html>

@@ -10,6 +10,7 @@ function state(){
   s.printers=s.printers||[]; s.siteSettings=s.siteSettings||{defaultPrinter:'',defaultLocation:'boat'};
   s.assembled=s.assembled||{}; s.assemblyHistory=s.assemblyHistory||[];
   s.boxes=s.boxes||{}; s.boxHistory=s.boxHistory||[]; s.packagingComponents=s.packagingComponents||{clear_boxes:0,inserts:0,stickers:0,barcode_labels:0};
+  s.inserts=s.inserts||{}; s.insertHistory=s.insertHistory||[];
   s.productAvailability=s.productAvailability||{};
   return s;
 }
@@ -623,37 +624,107 @@ async function assemblyPage(){
 }
 
 
-async function boxProductionPage(){
- const s=state(), ps=await load('products');
+async function insertProductionPage(){
+ const s=state(), ps=await load('products'), files=await load('insert_files');
  const pals=ps.filter(p=>p.type==='pal' && isOnSale(s,p.sku));
- const q=document.querySelector('#q'), ready=document.querySelector('#boxReady'), history=document.querySelector('#boxHistory');
- const lowKpi=document.querySelector('#boxLowKpi'), totalKpi=document.querySelector('#boxTotalKpi'), printKpi=document.querySelector('#boxPrintKpi');
+ const q=document.querySelector('#q'), cards=document.querySelector('#insertCards'), history=document.querySelector('#insertHistory');
+ const readyKpi=document.querySelector('#insertReadyKpi'), cutKpi=document.querySelector('#insertCutKpi'), printKpi=document.querySelector('#insertPrintKpi'), urgentKpi=document.querySelector('#insertUrgentKpi');
 
- function stock(sku){return Number(s.boxes[sku]||0)}
+ function rec(sku){
+   s.inserts[sku]=s.inserts[sku]||{awaiting_cut:0,ready:0};
+   return s.inserts[sku];
+ }
  function target(){return 10}
- function printNeed(p){return Math.max(0,target()-stock(p.sku))}
+ function needPrint(sku){
+   const r=rec(sku);
+   return Math.max(0,target()-Number(r.ready||0)-Number(r.awaiting_cut||0));
+ }
+ function statusFor(p){
+   const r=rec(p.sku), need=needPrint(p.sku);
+   if(Number(r.ready||0)<4 && Number(r.awaiting_cut||0)>0)return ['CUT & SCORE NOW','warning'];
+   if(need>0)return ['PRINT REQUIRED','danger'];
+   if(Number(r.ready||0)<10)return ['IN PROGRESS','warning'];
+   return ['READY STOCK OK','ok'];
+ }
  function render(){
    const text=(q.value||'').toLowerCase();
-   const data=pals.map(p=>({p,stock:stock(p.sku),need:printNeed(p)}))
+   const data=pals.map(p=>({p,r:rec(p.sku),need:needPrint(p.sku),file:files[p.sku]||null,status:statusFor(p)}))
      .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
-     .sort((a,b)=>(a.stock<4?-1:1)-(b.stock<4?-1:1)||b.need-a.need||a.p.name.localeCompare(b.p.name));
-   lowKpi.textContent=data.filter(x=>x.stock<4).length;
-   totalKpi.textContent=data.reduce((a,x)=>a+x.stock,0);
+     .sort((a,b)=>(a.r.ready<4?-2:a.need>0?-1:0)-(b.r.ready<4?-2:b.need>0?-1:0)||b.need-a.need||a.p.name.localeCompare(b.p.name));
+
+   readyKpi.textContent=data.reduce((a,x)=>a+Number(x.r.ready||0),0);
+   cutKpi.textContent=data.reduce((a,x)=>a+Number(x.r.awaiting_cut||0),0);
    printKpi.textContent=data.reduce((a,x)=>a+x.need,0);
-   ready.innerHTML=data.map(x=>`<div class="box-card ${x.stock<4?'urgent':x.stock<10?'low':''}">
-     <div class="assembly-card-head"><div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>${x.stock<4?badge('PRINT NOW','warning'):x.stock<10?badge('Below Target','warning'):badge('Stock OK','ok')}</div>
-     <div class="box-stock-number">${x.stock}<span> / 10</span></div>
-     <div class="small">character boxes currently in stock</div>
-     <div class="box-progress"><span style="width:${Math.min(100,x.stock*10)}%"></span></div>
-     <div class="box-actions"><div><strong>${x.need}</strong><span class="small"> suggested to print</span></div><label><span class="small">Qty Printed</span><input class="number boxqty" id="box-${x.p.sku}" type="number" min="1" value="${Math.max(1,x.need||1)}"></label><button class="btn addboxes" data-sku="${x.p.sku}">Add Boxes</button></div>
-   </div>`).join('');
-   document.querySelectorAll('.addboxes').forEach(btn=>btn.onclick=()=>{
-     const sku=btn.dataset.sku,p=pals.find(x=>x.sku===sku),qty=Math.max(1,Number(document.querySelector('#box-'+sku)?.value||1));
-     s.boxes[sku]=stock(sku)+qty;s.boxHistory.push({id:makeId(),sku,name:p.name,qty,created_at:new Date().toISOString()});save(s);render();
+   urgentKpi.textContent=data.filter(x=>Number(x.r.ready||0)<4).length;
+
+   cards.innerHTML=data.map(x=>`<div class="insert-card ${x.r.ready<4?'urgent':x.need>0?'low':''}">
+     <div class="assembly-card-head">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       ${badge(x.status[0],x.status[1])}
+     </div>
+
+     <div class="insert-stock-grid">
+       <div><span>Ready</span><strong>${Number(x.r.ready||0)}</strong></div>
+       <div><span>Awaiting Cut & Score</span><strong>${Number(x.r.awaiting_cut||0)}</strong></div>
+       <div><span>Need to Print</span><strong class="${x.need>0?'accent':''}">${x.need}</strong></div>
+     </div>
+
+     <div class="insert-pipeline">
+       <div class="${x.need>0?'active':''}"><span>1</span> Print</div>
+       <div class="${Number(x.r.awaiting_cut||0)>0?'active':''}"><span>2</span> Cut & Score</div>
+       <div class="${Number(x.r.ready||0)>0?'complete':''}"><span>✓</span> Ready</div>
+     </div>
+
+     <div class="insert-actions">
+       <div class="insert-action-block">
+         <strong>Step 1 · Print</strong>
+         <div class="small">${x.file?'Production PDF linked from Google Drive':'No PDF mapped for this SKU'}</div>
+         <div class="insert-action-row">
+           ${x.file?`<a class="btn secondary" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open / Print PDF</a>`:`<button class="btn secondary" disabled>No PDF</button>`}
+           <input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" value="${Math.max(1,x.need||1)}">
+           <button class="btn markPrinted" data-sku="${x.p.sku}">Mark Printed</button>
+         </div>
+       </div>
+
+       <div class="insert-action-block">
+         <strong>Step 2 · Cut & Score</strong>
+         <div class="small">${Number(x.r.awaiting_cut||0)} printed insert(s) waiting.</div>
+         <div class="insert-action-row">
+           <input class="number cutQty" id="cut-${x.p.sku}" type="number" min="1" max="${Math.max(1,Number(x.r.awaiting_cut||0))}" value="${Math.max(1,Number(x.r.awaiting_cut||0))}" ${Number(x.r.awaiting_cut||0)<=0?'disabled':''}>
+           <button class="btn completeCut" data-sku="${x.p.sku}" ${Number(x.r.awaiting_cut||0)<=0?'disabled':''}>Cut & Score Complete</button>
+         </div>
+       </div>
+     </div>
+   </div>`).join('')||'<div class="bench-empty">No On Sale Pals match this view.</div>';
+
+   document.querySelectorAll('.markPrinted').forEach(btn=>btn.onclick=()=>{
+     const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku), r=rec(sku);
+     const qty=Math.max(1,Number(document.querySelector('#printed-'+sku)?.value||1));
+     r.awaiting_cut=Number(r.awaiting_cut||0)+qty;
+     s.insertHistory.push({id:makeId(),sku,name:p.name,stage:'printed',qty,created_at:new Date().toISOString()});
+     save(s);render();
    });
-   history.innerHTML=s.boxHistory.slice().reverse().slice(0,30).map(h=>`<tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>+${h.qty}</td></tr>`).join('')||'<tr><td colspan="3">No boxes recorded yet.</td></tr>';
+
+   document.querySelectorAll('.completeCut').forEach(btn=>btn.onclick=()=>{
+     const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku), r=rec(sku);
+     const available=Number(r.awaiting_cut||0);
+     const qty=Math.max(1,Math.min(available,Number(document.querySelector('#cut-'+sku)?.value||1)));
+     if(available<=0)return;
+     r.awaiting_cut=available-qty;
+     r.ready=Number(r.ready||0)+qty;
+     s.insertHistory.push({id:makeId(),sku,name:p.name,stage:'cut_scored',qty,created_at:new Date().toISOString()});
+     save(s);render();
+   });
+
+   history.innerHTML=(s.insertHistory||[]).slice().reverse().slice(0,40).map(h=>`<tr>
+     <td>${fmtDate(h.created_at)}</td>
+     <td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td>
+     <td>${h.stage==='printed'?badge('PRINTED','info'):badge('CUT & SCORED','ok')}</td>
+     <td>${h.qty}</td>
+   </tr>`).join('')||'<tr><td colspan="4">No insert production recorded yet.</td></tr>';
  }
- q.oninput=render;render();
+ q.oninput=render;
+ render();
 }
 
 async function availabilityPage(){
