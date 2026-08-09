@@ -155,3 +155,17 @@ v0.2 still uses browser localStorage for operational state until the shared back
 - Confirming Boat quantity updates Kitsune Boat inventory immediately.
 - Confirming Cornwall quantity updates Kitsune Cornwall inventory immediately and creates an Awaiting Cornwall Delivery record.
 - `Received in Cornwall` confirms physical receipt without increasing inventory a second time.
+
+
+## v0.7.5 — The Bench Remaining Need
+
+- The Bench now subtracts already assembled Pals from the Production Planner requirement.
+- `Still Needed = Production Planner Need - Assembled Pals`.
+- Assembling Pals immediately reduces the Awaiting quantity.
+- When the remaining requirement reaches zero, the Pal disappears from Awaiting.
+- The Awaiting KPI now shows the remaining quantity still requiring assembly rather than simply counting Pal types.
+- Bench cards now show:
+  - Production Need
+  - Already Assembled
+  - Still Needed
+- Assembly quantities are limited to useful Production Planner demand when there is an active requirement.

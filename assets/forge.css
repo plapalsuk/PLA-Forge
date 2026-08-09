@@ -378,3 +378,10 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .dispatch-allocation-summary{font-size:10px;color:var(--muted)}
 .danger-text{color:#ff858a}
 @media(max-width:850px){.dispatch-location-grid{grid-template-columns:1fr}.dispatch-allocation-footer{align-items:stretch;flex-direction:column}}
+
+/* v0.7.5 Bench remaining production need */
+.assembly-demand-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0}
+.assembly-demand-strip span{background:#171d24;border:1px solid #252c34;border-radius:7px;padding:7px 8px;font-size:9px;color:var(--muted)}
+.assembly-demand-strip strong{display:block;color:#fff;font-size:14px;margin-top:2px}
+.assembly-demand-strip strong.accent{color:var(--orange)}
+@media(max-width:750px){.assembly-demand-strip{grid-template-columns:1fr}}

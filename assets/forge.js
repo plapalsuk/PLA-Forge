@@ -534,38 +534,60 @@ async function assemblyPage(){
  const awaitingSectionCount=document.querySelector('#awaitingSectionCount');
 
  function recipeGroups(sku){return rs.filter(r=>r.sku===sku)}
+ function assembledQty(sku){return Number(s.assembled?.[sku]||0)}
+ function plannerNeed(sku){return totalNeed(s,sku)}
+ function remainingAssemblyNeed(sku){
+   return Math.max(0,plannerNeed(sku)-assembledQty(sku));
+ }
  function readyQty(p){
    const groups=recipeGroups(p.sku);
    if(!groups.length)return 0;
    return Math.max(0,Math.min(...groups.map(r=>partQty(s,groupKey(r)))));
  }
- function requiredQty(p){
-   return totalNeed(s,p.sku);
- }
  function groupStock(p){
    return recipeGroups(p.sku).map(r=>({
      r,
-     have:partQty(s,groupKey(r)),
-     required:requiredQty(p)
+     have:partQty(s,groupKey(r))
    }));
  }
- function cardHtml(x,isReady){
-   const productionNeed=requiredQty(x.p);
-   return `<div class="assembly-card ${isReady?'ready':'not-ready'}">
+
+ function readyCard(x){
+   const maxUseful=Math.max(0,Math.min(x.ready,x.remainingNeed>0?x.remainingNeed:x.ready));
+   return `<div class="assembly-card ready">
      <div class="assembly-card-head">
        <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${isReady?badge(`${x.ready} Ready`,'ok'):badge(`Need ${productionNeed}`,'warning')}
+       ${badge(`${x.ready} Ready`,'ok')}
+     </div>
+     <div class="assembly-demand-strip">
+       <span>Production Need <strong>${x.plannerNeed}</strong></span>
+       <span>Already Assembled <strong>${x.assembled}</strong></span>
+       <span>Still Needed <strong>${x.remainingNeed}</strong></span>
      </div>
      <div class="assembly-parts">
-       ${x.groups.map(g=>`<div class="assembly-part ${g.have<=0?'missing':''}">
-         <span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span>
-         <strong>${g.have}</strong>
-       </div>`).join('')||'<div class="small">No recipe available.</div>'}
+       ${x.groups.map(g=>`<div class="assembly-part"><span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span><strong>${g.have}</strong></div>`).join('')||'<div class="small">No recipe available.</div>'}
      </div>
-     ${isReady?`<div class="assembly-actions">
-       <label><span class="small">Assemble Qty</span><input class="number assembleQty" id="assemble-${x.p.sku}" type="number" min="1" max="${x.ready}" value="1"></label>
+     <div class="assembly-actions">
+       <label><span class="small">Assemble Qty</span><input class="number assembleQty" id="assemble-${x.p.sku}" type="number" min="1" max="${Math.max(1,maxUseful)}" value="1"></label>
        <button class="btn assembleBtn" data-sku="${x.p.sku}">Assemble</button>
-     </div>`:`<div class="awaiting-note"><span class="small">Production Planner requires ${productionNeed}. Waiting for missing printed parts.</span></div>`}
+     </div>
+   </div>`;
+ }
+
+ function awaitingCard(x){
+   return `<div class="assembly-card not-ready">
+     <div class="assembly-card-head">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       ${badge(`NEED ${x.remainingNeed}`,'warning')}
+     </div>
+     <div class="assembly-demand-strip">
+       <span>Production Need <strong>${x.plannerNeed}</strong></span>
+       <span>Already Assembled <strong>${x.assembled}</strong></span>
+       <span>Still Needed <strong class="accent">${x.remainingNeed}</strong></span>
+     </div>
+     <div class="assembly-parts">
+       ${x.groups.map(g=>`<div class="assembly-part ${g.have<=0?'missing':''}"><span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span><strong>${g.have}</strong></div>`).join('')||'<div class="small">No recipe available.</div>'}
+     </div>
+     <div class="awaiting-note"><span class="small">Production Planner still requires ${x.remainingNeed}. Waiting for enough printed parts to assemble more.</span></div>
    </div>`;
  }
 
@@ -575,44 +597,44 @@ async function assemblyPage(){
    const all=pals.map(p=>({
      p,
      ready:readyQty(p),
-     required:requiredQty(p),
+     plannerNeed:plannerNeed(p.sku),
+     assembled:assembledQty(p.sku),
+     remainingNeed:remainingAssemblyNeed(p.sku),
      groups:groupStock(p)
-   }));
+   })).filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
 
-   // User rule:
-   // 1) Show if it can be assembled now.
-   // 2) Otherwise only show if Production Planner currently requires it.
-   // 3) Hide everything else.
+   // READY: physically possible to assemble, regardless of planner need.
    const ready=all
      .filter(x=>x.ready>0)
-     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
-     .sort((a,b)=>b.ready-a.ready||a.p.name.localeCompare(b.p.name));
+     .sort((a,b)=>b.remainingNeed-a.remainingNeed || b.ready-a.ready || a.p.name.localeCompare(b.p.name));
 
+   // AWAITING: only if planner still needs more AND no complete Pal can currently be assembled.
    const awaiting=all
-     .filter(x=>x.ready<=0 && x.required>0)
-     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
-     .sort((a,b)=>b.required-a.required||a.p.name.localeCompare(b.p.name));
+     .filter(x=>x.remainingNeed>0 && x.ready<=0)
+     .sort((a,b)=>b.remainingNeed-a.remainingNeed || a.p.name.localeCompare(b.p.name));
 
-   const totalReady=all.filter(x=>x.ready>0).reduce((a,x)=>a+x.ready,0);
+   const totalReady=ready.reduce((a,x)=>a+x.ready,0);
    kpiReady.textContent=totalReady;
    kpiAssembled.textContent=Object.values(s.assembled||{}).reduce((a,b)=>a+Number(b||0),0);
-   kpiWaiting.textContent=all.filter(x=>x.ready<=0 && x.required>0).length;
+   kpiWaiting.textContent=awaiting.reduce((a,x)=>a+x.remainingNeed,0);
    readySectionCount.textContent=`${ready.length} Ready`;
    awaitingSectionCount.textContent=`${awaiting.length} Awaiting`;
 
    readyBox.innerHTML=ready.length
-     ? ready.map(x=>cardHtml(x,true)).join('')
-     : '<div class="bench-empty">No Pals are ready to assemble yet.</div>';
+     ?ready.map(readyCard).join('')
+     :'<div class="bench-empty">No Pals are ready to assemble yet.</div>';
 
    awaitingBox.innerHTML=awaiting.length
-     ? awaiting.map(x=>cardHtml(x,false)).join('')
-     : '<div class="bench-empty">Nothing from the Production Planner is currently awaiting parts.</div>';
+     ?awaiting.map(awaitingCard).join('')
+     :'<div class="bench-empty">Nothing is currently awaiting assembly.</div>';
 
    document.querySelectorAll('.assembleBtn').forEach(btn=>btn.onclick=()=>{
      const sku=btn.dataset.sku;
      const p=pals.find(x=>x.sku===sku);
      const available=readyQty(p);
-     const qty=Math.max(1,Math.min(available,Number(document.querySelector('#assemble-'+sku)?.value||1)));
+     const stillNeeded=remainingAssemblyNeed(sku);
+     const maxQty=Math.max(1,Math.min(available,stillNeeded>0?stillNeeded:available));
+     const qty=Math.max(1,Math.min(maxQty,Number(document.querySelector('#assemble-'+sku)?.value||1)));
      if(!available||qty>available)return;
 
      recipeGroups(sku).forEach(r=>{
@@ -621,14 +643,22 @@ async function assemblyPage(){
      });
 
      s.assembled[sku]=Number(s.assembled[sku]||0)+qty;
-     s.assemblyHistory.push({id:makeId(),sku,name:p.name,qty,created_at:new Date().toISOString()});
+     s.assemblyHistory.push({
+       id:makeId(),sku,name:p.name,qty,
+       production_need_before:stillNeeded,
+       production_need_after:Math.max(0,stillNeeded-qty),
+       created_at:new Date().toISOString()
+     });
      save(s);
      render();
    });
 
    history.innerHTML=(s.assemblyHistory||[]).slice().reverse().slice(0,30).map(h=>`
-     <tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>${h.qty}</td></tr>
-   `).join('')||'<tr><td colspan="3">No Pals assembled yet.</td></tr>';
+     <tr>
+       <td>${fmtDate(h.created_at)}</td>
+       <td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td>
+       <td>${h.qty}</td>
+     </tr>`).join('')||'<tr><td colspan="3">No Pals assembled yet.</td></tr>';
  }
 
  q.oninput=render;
