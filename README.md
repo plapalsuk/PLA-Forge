@@ -230,3 +230,34 @@ Important:
 - The old Dispatch recovery system has been disabled.
 - Dispatch will no longer recreate completed packing records from historical Packing History.
 - A manual `Reset Everything to Zero` control is now available in Settings.
+
+
+## v0.8.1 — Pipeline-Aware Production Demand
+
+Fixed a core production-demand issue discovered during the clean Axolotl test.
+
+Previous behaviour:
+- Build Plates used only the destination inventory deficit.
+- When printed parts were assembled, those parts left Printed Parts inventory.
+- Forge therefore interpreted them as missing again and requested another print.
+- Packing could cause the same problem because packed Pals leave Assembled inventory.
+
+New behaviour:
+- Build Plate demand now accounts for finished Pals already moving through the manufacturing pipeline.
+- Assembled Pals count toward satisfying production demand.
+- Packed Pals awaiting dispatch count toward satisfying production demand.
+- Once dispatched, destination inventory takes over and continues satisfying the target.
+- Moving stock from Printed Parts → Assembly → Packing → Dispatch no longer creates false replacement print demand.
+- The Bench uses the same downstream-aware logic so packed Pals do not reappear as requiring assembly.
+
+Example:
+If Axolotl has a total target requirement of 10 and you print and assemble 10:
+- Build Plate requirement = 0.
+If you then pack 5:
+- 5 assembled + 5 packed = 10 accounted for.
+- Build Plate requirement remains 0.
+If you dispatch the packed 5:
+- 5 destination stock + 5 assembled = 10 accounted for.
+- Build Plate requirement remains 0.
+
+This update does NOT trigger another clean reset. Existing v0.8.0 data is preserved.

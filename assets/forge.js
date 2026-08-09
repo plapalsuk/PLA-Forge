@@ -85,6 +85,23 @@ function getTarget(s,sku,loc){return Number(s.targets[targetKey(sku,loc)]||0)}
 function stock(s,sku,loc){return Number((s.stock[sku]||{})[loc]||0)}
 function needed(s,sku,loc){return Math.max(0,getTarget(s,sku,loc)-stock(s,sku,loc))}
 function totalNeed(s,sku){return needed(s,sku,'boat')+needed(s,sku,'cornwall')}
+function awaitingDispatchQty(s,sku){
+ return (s.awaitingDispatch||[])
+   .filter(x=>x.sku===sku&&x.status==='awaiting_dispatch')
+   .reduce((a,x)=>a+Number(x.qty||0),0);
+}
+function assembledQtyForDemand(s,sku){return Number(s.assembled?.[sku]||0)}
+// Quantity still requiring manufacture after allowing for finished Pals already in the workflow.
+// Location stock is already deducted by totalNeed(). Packed-but-unallocated and assembled Pals
+// must also be deducted so moving a Pal downstream never creates fresh print demand.
+function manufacturingNeed(s,sku){
+ return Math.max(0,totalNeed(s,sku)-assembledQtyForDemand(s,sku)-awaitingDispatchQty(s,sku));
+}
+// Quantity still needing assembly. Packed Pals count as completed manufacture and must not
+// reappear on The Bench after they leave assembled stock.
+function assemblyNeed(s,sku){
+ return Math.max(0,totalNeed(s,sku)-awaitingDispatchQty(s,sku)-assembledQtyForDemand(s,sku));
+}
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function groupKey(r){return `group|${r.sku}|${r.filament}|${r.grouped_stl}`}
 function recoveryKey(sku,file){return `recovery|${sku}|${file}`}
@@ -126,7 +143,7 @@ async function recipes(){
 }
 async function production(){
  const s=state(),ps=await load('products'),rs=await load('recipes'),body=document.querySelector('#prod'),rows=[];
- ps.filter(p=>p.type==='pal').forEach(p=>{const n=totalNeed(s,p.sku);if(n>0)rows.push({p,n,groups:rs.filter(r=>r.sku===p.sku)})});rows.sort((a,b)=>b.n-a.n);
+ ps.filter(p=>p.type==='pal').forEach(p=>{const n=manufacturingNeed(s,p.sku);if(n>0)rows.push({p,n,groups:rs.filter(r=>r.sku===p.sku)})});rows.sort((a,b)=>b.n-a.n);
  body.innerHTML=rows.map(x=>`<tr><td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td><td>${x.n}</td><td>${x.groups.length}</td><td>${(x.groups.reduce((a,r)=>a+r.weight_g,0)*x.n).toFixed(1)}g</td><td>${x.groups.map(r=>esc(r.filament)).join(', ')}</td></tr>`).join('')||'<tr><td colspan="5">Set inventory targets first to create production demand.</td></tr>';
 }
 async function dataHealth(){
@@ -176,7 +193,7 @@ async function buildPlatePlanner(){
    return p?`${p.name}${p.model?` · ${p.model}`:''}`:'No printer assigned';
  }
  function recipeKey(r){return groupKey(r)}
- function demandFor(r){return totalNeed(s,r.sku)}
+ function demandFor(r){return manufacturingNeed(s,r.sku)}
  function draftQty(key){return plateDraft.items.filter(i=>i.inventory_key===key).reduce((a,i)=>a+Number(i.qty||0),0)}
  function rowData(){
    const selected=String(plateDraft.colour||'').trim();
@@ -586,7 +603,7 @@ async function assemblyPage(){
 
  function recipeGroups(sku){return rs.filter(r=>r.sku===sku)}
  function assembledQty(sku){return Number(s.assembled?.[sku]||0)}
- function plannerNeed(sku){return totalNeed(s,sku)}
+ function plannerNeed(sku){return Math.max(0,totalNeed(s,sku)-awaitingDispatchQty(s,sku))}
  function remainingAssemblyNeed(sku){
    return Math.max(0,plannerNeed(sku)-assembledQty(sku));
  }
