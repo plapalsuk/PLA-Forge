@@ -627,8 +627,16 @@ async function assemblyPage(){
 async function insertProductionPage(){
  const s=state(), ps=await load('products'), files=await load('insert_files');
  const pals=ps.filter(p=>p.type==='pal' && isOnSale(s,p.sku));
- const q=document.querySelector('#q'), cards=document.querySelector('#insertCards'), history=document.querySelector('#insertHistory');
- const readyKpi=document.querySelector('#insertReadyKpi'), cutKpi=document.querySelector('#insertCutKpi'), printKpi=document.querySelector('#insertPrintKpi'), urgentKpi=document.querySelector('#insertUrgentKpi');
+ const q=document.querySelector('#q');
+ const printCards=document.querySelector('#insertPrintCards');
+ const cutCards=document.querySelector('#insertCutCards');
+ const history=document.querySelector('#insertHistory');
+ const readyKpi=document.querySelector('#insertReadyKpi');
+ const cutKpi=document.querySelector('#insertCutKpi');
+ const printKpi=document.querySelector('#insertPrintKpi');
+ const urgentKpi=document.querySelector('#insertUrgentKpi');
+ const printQueueCount=document.querySelector('#printQueueCount');
+ const cutQueueCount=document.querySelector('#cutQueueCount');
 
  function rec(sku){
    s.inserts[sku]=s.inserts[sku]||{awaiting_cut:0,ready:0};
@@ -639,63 +647,74 @@ async function insertProductionPage(){
    const r=rec(sku);
    return Math.max(0,target()-Number(r.ready||0)-Number(r.awaiting_cut||0));
  }
- function statusFor(p){
-   const r=rec(p.sku), need=needPrint(p.sku);
-   if(Number(r.ready||0)<4 && Number(r.awaiting_cut||0)>0)return ['CUT & SCORE NOW','warning'];
-   if(need>0)return ['PRINT REQUIRED','danger'];
-   if(Number(r.ready||0)<10)return ['IN PROGRESS','warning'];
-   return ['READY STOCK OK','ok'];
+ function renderPrintCard(x){
+   return `<div class="insert-job-card print-job">
+     <div class="assembly-card-head">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       ${x.r.ready<4?badge('URGENT','danger'):badge(`PRINT ${x.need}`,'warning')}
+     </div>
+
+     <div class="insert-job-stats">
+       <div><span>Ready</span><strong>${Number(x.r.ready||0)}</strong></div>
+       <div><span>In Cut & Score</span><strong>${Number(x.r.awaiting_cut||0)}</strong></div>
+       <div><span>Need Print</span><strong class="accent">${x.need}</strong></div>
+     </div>
+
+     <div class="insert-file-name">${x.file?'PDF linked from Google Drive':'No PDF mapped for this SKU'}</div>
+
+     <div class="insert-action-row">
+       ${x.file?`<a class="btn secondary" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open / Print PDF</a>`:`<button class="btn secondary" disabled>No PDF</button>`}
+       <label class="compact-label"><span>Qty Printed</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" value="${Math.max(1,x.need||1)}"></label>
+       <button class="btn markPrinted" data-sku="${x.p.sku}">Mark Printed</button>
+     </div>
+   </div>`;
  }
+ function renderCutCard(x){
+   const awaiting=Number(x.r.awaiting_cut||0);
+   return `<div class="insert-job-card cut-job">
+     <div class="assembly-card-head">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       ${badge(`${awaiting} WAITING`,'warning')}
+     </div>
+
+     <div class="cut-score-hero">
+       <div class="cut-score-number">${awaiting}</div>
+       <div><strong>Printed Insert${awaiting===1?'':'s'}</strong><div class="small">ready to cut and score</div></div>
+     </div>
+
+     <div class="insert-action-row">
+       <label class="compact-label"><span>Qty Completed</span><input class="number cutQty" id="cut-${x.p.sku}" type="number" min="1" max="${awaiting}" value="${awaiting}"></label>
+       <button class="btn completeCut" data-sku="${x.p.sku}">Cut & Score Complete</button>
+     </div>
+   </div>`;
+ }
+
  function render(){
    const text=(q.value||'').toLowerCase();
-   const data=pals.map(p=>({p,r:rec(p.sku),need:needPrint(p.sku),file:files[p.sku]||null,status:statusFor(p)}))
-     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
-     .sort((a,b)=>(a.r.ready<4?-2:a.need>0?-1:0)-(b.r.ready<4?-2:b.need>0?-1:0)||b.need-a.need||a.p.name.localeCompare(b.p.name));
+   const data=pals.map(p=>({p,r:rec(p.sku),need:needPrint(p.sku),file:files[p.sku]||null}))
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
+
+   const printJobs=data.filter(x=>x.need>0)
+     .sort((a,b)=>(a.r.ready<4?-1:0)-(b.r.ready<4?-1:0)||b.need-a.need||a.p.name.localeCompare(b.p.name));
+
+   const cutJobs=data.filter(x=>Number(x.r.awaiting_cut||0)>0)
+     .sort((a,b)=>Number(b.r.awaiting_cut||0)-Number(a.r.awaiting_cut||0)||a.p.name.localeCompare(b.p.name));
 
    readyKpi.textContent=data.reduce((a,x)=>a+Number(x.r.ready||0),0);
    cutKpi.textContent=data.reduce((a,x)=>a+Number(x.r.awaiting_cut||0),0);
    printKpi.textContent=data.reduce((a,x)=>a+x.need,0);
    urgentKpi.textContent=data.filter(x=>Number(x.r.ready||0)<4).length;
 
-   cards.innerHTML=data.map(x=>`<div class="insert-card ${x.r.ready<4?'urgent':x.need>0?'low':''}">
-     <div class="assembly-card-head">
-       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${badge(x.status[0],x.status[1])}
-     </div>
+   if(printQueueCount)printQueueCount.textContent=`${printJobs.length} Job${printJobs.length===1?'':'s'}`;
+   if(cutQueueCount)cutQueueCount.textContent=`${cutJobs.length} Job${cutJobs.length===1?'':'s'}`;
 
-     <div class="insert-stock-grid">
-       <div><span>Ready</span><strong>${Number(x.r.ready||0)}</strong></div>
-       <div><span>Awaiting Cut & Score</span><strong>${Number(x.r.awaiting_cut||0)}</strong></div>
-       <div><span>Need to Print</span><strong class="${x.need>0?'accent':''}">${x.need}</strong></div>
-     </div>
+   printCards.innerHTML=printJobs.length
+     ? printJobs.map(renderPrintCard).join('')
+     : '<div class="bench-empty">Nothing currently needs printing.</div>';
 
-     <div class="insert-pipeline">
-       <div class="${x.need>0?'active':''}"><span>1</span> Print</div>
-       <div class="${Number(x.r.awaiting_cut||0)>0?'active':''}"><span>2</span> Cut & Score</div>
-       <div class="${Number(x.r.ready||0)>0?'complete':''}"><span>✓</span> Ready</div>
-     </div>
-
-     <div class="insert-actions">
-       <div class="insert-action-block">
-         <strong>Step 1 · Print</strong>
-         <div class="small">${x.file?'Production PDF linked from Google Drive':'No PDF mapped for this SKU'}</div>
-         <div class="insert-action-row">
-           ${x.file?`<a class="btn secondary" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open / Print PDF</a>`:`<button class="btn secondary" disabled>No PDF</button>`}
-           <input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" value="${Math.max(1,x.need||1)}">
-           <button class="btn markPrinted" data-sku="${x.p.sku}">Mark Printed</button>
-         </div>
-       </div>
-
-       <div class="insert-action-block">
-         <strong>Step 2 · Cut & Score</strong>
-         <div class="small">${Number(x.r.awaiting_cut||0)} printed insert(s) waiting.</div>
-         <div class="insert-action-row">
-           <input class="number cutQty" id="cut-${x.p.sku}" type="number" min="1" max="${Math.max(1,Number(x.r.awaiting_cut||0))}" value="${Math.max(1,Number(x.r.awaiting_cut||0))}" ${Number(x.r.awaiting_cut||0)<=0?'disabled':''}>
-           <button class="btn completeCut" data-sku="${x.p.sku}" ${Number(x.r.awaiting_cut||0)<=0?'disabled':''}>Cut & Score Complete</button>
-         </div>
-       </div>
-     </div>
-   </div>`).join('')||'<div class="bench-empty">No On Sale Pals match this view.</div>';
+   cutCards.innerHTML=cutJobs.length
+     ? cutJobs.map(renderCutCard).join('')
+     : '<div class="bench-empty">Nothing is waiting for Cut & Score.</div>';
 
    document.querySelectorAll('.markPrinted').forEach(btn=>btn.onclick=()=>{
      const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku), r=rec(sku);
@@ -723,6 +742,7 @@ async function insertProductionPage(){
      <td>${h.qty}</td>
    </tr>`).join('')||'<tr><td colspan="4">No insert production recorded yet.</td></tr>';
  }
+
  q.oninput=render;
  render();
 }
