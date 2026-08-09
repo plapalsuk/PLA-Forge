@@ -18,6 +18,9 @@ function state(){
   };
   s.consumableHistory=s.consumableHistory||[];
   s.packingJobs=s.packingJobs||{}; s.packingHistory=s.packingHistory||[];
+  if(s.consumables && s.consumables.barcode_labels) delete s.consumables.barcode_labels;
+  s.printerRoles=s.printerRoles||{};
+
   s.productAvailability=s.productAvailability||{};
   return s;
 }
@@ -915,11 +918,52 @@ async function consumablesPage(){
  render();
 }
 
+function code128BSvg(text){
+ const patterns=[
+ "212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
+ "221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
+ "221231","213212","223112","312131","311222","321122","321221","312212","322112","322211",
+ "212123","212321","232121","111323","131123","131321","112313","132113","132311","211313",
+ "231113","231311","112133","112331","132131","113123","113321","133121","313121","211331",
+ "231131","213113","213311","213131","311123","311321","331121","312113","312311","332111",
+ "314111","221411","431111","111224","111422","121124","121421","141122","141221","112214",
+ "112412","122114","122411","142112","142211","241211","221114","413111","241112","134111",
+ "111242","121142","121241","114212","124112","124211","411212","421112","421211","212141",
+ "214121","412121","111143","111341","131141","114113","114311","411113","411311","113141",
+ "114131","311141","411131","211412","211214","211232","2331112"];
+ const vals=[104,...[...text].map(c=>{const n=c.charCodeAt(0);return (n>=32&&n<=126)?n-32:31})];
+ let checksum=104; for(let i=1;i<vals.length;i++) checksum+=vals[i]*i;
+ vals.push(checksum%103,106);
+ const quiet=10,module=1,total=vals.reduce((a,v)=>a+[...patterns[v]].reduce((s,n)=>s+Number(n),0),0)+quiet*2;
+ let x=quiet,bars="";
+ vals.forEach(v=>{let black=true; for(const d of patterns[v]){const w=Number(d);if(black)bars+=`<rect x="${x}" y="0" width="${w}" height="30"/>`;x+=w;black=!black}});
+ return `<svg class="barcode-svg" viewBox="0 0 ${total} 30" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+}
+function getBarcodePrinterName(){
+ const s=state();
+ return s.printerRoles?.barcode||localStorage.getItem('plaForgeBarcodePrinter')||'Barcode / Label Printer';
+}
 function printPalBarcode(sku,name){
+ const printer=getBarcodePrinterName();
  const w=window.open('','_blank','width=520,height=360');
- if(!w){alert('Please allow pop-ups for PLA Forge.');return}
- w.document.write(`<!doctype html><html><head><title>${sku} Barcode</title><style>@page{margin:5mm}body{font-family:Arial;text-align:center;padding:15px}.bars{font-family:monospace;font-size:48px;letter-spacing:-5px;overflow:hidden}.sku{font-size:16px;font-weight:bold;margin:8px}</style></head><body><h3>${name}</h3><div class="bars">|||| ||| || |||| | ||| || |||| ||| | || ||||</div><div class="sku">${sku}</div><button onclick="window.print()">Print Barcode</button></body></html>`);
+ if(!w){alert('Please allow pop-ups for PLA Forge so the barcode label can open.');return}
+ const svg=code128BSvg(sku);
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(sku)} · ${esc(name)}</title>
+ <style>
+ @page{size:50mm 30mm;margin:0}
+ html,body{width:50mm;height:30mm;margin:0;padding:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif}
+ .label{box-sizing:border-box;width:50mm;height:30mm;padding:2.2mm 3mm 1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden}
+ .barcode-wrap{width:42mm;height:11mm;margin-top:.5mm}.barcode-svg{display:block;width:100%;height:100%}
+ .sku{font-size:15pt;line-height:1;font-weight:800;margin-top:1.2mm;letter-spacing:.2mm}
+ .name{font-size:8.5pt;line-height:1.05;font-weight:600;margin-top:1mm;white-space:nowrap;max-width:44mm;overflow:hidden;text-overflow:ellipsis}
+ .controls{position:fixed;left:0;right:0;bottom:0;background:#f1f1f1;padding:8px;font-size:12px;text-align:center}
+ @media print{.controls{display:none}}
+ </style></head><body>
+ <div class="label"><div class="barcode-wrap">${svg}</div><div class="sku">${esc(sku)}</div><div class="name">${esc(name)}</div></div>
+ <div class="controls">Selected in Forge: <b>${esc(printer)}</b> · Choose this label printer in the browser print dialog. <button onclick="window.print()">Print 50 × 30 mm Label</button></div>
+ </body></html>`);
  w.document.close();
+ setTimeout(()=>w.print(),250);
 }
 async function packingStationPage(){
  const s=state(),ps=await load('products'),pals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku));
@@ -939,4 +983,24 @@ async function packingStationPage(){
   document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku);s.inserts[sku].ready=Math.max(0,ins(sku)-1);['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-1));delete s.packingJobs[sku];s.packingHistory.push({id:makeId(),sku,name:p.name,qty:1,created_at:new Date().toISOString()});save(s);render()});
  }
  q.oninput=render;render();
+}
+
+function barcodePrinterSettings(){
+ const s=state();
+ const host=document.querySelector('#barcodePrinterSettings');
+ if(!host)return;
+ const printers=(s.printers||[]).map((p,i)=>({id:p.id||p.name||String(i),name:p.name||p.label||p.model||('Printer '+(i+1))}));
+ const current=s.printerRoles?.barcode||'';
+ host.innerHTML=`<div class="card"><div class="section-title"><div><h2>Barcode / Label Printer</h2><div class="small">Used for the 50 × 30 mm Pal barcode label at Packing Station step 8.</div></div><span class="badge info">50 × 30 mm</span></div>
+ <div class="printer-role-row"><label><span>Label Printer</span><select id="barcodePrinterSelect"><option value="">Choose printer…</option>${printers.map(p=>`<option value="${esc(p.name)}" ${current===p.name?'selected':''}>${esc(p.name)}</option>`).join('')}<option value="__manual" ${current&&!printers.some(p=>p.name===current)?'selected':''}>Other / Manual…</option></select></label>
+ <label id="barcodeManualWrap" style="${current&&!printers.some(p=>p.name===current)?'':'display:none'}"><span>Printer Name</span><input id="barcodePrinterManual" value="${current&&!printers.some(p=>p.name===current)?esc(current):''}" placeholder="e.g. Zebra / Brother Label Printer"></label>
+ <button class="btn" id="saveBarcodePrinter">Save Barcode Printer</button></div>
+ <div class="small" style="margin-top:8px">Browsers cannot silently choose a physical printer. Forge will format the label correctly and remember which printer you intend to use; select that printer in the system print dialog.</div></div>`;
+ const sel=document.querySelector('#barcodePrinterSelect'),mw=document.querySelector('#barcodeManualWrap');
+ sel.onchange=()=>mw.style.display=sel.value==='__manual'?'':'none';
+ document.querySelector('#saveBarcodePrinter').onclick=()=>{
+   const val=sel.value==='__manual'?document.querySelector('#barcodePrinterManual').value.trim():sel.value;
+   s.printerRoles=s.printerRoles||{};s.printerRoles.barcode=val;save(s);
+   alert(val?`Barcode printer saved: ${val}`:'Barcode printer selection cleared.');
+ };
 }
