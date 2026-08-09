@@ -83,3 +83,59 @@ v0.2 still uses browser localStorage for operational state until the shared back
 - Assembly consumes the required grouped printed parts automatically
 - Completed Pals move into Assembled Pals stock ready for Packaging
 - Assembly History records each transaction
+
+
+## v0.7.3 — Packing Station Awaiting Logic
+
+- Packing Station `Ready to Pack` continues to show Pals that have:
+  - an assembled Pal
+  - a ready insert
+  - clear box stock
+  - bottom card stock
+  - sticker stock
+- Packing Station `Awaiting` is now driven by Production Planner demand.
+- A Pal only appears in `Awaiting` when Production Planner says it is currently required.
+- `Awaiting assembled Pal` is no longer shown as a Packing Station blocker.
+- If the only missing item is the assembled Pal, the product remains upstream at The Bench.
+- Packing Station `Awaiting` now only shows packaging-stage blockers such as:
+  - Awaiting ready insert
+  - Need clear boxes
+  - Need bottom card squares
+  - Need stickers
+- Awaiting cards show the current Production Planner requirement.
+
+## Recent workflow milestones
+
+### v0.7.2 — Dispatch Recovery Fix
+- Fixed completed packing batches not reliably appearing in Awaiting Dispatch.
+- Added recovery logic for completed packing history that had not been routed into Dispatch.
+
+### v0.7.1 — Dispatch Destination Control
+- Removed Boat / Cornwall destination selection from Packing Station.
+- Completed batches now enter Awaiting Dispatch.
+- Destination is chosen on the Dispatch page.
+- Choosing a location updates Forge location inventory.
+- Cornwall allocations remain Awaiting Delivery until physically received.
+
+### v0.6.4 — Batch Packing
+- Added batch quantities to Packing Station.
+- All eight packing steps can be completed for a batch together.
+- Batch completion consumes assembled Pals, inserts and packaging materials together.
+
+### v0.6.2 — Barcode Labels
+- Added Code 128 Pal barcode generation.
+- Barcode label formatted to 50 mm × 30 mm.
+- Added separate Barcode / Label Printer configuration in Settings.
+- Removed Barcode Labels from Consumables.
+
+### v0.6.0 — Consumables
+- Added consumable stock tracking for:
+  - Flat Clear Boxes
+  - Bottom Card Squares
+  - Stickers
+- Added reorder levels, restocking and movement history.
+
+### v0.5.2 — Insert Production Split
+- Split Insert Production into Print Queue and Cut & Score Queue.
+- Print queue links directly to the correct Google Drive PDF by SKU.
+- Cut & Score moves printed inserts into Ready Insert stock.

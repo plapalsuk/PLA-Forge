@@ -358,3 +358,6 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .dispatch-choice-card{grid-template-columns:minmax(0,1fr) auto minmax(300px,auto)}
 .dispatch-choice{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}
 @media(max-width:900px){.dispatch-choice-card{grid-template-columns:1fr auto}.dispatch-choice{grid-column:1/-1;justify-content:flex-start}}
+
+/* v0.7.3 Packing Awaiting = Production Planner packaging blockers only */
+.awaiting-pack-card .packing-blockers{margin-top:10px}
