@@ -393,3 +393,9 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 
 /* v0.7.7 Insert Inventory simplified */
 #insertInventory td:nth-child(2){text-align:center;font-weight:800;color:#64db94}
+
+/* v0.8.0 clean reset */
+.danger-zone-card{border-color:rgba(240,92,99,.35)}
+.reset-data-row{display:flex;justify-content:space-between;align-items:center;gap:20px;padding-top:10px}
+.btn.danger{background:#8f2d32;border-color:#b9474d;color:#fff}
+@media(max-width:800px){.reset-data-row{align-items:stretch;flex-direction:column}}

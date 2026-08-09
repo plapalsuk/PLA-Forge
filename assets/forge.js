@@ -1,6 +1,57 @@
 
 const STORE='plaForgeV02';
 
+const RESET_RELEASE='0.8.0';
+function blankOperationalState(){
+ return {
+   stock:{},
+   targets:{},
+   parts:{},
+   plates:[],
+   printHistory:[],
+   failedParts:[],
+   assembled:{},
+   assemblyHistory:[],
+   boxes:{},
+   boxHistory:[],
+   packagingComponents:{clear_boxes:0,inserts:0,stickers:0},
+   inserts:{},
+   insertHistory:[],
+   consumables:{
+     clear_boxes:{name:'Flat Clear Boxes',stock:0,reorder:25,unit:'boxes'},
+     bottom_cards:{name:'Bottom Card Squares',stock:0,reorder:25,unit:'cards'},
+     stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'}
+   },
+   consumableHistory:[],
+   packingJobs:{},
+   packingHistory:[],
+   finishedStock:{boat:{},cornwall:{}},
+   awaitingDispatch:[],
+   transfers:[],
+   production:{},
+   productionPlan:{},
+   printers:[],
+   printerRoles:{},
+   siteSettings:{defaultPrinter:'',defaultLocation:'boat'},
+   productAvailability:{},
+   resetRelease:RESET_RELEASE
+ };
+}
+function ensureCleanResetRelease(){
+ try{
+   const raw=localStorage.getItem(STORE);
+   const current=raw?JSON.parse(raw):null;
+   if(!current || current.resetRelease!==RESET_RELEASE){
+     localStorage.setItem(STORE,JSON.stringify(blankOperationalState()));
+     localStorage.setItem('plaForgeLastReset',new Date().toISOString());
+   }
+ }catch(e){
+   localStorage.setItem(STORE,JSON.stringify(blankOperationalState()));
+ }
+}
+ensureCleanResetRelease();
+
+
 function state(){
   let s={};
   try{s=JSON.parse(localStorage.getItem(STORE)||'{}')}catch(e){}
@@ -1104,38 +1155,8 @@ function addForgeInventory(s,sku,loc,qty){
 
 function recoverAwaitingDispatch(s){
  s.awaitingDispatch=s.awaitingDispatch||[];
- s.packingHistory=s.packingHistory||[];
- s.transfers=s.transfers||[];
- s.awaitingDispatch=s.awaitingDispatch.filter(x=>Number(x.qty||0)>0);
-
- const represented=new Set();
- s.awaitingDispatch.forEach(x=>{if(x.source_history_id)represented.add(x.source_history_id)});
- s.transfers.forEach(x=>{if(x.source_history_id)represented.add(x.source_history_id)});
-
- function legacyMatch(h){
-   const stamp=h.created_at||'';
-   return s.awaitingDispatch.some(x=>!x.source_history_id&&x.sku===h.sku&&Number(x.qty||0)===Number(h.qty||0)&&(x.packed_at||x.created_at||'')===stamp)
-      || s.transfers.some(x=>!x.source_history_id&&x.sku===h.sku&&Number(x.qty||0)===Number(h.qty||0)&&(x.packed_at||x.created_at||'')===stamp);
- }
-
- s.packingHistory.forEach(h=>{
-   if(h.status!=='complete'||h.destination)return;
-   if(represented.has(h.id)||legacyMatch(h))return;
-   s.awaitingDispatch.push({
-     id:makeId(),source_history_id:h.id,sku:h.sku,name:h.name,
-     qty:Number(h.qty||1),status:'awaiting_dispatch',
-     packed_at:h.created_at||new Date().toISOString(),destination:null,recovered:true
-   });
-   represented.add(h.id);
- });
-
- const seen=new Set();
- s.awaitingDispatch=s.awaitingDispatch.filter(x=>{
-   if(!x.source_history_id)return true;
-   if(seen.has(x.source_history_id))return false;
-   seen.add(x.source_history_id);
-   return true;
- });
+ // v0.8.0 clean state: never recreate dispatch from historical packing records.
+ s.awaitingDispatch=s.awaitingDispatch.filter(x=>x.status==='awaiting_dispatch'&&Number(x.qty||0)>0);
  save(s);
 }
 
@@ -1319,4 +1340,13 @@ async function deliveriesPage(){
    });
  }
  render();
+}
+
+function resetForgeData(){
+ if(!confirm('Reset ALL PLA Forge operational data to zero? This cannot be undone.'))return;
+ if(!confirm('This will clear stock, targets, print data, assembly, inserts, consumables, packing and dispatch. Continue?'))return;
+ localStorage.setItem(STORE,JSON.stringify(blankOperationalState()));
+ localStorage.setItem('plaForgeLastReset',new Date().toISOString());
+ alert('PLA Forge has been reset to a clean zero state.');
+ window.location.href='index.html';
 }

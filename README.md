@@ -195,3 +195,38 @@ v0.2 still uses browser localStorage for operational state until the shared back
 - Recovery no longer recreates an already represented packing batch.
 - Duplicate recovered records from earlier builds are cleaned automatically.
 - Grouped Dispatch includes an additional de-duplication safeguard.
+
+
+## v0.8.0 — Clean Operational Reset
+
+This release deliberately resets PLA Forge operational data to a clean zero state.
+
+Reset items:
+- Location stock
+- Stock targets
+- Printed Parts inventory
+- Build Plates and print history
+- Failed print records
+- Assembled Pal stock and Assembly history
+- Insert production WIP and Ready Insert stock
+- Consumable stock and history
+- Packing jobs and Packing history
+- Finished stock
+- Awaiting Dispatch
+- Cornwall transfers / receipts
+- Production-planner runtime state
+- Printer configuration
+- Product availability / On Sale runtime state
+
+Preserved in the application files:
+- Product catalogue
+- SKUs
+- Recipes
+- STL / recipe metadata
+- Insert PDF mapping
+- PLA Forge interface and workflow code
+
+Important:
+- The old Dispatch recovery system has been disabled.
+- Dispatch will no longer recreate completed packing records from historical Packing History.
+- A manual `Reset Everything to Zero` control is now available in Settings.
