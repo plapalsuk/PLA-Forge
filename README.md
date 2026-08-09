@@ -285,3 +285,60 @@ Axolotl example:
 - Pack final 5 → 10 awaiting dispatch = 10 accounted for
 - Packing Station Awaiting = 0
 - Build Plate demand = 0
+
+
+## v0.8.3 — Cornwall Delivery Quality Check
+
+- Removed the separate `Received in Cornwall` section from Dispatch.
+- Cornwall deliveries now remain in `Awaiting Cornwall Delivery` until a receipt check is completed.
+- Each delivery requires confirmation of:
+  - Quantity delivered in good condition
+  - Quantity damaged
+- Good Condition + Damaged must equal the original shipment quantity.
+- Cornwall inventory is still allocated when dispatch is confirmed.
+- When damage is reported at receipt:
+  - Damaged quantity is removed from Cornwall usable inventory.
+  - The location falls below its target by the damaged quantity.
+  - Production Planner therefore automatically creates replacement production demand.
+- Damage events are stored in `damageHistory` for future reporting/auditing.
+- If the whole delivery arrives correctly, confirming it does not change inventory again.
+
+
+## v0.8.4 — Damage Type Routing & Rework
+
+Cornwall delivery damage can now be broken down by issue type.
+
+Available issue types:
+- Box Damaged
+- Insert Damaged
+- Pal Broken
+- Complete Write Off
+
+Mixed damage is supported. Example: a shipment with 3 damaged units can be recorded as:
+- 1 Box Damaged
+- 1 Insert Damaged
+- 1 Pal Broken
+
+Routing:
+- Box Damaged:
+  - The Pal itself does not trigger a replacement Pal print.
+  - Creates a Damage Rework job requiring a replacement clear box.
+- Insert Damaged:
+  - The Pal itself does not trigger a replacement Pal print.
+  - Creates extra Insert Production demand.
+  - Rework waits for a Ready Insert.
+- Pal Broken:
+  - Cornwall usable stock is reduced.
+  - The resulting target deficit creates replacement Pal manufacturing demand.
+  - Rework waits for an assembled replacement Pal.
+- Complete Write Off:
+  - Creates replacement Pal manufacturing demand.
+  - Creates replacement Insert demand.
+  - Rework requires a full new packaging set.
+
+Packing Station now includes a Damage Rework section.
+Completing rework returns the repaired/replaced unit into Cornwall usable inventory.
+
+Production Planner now includes a Damage / Rework Requirements panel so the reason for replacement work remains visible.
+
+This release preserves existing v0.8.x operational data and does not trigger a reset.

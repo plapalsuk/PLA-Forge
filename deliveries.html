@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dispatch | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=082"></head><body><div class="app"><aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dispatch | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=084"></head><body><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
   <div class="navgroup">Forge Control</div>
@@ -16,35 +16,35 @@
  </nav>
 </aside><main class="bench-main">
 <div class="topbar">
- <div class="pageTitle"><h1>Dispatch</h1><div class="small">Group finished Pals, compare location requirements and split each dispatch between Boat and Cornwall.</div></div>
- <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Send stock where it is actually needed.</div></div></div>
+ <div class="pageTitle"><h1>Dispatch</h1><div class="small">Allocate finished Pals, then confirm Cornwall deliveries and record any damage.</div></div>
+ <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Dispatch → Receive → Quality Check.</div></div></div>
 </div>
 
 <div class="grid kpis four">
  <div class="card kpi"><div class="label">Ready to Dispatch</div><div class="value accent" id="awaitingDispatchKpi">0</div><div class="small">finished Pals not yet allocated</div></div>
  <div class="card kpi"><div class="label">Boat Inventory</div><div class="value" id="boatFinishedKpi">0</div><div class="small">finished stock allocated to Boat</div></div>
- <div class="card kpi"><div class="label">Awaiting Cornwall</div><div class="value" id="awaitingDeliveryKpi">0</div><div class="small">dispatched but not physically received</div></div>
- <div class="card kpi"><div class="label">Cornwall Inventory</div><div class="value" id="cornwallFinishedKpi">0</div><div class="small">finished stock allocated to Cornwall</div></div>
+ <div class="card kpi"><div class="label">Awaiting Cornwall</div><div class="value" id="awaitingDeliveryKpi">0</div><div class="small">dispatched and awaiting receipt check</div></div>
+ <div class="card kpi"><div class="label">Cornwall Inventory</div><div class="value" id="cornwallFinishedKpi">0</div><div class="small">usable finished stock allocated to Cornwall</div></div>
 </div>
 
 <div class="card" style="margin-top:14px">
  <div class="section-title">
-   <div><h2>Ready to Dispatch</h2><div class="small">Each Pal is grouped into one dispatch card. Location Need comes directly from the stock targets on the Pals page.</div></div>
+   <div><h2>Ready to Dispatch</h2><div class="small">Choose exactly how many finished Pals go to Boat and Cornwall.</div></div>
    <span class="badge info">Split Allocation</span>
  </div>
  <div id="awaitingDispatch" class="dispatch-pal-list"></div>
 </div>
 
-<div class="dispatch-columns">
- <div class="card">
-  <div class="section-title"><div><h2>Awaiting Cornwall Delivery</h2><div class="small">Stock is already allocated to Cornwall inventory but still needs physical receipt confirmation.</div></div><span class="badge warning">In Transit</span></div>
-  <div id="awaitingDeliveries" class="delivery-list"></div>
+<div class="card" style="margin-top:14px">
+ <div class="section-title">
+   <div>
+     <h2>Awaiting Cornwall Delivery</h2>
+     <div class="small">Confirm how many arrived in good condition and flag damaged Pals. Damaged units are removed from Cornwall stock and automatically return to Production Planner demand.</div>
+   </div>
+   <span class="badge warning">Delivery Check</span>
  </div>
- <div class="card">
-  <div class="section-title"><div><h2>Received in Cornwall</h2><div class="small">Previously dispatched stock physically confirmed at Cornwall.</div></div><span class="badge ok">Received</span></div>
-  <div id="receivedDeliveries" class="delivery-list"></div>
- </div>
+ <div id="awaitingDeliveries" class="delivery-list"></div>
 </div>
 
-<div class="footer-note">PLA Forge v0.8.2 · Manufacturing & Inventory System</div>
-</main></div><script src="assets/forge.js?v=082"></script><script>deliveriesPage()</script></body></html>
+<div class="footer-note">PLA Forge v0.8.4 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=084"></script><script>deliveriesPage()</script></body></html>

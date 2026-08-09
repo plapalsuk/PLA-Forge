@@ -28,6 +28,9 @@ function blankOperationalState(){
    finishedStock:{boat:{},cornwall:{}},
    awaitingDispatch:[],
    transfers:[],
+   damageHistory:[],
+   damageReworkJobs:[],
+   damageInsertDemand:{},
    production:{},
    productionPlan:{},
    printers:[],
@@ -94,8 +97,16 @@ function assembledQtyForDemand(s,sku){return Number(s.assembled?.[sku]||0)}
 // Quantity still requiring manufacture after allowing for finished Pals already in the workflow.
 // Location stock is already deducted by totalNeed(). Packed-but-unallocated and assembled Pals
 // must also be deducted so moving a Pal downstream never creates fresh print demand.
+function damageReworkQty(s,sku,type){
+ return (s.damageReworkJobs||[])
+   .filter(x=>x.sku===sku&&x.status==='awaiting_rework'&&(!type||x.type===type))
+   .reduce((a,x)=>a+Number(x.qty||0),0);
+}
+function intactDamageReworkQty(s,sku){
+ return damageReworkQty(s,sku,'box')+damageReworkQty(s,sku,'insert');
+}
 function manufacturingNeed(s,sku){
- return Math.max(0,totalNeed(s,sku)-assembledQtyForDemand(s,sku)-awaitingDispatchQty(s,sku));
+ return Math.max(0,totalNeed(s,sku)-assembledQtyForDemand(s,sku)-awaitingDispatchQty(s,sku)-intactDamageReworkQty(s,sku));
 }
 // Quantity still needing assembly. Packed Pals count as completed manufacture and must not
 // reappear on The Bench after they leave assembled stock.
@@ -144,7 +155,13 @@ async function recipes(){
 async function production(){
  const s=state(),ps=await load('products'),rs=await load('recipes'),body=document.querySelector('#prod'),rows=[];
  ps.filter(p=>p.type==='pal').forEach(p=>{const n=manufacturingNeed(s,p.sku);if(n>0)rows.push({p,n,groups:rs.filter(r=>r.sku===p.sku)})});rows.sort((a,b)=>b.n-a.n);
- body.innerHTML=rows.map(x=>`<tr><td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td><td>${x.n}</td><td>${x.groups.length}</td><td>${(x.groups.reduce((a,r)=>a+r.weight_g,0)*x.n).toFixed(1)}g</td><td>${x.groups.map(r=>esc(r.filament)).join(', ')}</td></tr>`).join('')||'<tr><td colspan="5">Set inventory targets first to create production demand.</td></tr>';
+ body.innerHTML=rows.map(x=>`<tr><td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td><td>${x.n}</td><td>${x.groups.length}</td><td>${(x.groups.reduce((a,r)=>a+r.weight_g,0)*x.n).toFixed(1)}g</td><td>${x.groups.map(r=>esc(r.filament)).join(', ')}</td></tr>`).join('')||'<tr><td colspan="5">No Pal manufacturing currently required.</td></tr>';
+ const damage=document.querySelector('#damageProduction');
+ if(damage){
+   const labels={box:'Repack — Box',insert:'Print Insert + Repack',pal:'Print Replacement Pal',writeoff:'Complete Replacement'};
+   const jobs=(s.damageReworkJobs||[]).filter(x=>x.status==='awaiting_rework');
+   damage.innerHTML=jobs.length?jobs.map(j=>`<div class="damage-production-row"><div><strong>${esc(j.name)}</strong><div class="sku">${j.sku}</div></div><span>${esc(labels[j.type]||j.type)}</span><strong>× ${j.qty}</strong></div>`).join(''):'<div class="bench-empty">No damage rework currently required.</div>';
+ }
 }
 async function dataHealth(){
  const ps=await load('products'),mm=await load('mismatches'),body=document.querySelector('#health'),missing=ps.filter(p=>p.type==='pal'&&!p.recipe_ready);
@@ -755,7 +772,8 @@ async function insertProductionPage(){
  function target(){return 10}
  function needPrint(sku){
    const r=rec(sku);
-   return Math.max(0,target()-Number(r.ready||0)-Number(r.awaiting_cut||0));
+   const damageNeed=Number(s.damageInsertDemand?.[sku]||0);
+   return Math.max(0,target()+damageNeed-Number(r.ready||0)-Number(r.awaiting_cut||0));
  }
  function renderPrintCard(x){
    return `<div class="insert-job-card print-job">
@@ -840,6 +858,9 @@ async function insertProductionPage(){
      if(available<=0)return;
      r.awaiting_cut=available-qty;
      r.ready=Number(r.ready||0)+qty;
+     if(Number(s.damageInsertDemand?.[sku]||0)>0){
+       s.damageInsertDemand[sku]=Math.max(0,Number(s.damageInsertDemand[sku]||0)-qty);
+     }
      save(s);render();
    });
  }
@@ -1061,6 +1082,8 @@ async function packingStationPage(){
  const s=state(),ps=await load('products'),pals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku));
  const readyList=document.querySelector('#packingReadyList'),awaitingList=document.querySelector('#packingAwaitingList'),q=document.querySelector('#q');
  const readyCount=document.querySelector('#packingReadyCount'),awaitingCount=document.querySelector('#packingAwaitingCount');
+ const damageReworkList=document.querySelector('#damageReworkList');
+ const damageReworkCount=document.querySelector('#damageReworkCount');
 
  function assembled(sku){
    if(s.assembled&&s.assembled[sku]!=null)return Number(s.assembled[sku]||0);
@@ -1081,6 +1104,50 @@ async function packingStationPage(){
  function blockers(p){const b=[];if(assembled(p.sku)<=0)b.push('Awaiting assembled Pal');if(ins(p.sku)<=0)b.push('Awaiting ready insert');if(cs('clear_boxes')<=0)b.push('Need clear boxes');if(cs('bottom_cards')<=0)b.push('Need bottom card squares');if(cs('stickers')<=0)b.push('Need stickers');return b}
  function stockStrip(p){return `<div class="packing-checks"><span class="${assembled(p.sku)>0?'stock-good':'stock-bad'}">${assembled(p.sku)} Assembled</span><span class="${ins(p.sku)>0?'stock-good':'stock-bad'}">${ins(p.sku)} Inserts</span><span>${cs('clear_boxes')} Clear Boxes</span><span>${cs('bottom_cards')} Bottom Cards</span><span>${cs('stickers')} Stickers</span></div>`}
  const steps=['Fold Clear Boxes','Fold Printed Inserts','Place Bottom Cards','Place Stickers','Put Printed Inserts In','Place Pals','Close Boxes','Print & Apply Barcodes'];
+
+ function reworkRequirements(job){
+   if(job.type==='box')return {clear_boxes:job.qty,inserts:0,pals:0,bottom_cards:0,stickers:0,label:'Replace damaged box'};
+   if(job.type==='insert')return {clear_boxes:0,inserts:job.qty,pals:0,bottom_cards:0,stickers:0,label:'Replace damaged insert'};
+   if(job.type==='pal')return {clear_boxes:0,inserts:0,pals:job.qty,bottom_cards:0,stickers:0,label:'Replace broken Pal'};
+   return {clear_boxes:job.qty,inserts:job.qty,pals:job.qty,bottom_cards:job.qty,stickers:job.qty,label:'Complete replacement'};
+ }
+ function reworkReady(job){
+   const r=reworkRequirements(job);
+   return cs('clear_boxes')>=r.clear_boxes && cs('bottom_cards')>=r.bottom_cards && cs('stickers')>=r.stickers && ins(job.sku)>=r.inserts && assembled(job.sku)>=r.pals;
+ }
+ function drawDamageRework(){
+   if(!damageReworkList)return;
+   const jobs=(s.damageReworkJobs||[]).filter(x=>x.status==='awaiting_rework');
+   if(damageReworkCount)damageReworkCount.textContent=`${jobs.length} Job${jobs.length===1?'':'s'}`;
+   damageReworkList.innerHTML=jobs.length?jobs.map(job=>{
+     const r=reworkRequirements(job),ready=reworkReady(job);
+     return `<div class="packing-card damage-rework-card">
+       <div class="assembly-card-head"><div><strong>${esc(job.name)}</strong><div class="sku">${job.sku}</div></div>${ready?badge('READY FOR REWORK','ok'):badge('WAITING','warning')}</div>
+       <div class="damage-route-title">${esc(r.label)} × ${job.qty}</div>
+       <div class="packing-checks">
+         ${r.clear_boxes?`<span class="${cs('clear_boxes')>=r.clear_boxes?'stock-good':'stock-bad'}">Clear Boxes ${cs('clear_boxes')} / ${r.clear_boxes}</span>`:''}
+         ${r.inserts?`<span class="${ins(job.sku)>=r.inserts?'stock-good':'stock-bad'}">Ready Inserts ${ins(job.sku)} / ${r.inserts}</span>`:''}
+         ${r.pals?`<span class="${assembled(job.sku)>=r.pals?'stock-good':'stock-bad'}">Assembled Pals ${assembled(job.sku)} / ${r.pals}</span>`:''}
+         ${r.bottom_cards?`<span class="${cs('bottom_cards')>=r.bottom_cards?'stock-good':'stock-bad'}">Bottom Cards ${cs('bottom_cards')} / ${r.bottom_cards}</span>`:''}
+         ${r.stickers?`<span class="${cs('stickers')>=r.stickers?'stock-good':'stock-bad'}">Stickers ${cs('stickers')} / ${r.stickers}</span>`:''}
+       </div>
+       <div class="packing-actions"><button class="btn completeDamageRework" data-id="${job.id}" ${ready?'':'disabled'}>Complete Rework × ${job.qty}</button></div>
+     </div>`;
+   }).join(''):'<div class="bench-empty">No damaged Cornwall stock is awaiting rework.</div>';
+
+   document.querySelectorAll('.completeDamageRework').forEach(btn=>btn.onclick=()=>{
+     const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);if(!job||!reworkReady(job))return;
+     const r=reworkRequirements(job);
+     if(r.clear_boxes)s.consumables.clear_boxes.stock=Math.max(0,cs('clear_boxes')-r.clear_boxes);
+     if(r.bottom_cards)s.consumables.bottom_cards.stock=Math.max(0,cs('bottom_cards')-r.bottom_cards);
+     if(r.stickers)s.consumables.stickers.stock=Math.max(0,cs('stickers')-r.stickers);
+     if(r.inserts)s.inserts[job.sku].ready=Math.max(0,ins(job.sku)-r.inserts);
+     if(r.pals)setAssembled(job.sku,assembled(job.sku)-r.pals);
+     addForgeInventory(s,job.sku,'cornwall',job.qty);
+     job.status='complete';job.completed_at=new Date().toISOString();
+     save(s);render();
+   });
+ }
 
  function render(){
   const text=(q.value||'').toLowerCase();
@@ -1103,6 +1170,7 @@ async function packingStationPage(){
     return packagingBlockers.length>0;
   });
   readyCount.textContent=`${ready.length} Pal${ready.length===1?'':'s'}`;awaitingCount.textContent=`${awaiting.length} Pal${awaiting.length===1?'':'s'}`;
+  drawDamageRework();
 
   readyList.innerHTML=ready.map(p=>{
     let job=s.packingJobs[p.sku]||{step:1,qty:Math.min(1,maxBatch(p))};
@@ -1188,11 +1256,17 @@ async function deliveriesPage(){
 
  const unassigned=document.querySelector('#awaitingDispatch');
  const awaiting=document.querySelector('#awaitingDeliveries');
- const received=document.querySelector('#receivedDeliveries');
  const dispatchKpi=document.querySelector('#awaitingDispatchKpi');
  const awaitKpi=document.querySelector('#awaitingDeliveryKpi');
  const boatKpi=document.querySelector('#boatFinishedKpi');
  const cornKpi=document.querySelector('#cornwallFinishedKpi');
+
+ const issueTypes=[
+   {value:'box',label:'Box Damaged'},
+   {value:'insert',label:'Insert Damaged'},
+   {value:'pal',label:'Pal Broken'},
+   {value:'writeoff',label:'Complete Write Off'}
+ ];
 
  function groupedDispatch(){
    const map={};
@@ -1207,157 +1281,165 @@ async function deliveriesPage(){
      const dt=x.packed_at||x.created_at||'';
      if(dt && (!map[x.sku].oldest || dt<map[x.sku].oldest))map[x.sku].oldest=dt;
    });
-   return Object.values(map).sort((a,b)=>{
-     const an=needed(s,a.sku,'boat')+needed(s,a.sku,'cornwall');
-     const bn=needed(s,b.sku,'boat')+needed(s,b.sku,'cornwall');
-     return bn-an || a.name.localeCompare(b.name);
-   });
+   return Object.values(map).sort((a,b)=>(needed(s,b.sku,'boat')+needed(s,b.sku,'cornwall'))-(needed(s,a.sku,'boat')+needed(s,a.sku,'cornwall'))||a.name.localeCompare(b.name));
  }
 
  function consumeDispatchRecords(group,qty){
    let remaining=Math.max(0,Number(qty||0));
-   const records=[...group.records].sort((a,b)=>(a.packed_at||a.created_at||'').localeCompare(b.packed_at||b.created_at||''));
-   records.forEach(r=>{
+   [...group.records].sort((a,b)=>(a.packed_at||a.created_at||'').localeCompare(b.packed_at||b.created_at||'')).forEach(r=>{
      if(remaining<=0)return;
-     const available=Number(r.qty||0);
-     const used=Math.min(available,remaining);
-     r.qty=available-used;
-     remaining-=used;
+     const used=Math.min(Number(r.qty||0),remaining);
+     r.qty=Number(r.qty||0)-used;remaining-=used;
      if(r.qty<=0)r.status='allocated';
    });
    return remaining===0;
  }
 
  function allocationCard(g){
-   const boatStock=stock(s,g.sku,'boat');
-   const cornStock=stock(s,g.sku,'cornwall');
-   const boatTarget=getTarget(s,g.sku,'boat');
-   const cornTarget=getTarget(s,g.sku,'cornwall');
-   const boatNeed=needed(s,g.sku,'boat');
-   const cornNeed=needed(s,g.sku,'cornwall');
-
+   const boatStock=stock(s,g.sku,'boat'),cornStock=stock(s,g.sku,'cornwall');
+   const boatTarget=getTarget(s,g.sku,'boat'),cornTarget=getTarget(s,g.sku,'cornwall');
+   const boatNeed=needed(s,g.sku,'boat'),cornNeed=needed(s,g.sku,'cornwall');
    return `<div class="dispatch-pal-card">
-     <div class="dispatch-pal-head">
-       <div>
-         <strong>${esc(g.name)}</strong>
-         <div class="sku">${g.sku}</div>
-         <div class="small">Oldest packed ${fmtDate(g.oldest)}</div>
-       </div>
-       <div class="dispatch-ready-total">
-         <span>Ready to Dispatch</span>
-         <strong>${g.qty}</strong>
-       </div>
-     </div>
-
+     <div class="dispatch-pal-head"><div><strong>${esc(g.name)}</strong><div class="sku">${g.sku}</div><div class="small">Oldest packed ${fmtDate(g.oldest)}</div></div><div class="dispatch-ready-total"><span>Ready to Dispatch</span><strong>${g.qty}</strong></div></div>
      <div class="dispatch-location-grid">
        <div class="dispatch-location-card">
          <div class="dispatch-location-title"><strong>Kitsune Boat</strong>${boatNeed>0?badge(`NEED ${boatNeed}`,'warning'):badge('TARGET MET','ok')}</div>
-         <div class="dispatch-stock-line"><span>Current</span><strong>${boatStock}</strong></div>
-         <div class="dispatch-stock-line"><span>Target</span><strong>${boatTarget}</strong></div>
-         <div class="dispatch-stock-line need-line"><span>Need</span><strong>${boatNeed}</strong></div>
-         <label class="dispatch-qty-label">
-           <span>Send Qty</span>
-           <input class="number dispatchBoatQty" id="boat-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${Math.min(g.qty,boatNeed)}">
-         </label>
+         <div class="dispatch-stock-line"><span>Current</span><strong>${boatStock}</strong></div><div class="dispatch-stock-line"><span>Target</span><strong>${boatTarget}</strong></div><div class="dispatch-stock-line need-line"><span>Need</span><strong>${boatNeed}</strong></div>
+         <label class="dispatch-qty-label"><span>Send Qty</span><input class="number dispatchBoatQty" id="boat-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${Math.min(g.qty,boatNeed)}"></label>
        </div>
-
        <div class="dispatch-location-card">
          <div class="dispatch-location-title"><strong>Kitsune Cornwall</strong>${cornNeed>0?badge(`NEED ${cornNeed}`,'warning'):badge('TARGET MET','ok')}</div>
-         <div class="dispatch-stock-line"><span>Current</span><strong>${cornStock}</strong></div>
-         <div class="dispatch-stock-line"><span>Target</span><strong>${cornTarget}</strong></div>
-         <div class="dispatch-stock-line need-line"><span>Need</span><strong>${cornNeed}</strong></div>
-         <label class="dispatch-qty-label">
-           <span>Send Qty</span>
-           <input class="number dispatchCornQty" id="cornwall-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${Math.min(Math.max(0,g.qty-Math.min(g.qty,boatNeed)),cornNeed)}">
-         </label>
+         <div class="dispatch-stock-line"><span>Current</span><strong>${cornStock}</strong></div><div class="dispatch-stock-line"><span>Target</span><strong>${cornTarget}</strong></div><div class="dispatch-stock-line need-line"><span>Need</span><strong>${cornNeed}</strong></div>
+         <label class="dispatch-qty-label"><span>Send Qty</span><input class="number dispatchCornQty" id="cornwall-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${Math.min(Math.max(0,g.qty-Math.min(g.qty,boatNeed)),cornNeed)}"></label>
        </div>
      </div>
+     <div class="dispatch-allocation-footer"><div class="dispatch-allocation-summary" id="summary-${g.sku}"></div><button class="btn allocateSplit" data-sku="${g.sku}">Confirm Dispatch Allocation</button></div>
+   </div>`;
+ }
 
-     <div class="dispatch-allocation-footer">
-       <div class="dispatch-allocation-summary" id="summary-${g.sku}">Allocate up to ${g.qty} finished Pal${g.qty===1?'':'s'}.</div>
-       <button class="btn allocateSplit" data-sku="${g.sku}">Confirm Dispatch Allocation</button>
+ function issueRows(t){
+   t.qcDraftIssues=t.qcDraftIssues||[];
+   return t.qcDraftIssues.map((issue,idx)=>`<div class="damage-issue-row">
+      <select class="damageIssueType" data-id="${t.id}" data-idx="${idx}">
+        ${issueTypes.map(opt=>`<option value="${opt.value}" ${issue.type===opt.value?'selected':''}>${opt.label}</option>`).join('')}
+      </select>
+      <input class="number damageIssueQty" data-id="${t.id}" data-idx="${idx}" type="number" min="1" max="${t.qty}" value="${Number(issue.qty||1)}">
+      <button class="iconbtn removeDamageIssue" data-id="${t.id}" data-idx="${idx}">×</button>
+   </div>`).join('');
+ }
+
+ function deliveryCard(t){
+   const qty=Number(t.qty||0),damaged=Number(t.qcDraftDamaged||0),good=Math.max(0,qty-damaged);
+   return `<div class="delivery-card qc-delivery-card">
+     <div class="delivery-main"><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Dispatched ${fmtDate(t.dispatched_at||t.packed_at)} · Shipment Qty ${qty}</div></div>
+     <div class="delivery-qc">
+       <label><span>Good Condition</span><input class="number goodQty" id="good-${t.id}" value="${good}" disabled></label>
+       <label><span>Damaged</span><input class="number damagedQty" id="damaged-${t.id}" data-id="${t.id}" type="number" min="0" max="${qty}" value="${damaged}"></label>
      </div>
+     ${damaged>0?`<div class="damage-breakdown">
+       <div class="damage-breakdown-head"><div><strong>What is damaged?</strong><div class="small">Split the damaged quantity across one or more issue types.</div></div><button class="btn ghost addDamageIssue" data-id="${t.id}">+ Add Issue</button></div>
+       <div class="damage-issue-list">${issueRows(t)}</div>
+     </div>`:''}
+     <div class="delivery-qc-footer"><div class="small qc-summary" id="qc-summary-${t.id}"></div><button class="btn confirmDeliveryQC" data-id="${t.id}">Confirm Delivery</button></div>
    </div>`;
  }
 
  function render(){
    const groups=groupedDispatch();
-   const a=(s.transfers||[]).filter(t=>t.destination==='cornwall'&&t.status==='awaiting_delivery');
-   const r=(s.transfers||[]).filter(t=>t.destination==='cornwall'&&t.status==='received').slice().reverse();
+   const awaitingTransfers=(s.transfers||[]).filter(t=>t.destination==='cornwall'&&t.status==='awaiting_delivery');
+   dispatchKpi.textContent=groups.reduce((a,g)=>a+Number(g.qty||0),0);
+   awaitKpi.textContent=awaitingTransfers.reduce((a,t)=>a+Number(t.qty||0),0);
+   boatKpi.textContent=Object.values(s.finishedStock?.boat||{}).reduce((a,v)=>a+Number(v||0),0);
+   cornKpi.textContent=Object.values(s.finishedStock?.cornwall||{}).reduce((a,v)=>a+Number(v||0),0);
 
-   dispatchKpi.textContent=groups.reduce((x,g)=>x+Number(g.qty||0),0);
-   awaitKpi.textContent=a.reduce((x,t)=>x+Number(t.qty||0),0);
-   boatKpi.textContent=Object.values(s.finishedStock?.boat||{}).reduce((x,v)=>x+Number(v||0),0);
-   cornKpi.textContent=Object.values(s.finishedStock?.cornwall||{}).reduce((x,v)=>x+Number(v||0),0);
-
-   unassigned.innerHTML=groups.length
-     ?groups.map(allocationCard).join('')
-     :'<div class="bench-empty">No finished Pals are awaiting dispatch allocation.</div>';
-
-   awaiting.innerHTML=a.length?a.map(t=>`<div class="delivery-card awaiting-delivery">
-      <div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Dispatched ${fmtDate(t.dispatched_at||t.packed_at)}</div></div>
-      <div class="delivery-qty">× ${t.qty}</div>
-      <button class="btn receiveDelivery" data-id="${t.id}">Received in Cornwall</button>
-   </div>`).join(''):'<div class="bench-empty">No stock is awaiting delivery to Cornwall.</div>';
-
-   received.innerHTML=r.length?r.map(t=>`<div class="delivery-card received-delivery">
-      <div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Received ${fmtDate(t.received_at)}</div></div>
-      <div class="delivery-qty">× ${t.qty}</div>${badge('RECEIVED','ok')}
-   </div>`).join(''):'<div class="bench-empty">No Cornwall deliveries received yet.</div>';
+   unassigned.innerHTML=groups.length?groups.map(allocationCard).join(''):'<div class="bench-empty">No finished Pals are awaiting dispatch allocation.</div>';
+   awaiting.innerHTML=awaitingTransfers.length?awaitingTransfers.map(deliveryCard).join(''):'<div class="bench-empty">No stock is awaiting delivery to Cornwall.</div>';
 
    function updateSummary(sku){
      const g=groups.find(x=>x.sku===sku);if(!g)return;
-     const b=Math.max(0,Number(document.querySelector('#boat-'+sku)?.value||0));
-     const c=Math.max(0,Number(document.querySelector('#cornwall-'+sku)?.value||0));
-     const total=b+c;
-     const remain=Math.max(0,g.qty-total);
-     const el=document.querySelector('#summary-'+sku);
-     if(!el)return;
+     const b=Math.max(0,Number(document.querySelector('#boat-'+sku)?.value||0)),c=Math.max(0,Number(document.querySelector('#cornwall-'+sku)?.value||0));
+     const el=document.querySelector('#summary-'+sku),total=b+c;
      if(total>g.qty)el.innerHTML=`<strong class="danger-text">Too many selected: ${total} / ${g.qty}</strong>`;
-     else el.innerHTML=`Boat <strong>${b}</strong> · Cornwall <strong>${c}</strong> · Leave for later <strong>${remain}</strong>`;
+     else el.innerHTML=`Boat <strong>${b}</strong> · Cornwall <strong>${c}</strong> · Leave for later <strong>${g.qty-total}</strong>`;
    }
-
    document.querySelectorAll('.dispatchBoatQty,.dispatchCornQty').forEach(el=>el.oninput=()=>updateSummary(el.dataset.sku));
    groups.forEach(g=>updateSummary(g.sku));
 
    document.querySelectorAll('.allocateSplit').forEach(btn=>btn.onclick=()=>{
-     const sku=btn.dataset.sku,g=groups.find(x=>x.sku===sku);if(!g)return;
-     const boatQty=Math.max(0,Math.floor(Number(document.querySelector('#boat-'+sku)?.value||0)));
-     const cornQty=Math.max(0,Math.floor(Number(document.querySelector('#cornwall-'+sku)?.value||0)));
-     const total=boatQty+cornQty;
-
-     if(total<=0){alert('Choose a quantity for Kitsune Boat and/or Kitsune Cornwall.');return}
-     if(total>g.qty){alert(`You only have ${g.qty} ${g.name} ready to dispatch.`);return}
-
-     // Consume grouped finished-dispatch stock once for the total allocation.
-     if(!consumeDispatchRecords(g,total)){alert('Could not allocate this dispatch quantity.');return}
-
+     const g=groups.find(x=>x.sku===btn.dataset.sku);if(!g)return;
+     const boatQty=Math.max(0,Math.floor(Number(document.querySelector('#boat-'+g.sku)?.value||0)));
+     const cornQty=Math.max(0,Math.floor(Number(document.querySelector('#cornwall-'+g.sku)?.value||0)));
+     if(boatQty+cornQty<=0){alert('Choose a quantity for Boat and/or Cornwall.');return}
+     if(boatQty+cornQty>g.qty){alert(`Only ${g.qty} ready to dispatch.`);return}
+     if(!consumeDispatchRecords(g,boatQty+cornQty))return;
      const now=new Date().toISOString();
-
-     if(boatQty>0){
-       addForgeInventory(s,sku,'boat',boatQty);
-       s.transfers.push({
-         id:makeId(),sku,name:g.name,qty:boatQty,destination:'boat',
-         status:'received',packed_at:g.oldest,dispatched_at:now,received_at:now
-       });
-     }
-
-     if(cornQty>0){
-       // Inventory is allocated immediately when destination/qty is confirmed.
-       addForgeInventory(s,sku,'cornwall',cornQty);
-       s.transfers.push({
-         id:makeId(),sku,name:g.name,qty:cornQty,destination:'cornwall',
-         status:'awaiting_delivery',packed_at:g.oldest,dispatched_at:now,received_at:null
-       });
-     }
-
+     if(boatQty>0){addForgeInventory(s,g.sku,'boat',boatQty);s.transfers.push({id:makeId(),sku:g.sku,name:g.name,qty:boatQty,destination:'boat',status:'received',packed_at:g.oldest,dispatched_at:now,received_at:now,good_qty:boatQty,damaged_qty:0})}
+     if(cornQty>0){addForgeInventory(s,g.sku,'cornwall',cornQty);s.transfers.push({id:makeId(),sku:g.sku,name:g.name,qty:cornQty,destination:'cornwall',status:'awaiting_delivery',packed_at:g.oldest,dispatched_at:now,received_at:null,good_qty:null,damaged_qty:null,qcDraftDamaged:0,qcDraftIssues:[]})}
      save(s);render();
    });
 
-   document.querySelectorAll('.receiveDelivery').forEach(btn=>btn.onclick=()=>{
+   function updateQcSummary(t){
+     const damaged=Number(t.qcDraftDamaged||0),good=Number(t.qty||0)-damaged;
+     const issueTotal=(t.qcDraftIssues||[]).reduce((a,x)=>a+Number(x.qty||0),0);
+     const el=document.querySelector('#qc-summary-'+t.id);if(!el)return;
+     if(damaged===0)el.innerHTML=`All <strong>${good}</strong> confirmed in good condition.`;
+     else if(issueTotal!==damaged)el.innerHTML=`<strong class="danger-text">Issue quantities total ${issueTotal}; damaged quantity is ${damaged}.</strong>`;
+     else el.innerHTML=`<strong>${good}</strong> good · <strong class="danger-text">${damaged} damaged</strong> · routing ready.`;
+   }
+
+   document.querySelectorAll('.damagedQty').forEach(el=>el.onchange=()=>{
+     const t=s.transfers.find(x=>x.id===el.dataset.id);if(!t)return;
+     t.qcDraftDamaged=Math.max(0,Math.min(Number(t.qty||0),Math.floor(Number(el.value||0))));
+     if(t.qcDraftDamaged>0 && !(t.qcDraftIssues||[]).length)t.qcDraftIssues=[{type:'box',qty:t.qcDraftDamaged}];
+     if(t.qcDraftDamaged===0)t.qcDraftIssues=[];
+     save(s);render();
+   });
+   document.querySelectorAll('.addDamageIssue').forEach(btn=>btn.onclick=()=>{
      const t=s.transfers.find(x=>x.id===btn.dataset.id);if(!t)return;
-     t.status='received';t.received_at=new Date().toISOString();
-     // Location inventory was already updated when dispatch allocation was confirmed.
+     t.qcDraftIssues=t.qcDraftIssues||[];t.qcDraftIssues.push({type:'box',qty:1});save(s);render();
+   });
+   document.querySelectorAll('.removeDamageIssue').forEach(btn=>btn.onclick=()=>{
+     const t=s.transfers.find(x=>x.id===btn.dataset.id);if(!t)return;
+     t.qcDraftIssues.splice(Number(btn.dataset.idx),1);save(s);render();
+   });
+   document.querySelectorAll('.damageIssueType').forEach(el=>el.onchange=()=>{
+     const t=s.transfers.find(x=>x.id===el.dataset.id);if(!t)return;
+     t.qcDraftIssues[Number(el.dataset.idx)].type=el.value;save(s);updateQcSummary(t);
+   });
+   document.querySelectorAll('.damageIssueQty').forEach(el=>el.onchange=()=>{
+     const t=s.transfers.find(x=>x.id===el.dataset.id);if(!t)return;
+     t.qcDraftIssues[Number(el.dataset.idx)].qty=Math.max(1,Math.floor(Number(el.value||1)));save(s);updateQcSummary(t);
+   });
+   awaitingTransfers.forEach(updateQcSummary);
+
+   document.querySelectorAll('.confirmDeliveryQC').forEach(btn=>btn.onclick=()=>{
+     const t=s.transfers.find(x=>x.id===btn.dataset.id);if(!t)return;
+     const damaged=Number(t.qcDraftDamaged||0),good=Number(t.qty||0)-damaged;
+     const issues=t.qcDraftIssues||[],issueTotal=issues.reduce((a,x)=>a+Number(x.qty||0),0);
+     if(damaged>0 && issueTotal!==damaged){alert(`Damage issue quantities must total ${damaged}.`);return}
+
+     const now=new Date().toISOString();
+     t.status='received';t.received_at=now;t.good_qty=good;t.damaged_qty=damaged;t.damage_issues=issues.map(x=>({...x}));
+
+     if(damaged>0){
+       s.stock[t.sku]=s.stock[t.sku]||{};
+       s.stock[t.sku].cornwall=Math.max(0,Number(s.stock[t.sku].cornwall||0)-damaged);
+       s.finishedStock.cornwall=s.finishedStock.cornwall||{};
+       s.finishedStock.cornwall[t.sku]=Math.max(0,Number(s.finishedStock.cornwall[t.sku]||0)-damaged);
+
+       issues.forEach(issue=>{
+         const qty=Number(issue.qty||0);if(qty<=0)return;
+         s.damageReworkJobs.push({
+           id:makeId(),transfer_id:t.id,sku:t.sku,name:t.name,qty,type:issue.type,
+           status:'awaiting_rework',created_at:now,location:'cornwall'
+         });
+         if(issue.type==='insert'||issue.type==='writeoff'){
+           s.damageInsertDemand[t.sku]=Number(s.damageInsertDemand[t.sku]||0)+qty;
+         }
+         s.damageHistory.push({id:makeId(),transfer_id:t.id,sku:t.sku,name:t.name,qty,type:issue.type,location:'cornwall',created_at:now});
+       });
+     }
+     delete t.qcDraftDamaged;delete t.qcDraftIssues;
      save(s);render();
    });
  }
