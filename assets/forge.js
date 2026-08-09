@@ -1052,9 +1052,10 @@ async function packingStationPage(){
   document.querySelectorAll('.batchMinus,.batchPlus').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};j.qty=Math.min(maxBatch(p),Math.max(1,Number(j.qty||1)+(b.classList.contains('batchPlus')?1:-1)));save(s);render()});
   document.querySelectorAll('.nextPackStep').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};if(j.step<8){j.step++;save(s);render()}else{for(let n=0;n<j.qty;n++)printPalBarcode(sku,p.name)}});
   document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku];if(!j||j.step!==8)return;const qty=Math.min(j.qty,maxBatch(p));setAssembled(sku,assembled(sku)-qty);s.inserts[sku].ready=Math.max(0,ins(sku)-qty);['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-qty));s.awaitingDispatch=s.awaitingDispatch||[];
-s.awaitingDispatch.push({id:makeId(),sku:sku,name:p.name,qty:Number(qty),status:'awaiting_dispatch',packed_at:new Date().toISOString(),destination:null});
+const packedAt=new Date().toISOString(),historyId=makeId();
+s.packingHistory.push({id:historyId,sku,name:p.name,qty,created_at:packedAt,status:'complete'});
+s.awaitingDispatch.push({id:makeId(),source_history_id:historyId,sku:sku,name:p.name,qty:Number(qty),status:'awaiting_dispatch',packed_at:packedAt,destination:null});
 delete s.packingJobs[sku];
-s.packingHistory.push({id:makeId(),sku,name:p.name,qty,created_at:new Date().toISOString(),status:'complete'});
 save(s);render()});
   save(s);
  }
@@ -1105,23 +1106,35 @@ function recoverAwaitingDispatch(s){
  s.awaitingDispatch=s.awaitingDispatch||[];
  s.packingHistory=s.packingHistory||[];
  s.transfers=s.transfers||[];
- const known=new Set([
-   ...s.awaitingDispatch.map(x=>`${x.sku}|${x.created_at||x.packed_at||''}|${x.qty}`),
-   ...s.transfers.map(x=>`${x.sku}|${x.created_at||x.packed_at||''}|${x.qty}`)
- ]);
+ s.awaitingDispatch=s.awaitingDispatch.filter(x=>Number(x.qty||0)>0);
+
+ const represented=new Set();
+ s.awaitingDispatch.forEach(x=>{if(x.source_history_id)represented.add(x.source_history_id)});
+ s.transfers.forEach(x=>{if(x.source_history_id)represented.add(x.source_history_id)});
+
+ function legacyMatch(h){
+   const stamp=h.created_at||'';
+   return s.awaitingDispatch.some(x=>!x.source_history_id&&x.sku===h.sku&&Number(x.qty||0)===Number(h.qty||0)&&(x.packed_at||x.created_at||'')===stamp)
+      || s.transfers.some(x=>!x.source_history_id&&x.sku===h.sku&&Number(x.qty||0)===Number(h.qty||0)&&(x.packed_at||x.created_at||'')===stamp);
+ }
+
  s.packingHistory.forEach(h=>{
    if(h.status!=='complete'||h.destination)return;
-   const stamp=h.created_at||'';
-   const key=`${h.sku}|${stamp}|${h.qty}`;
-   const already=s.awaitingDispatch.some(x=>x.source_history_id===h.id)||
-                 s.transfers.some(x=>x.source_history_id===h.id);
-   if(!already){
-     s.awaitingDispatch.push({
-       id:makeId(),source_history_id:h.id,sku:h.sku,name:h.name,
-       qty:Number(h.qty||1),status:'awaiting_dispatch',
-       packed_at:stamp||new Date().toISOString(),destination:null,recovered:true
-     });
-   }
+   if(represented.has(h.id)||legacyMatch(h))return;
+   s.awaitingDispatch.push({
+     id:makeId(),source_history_id:h.id,sku:h.sku,name:h.name,
+     qty:Number(h.qty||1),status:'awaiting_dispatch',
+     packed_at:h.created_at||new Date().toISOString(),destination:null,recovered:true
+   });
+   represented.add(h.id);
+ });
+
+ const seen=new Set();
+ s.awaitingDispatch=s.awaitingDispatch.filter(x=>{
+   if(!x.source_history_id)return true;
+   if(seen.has(x.source_history_id))return false;
+   seen.add(x.source_history_id);
+   return true;
  });
  save(s);
 }
@@ -1140,7 +1153,11 @@ async function deliveriesPage(){
 
  function groupedDispatch(){
    const map={};
+   const seenDispatch=new Set();
    (s.awaitingDispatch||[]).filter(x=>x.status==='awaiting_dispatch' && Number(x.qty||0)>0).forEach(x=>{
+     const identity=x.source_history_id?`history:${x.source_history_id}`:`record:${x.id}`;
+     if(seenDispatch.has(identity))return;
+     seenDispatch.add(identity);
      if(!map[x.sku])map[x.sku]={sku:x.sku,name:x.name||x.sku,qty:0,records:[],oldest:x.packed_at||x.created_at||''};
      map[x.sku].qty+=Number(x.qty||0);
      map[x.sku].records.push(x);

@@ -187,3 +187,11 @@ v0.2 still uses browser localStorage for operational state until the shared back
 
 - Insert Inventory now shows only On Sale Pals and their Ready insert quantity.
 - Printed / Awaiting Cut & Score remains visible in the production queues, but is no longer repeated in the inventory table.
+
+
+## v0.7.8 — Dispatch Quantity De-duplication
+- Fixed Ready to Dispatch totals being doubled.
+- Awaiting Dispatch records now link directly to their Packing History record.
+- Recovery no longer recreates an already represented packing batch.
+- Duplicate recovered records from earlier builds are cleaned automatically.
+- Grouped Dispatch includes an additional de-duplication safeguard.
