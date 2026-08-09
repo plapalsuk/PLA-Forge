@@ -1,0 +1,1390 @@
+[
+  {
+    "sku": "PLA001",
+    "name": "Alex the Axolotl",
+    "description": "A curious little swimmer who loves splashing into magical adventures.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA001.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Axolotl.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 21.83,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Sakura Pink",
+      "Silk Purple"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA002",
+    "name": "Patton the Baby Polar Bear",
+    "description": "A cuddly snowy explorer with a brave little heart.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA002.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Baby Polar Bear.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 21.18,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA003",
+    "name": "Benny the Beaver",
+    "description": "A hardworking builder who always helps his friends.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA003.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Beaver.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 32.12,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Brown",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA004",
+    "name": "Beetrice the Bumble Bee",
+    "description": "A buzzing bundle of energy spreading smiles everywhere.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA004.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Bumble Bee.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 33.09,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Lemon Yellow"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA005",
+    "name": "Carmen the Camel",
+    "description": "A calm and patient pal ready for every journey.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA005.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Camel.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 23.99,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA006",
+    "name": "Colin the Capybara",
+    "description": "The chillest buddy around who loves making new friends.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA006.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Capybara.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 28.07,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Dark Brown"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA007",
+    "name": "Crush the Cardinal Bird",
+    "description": "A cheerful singer with bright feathers and big confidence.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA007.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Cardinal Bird.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 30.01,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Mandarin Orange",
+      "Matte Scarlett Red"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA008",
+    "name": "Coco the Cat",
+    "description": "A sassy but caring kitty full of playful curiosity.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA008.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Cat.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 26.97,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Latte Brown",
+      "Matte Sakura Pink"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA009",
+    "name": "Chip the Chick",
+    "description": "A tiny bundle of excitement who sees sunshine in everything.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA009.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Chick.png",
+    "type": "pal",
+    "keyring": true,
+    "recipe_rows": 3,
+    "recipe_weight_g": 27.78,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Lemon Yellow",
+      "Matte Mandarin Orange"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA010",
+    "name": "Patton the Chrismas Polar Bear",
+    "description": "A cosy little polar bear who loves spreading Christmas cheer and keeping his friends warm through every winter adventure.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA010.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Chrismas Polar Bear.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA011",
+    "name": "Christmas Tree",
+    "description": "A magical little Christmas tree that lights up every festive season with sparkle, joy, and holiday cheer.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA011.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Christmas Tree.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 42.82,
+    "filaments": [
+      "Metal Iridium Gold Matalic",
+      "Sparkle Alpine Green"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA012",
+    "name": "Candy the Cow",
+    "description": "A sweet and thoughtful friend who loves warm cuddles.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA012.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Cow.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 4,
+    "recipe_weight_g": 31.3,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Sakura Pink"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA013",
+    "name": "Cranky the Crocodile",
+    "description": "A grumpy-looking softie who’s secretly super loyal.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA013.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Crocodile.png",
+    "type": "pal",
+    "keyring": true,
+    "recipe_rows": 2,
+    "recipe_weight_g": 30.16,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Grass Green"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA014",
+    "name": "Dorian the Dog",
+    "description": "An energetic best friend always ready for fun.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA014.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Dog.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 25.93,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA015",
+    "name": "Dolores the Dolphin",
+    "description": "A playful ocean adventurer with a clever mind.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA015.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Dolphin.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 27.41,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Sky Blue"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA016",
+    "name": "Doris the Donkey",
+    "description": "A funny and dependable pal who never gives up.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA016.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Donkey.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA017",
+    "name": "Dillan the Dragon",
+    "description": "A fearless magical dragon with a protective heart.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA017.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Dragon.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 33.7,
+    "filaments": [
+      "Matte Charcoal",
+      "Metal Iridium Gold Matalic",
+      "Silk Multi Colour Aurora Purple"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA018",
+    "name": "Daphne the Duck",
+    "description": "A chatty little waddler full of cheerful charm.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA018.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Duck.png",
+    "type": "pal",
+    "keyring": true,
+    "recipe_rows": 3,
+    "recipe_weight_g": 31.59,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Lemon Yellow",
+      "Matte Mandarin Orange"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA019",
+    "name": "Ellie the Elephant",
+    "description": "A wise and gentle giant who loves caring for friends.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA019.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Elephant.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 30.55,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Nardo Grey"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA020",
+    "name": "Fran the Fish",
+    "description": "A bubbly swimmer always chasing new adventures.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA020.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Fish.png",
+    "type": "pal",
+    "keyring": true,
+    "recipe_rows": 2,
+    "recipe_weight_g": 15.2,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Mandarin Orange"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA021",
+    "name": "Flora the Flamingo",
+    "description": "A graceful pink pal who shines with confidence.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA021.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Flamingo.png",
+    "type": "pal",
+    "keyring": true,
+    "recipe_rows": 3,
+    "recipe_weight_g": 24.52,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Sakura Pink"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA022",
+    "name": "Fiona the Fox",
+    "description": "A clever little fox with a sneaky playful streak.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA022.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Fox.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 29.26,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Mandarin Orange"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA023",
+    "name": "Freddy the Frog",
+    "description": "A bouncy silly friend who’s always hopping into fun.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA023.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Frog.png",
+    "type": "pal",
+    "keyring": true,
+    "recipe_rows": 2,
+    "recipe_weight_g": 21.32,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Grass Green"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA024",
+    "name": "Coco the Ghost Cat",
+    "description": "A spooky little ghost kitty who loves playful adventures and making new friends, never scary—just full of Halloween fun.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA024.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Ghost Cat.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 32.37,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA025",
+    "name": "Dorian the Ghost Dog",
+    "description": "A friendly ghost pup who loves spooky adventures, playful fun, and making Halloween magical for everyone.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA025.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Ghost Dog.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA026",
+    "name": "Glen the Giraffe",
+    "description": "A tall and gentle pal with a big friendly smile.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA026.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Giraffe.png",
+    "type": "pal",
+    "keyring": true,
+    "recipe_rows": 2,
+    "recipe_weight_g": 31.48,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Lemon Yellow"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA027",
+    "name": "Ginger the Gingerbread Man",
+    "description": "A festive sweet treat full of holiday cheer.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA027.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Gingerbread Man.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 4,
+    "recipe_weight_g": 27.59,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Scarlett Red"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA028",
+    "name": "Gloria the Goat",
+    "description": "A lovable climber who’s always ready to explore.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA028.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Goat.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 23.09,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Brown",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA029",
+    "name": "Gabe the Gorilla",
+    "description": "A strong but gentle buddy with a big caring heart.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA029.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Gorilla.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 29.92,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Nardo Grey"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA030",
+    "name": "Gabby the Guinea Pig",
+    "description": "A tiny chatterbox who loves snuggles and snacks.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA030.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Guinea Pig.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 35.73,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Latte Brown",
+      "Matte Sakura Pink"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA031",
+    "name": "Hammy the Hamster",
+    "description": "A busy little fluffball always zooming around.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA031.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Hamster.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA032",
+    "name": "Harry the Hedgehog",
+    "description": "A shy but kind friend with clever ideas.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA032.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Hedgehog.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 37.9,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Dark Chocolate"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA033",
+    "name": "Hamish the Highland Cow",
+    "description": "A fluffy relaxed pal perfect for cosy days.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA033.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Highland Cow.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 28.62,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Brown",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA034",
+    "name": "Harriet the Hippo",
+    "description": "A cheerful hungry hippo who loves making friends laugh.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA034.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Hippo.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 30.91,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Nardo Grey"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA035",
+    "name": "Henry the Horse",
+    "description": "A brave and dependable companion for every adventure.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA035.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Horse.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 20.44,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Dark Brown"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA036",
+    "name": "Karen the Kangaroo",
+    "description": "A sporty hopper with endless energy and care.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA036.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Kangaroo.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 29.11,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA037",
+    "name": "Laura the Ladybird",
+    "description": "A tiny lucky charm spreading happiness everywhere.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA037.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Ladybird.png",
+    "type": "pal",
+    "keyring": true,
+    "recipe_rows": 3,
+    "recipe_weight_g": 22.27,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Scarlett Red"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA038",
+    "name": "Liam the Lion",
+    "description": "A proud protector with a courageous roar.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA038.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Lion.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 25.12,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Brown",
+      "Matte Lemon Yellow"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA039",
+    "name": "Llorna the Llama",
+    "description": "A funny dramatic fluffball full of lovable personality.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA039.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Llama.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 31.6,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA040",
+    "name": "Mack the Macaw",
+    "description": "A loud colourful adventurer who loves attention.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA040.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Macaw.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 5,
+    "recipe_weight_g": 32.79,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Lemon Yellow",
+      "Matte Scarlett Red",
+      "Matte Sky Blue"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA041",
+    "name": "Mike the Meerkat",
+    "description": "A curious lookout always searching for excitement.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA041.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Meerkat.png",
+    "type": "pal",
+    "keyring": true,
+    "recipe_rows": 3,
+    "recipe_weight_g": 21.81,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Chocolate",
+      "Matte Desert Tan"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA042",
+    "name": "Milo the Monkey",
+    "description": "A mischievous little climber with clever tricks.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA042.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Monkey.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 28.79,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Dark Chocolate"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA043",
+    "name": "Monica the Moose",
+    "description": "A gentle giant who’s adorably clumsy and caring.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA043.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Moose.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 26.98,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Dark Brown"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA044",
+    "name": "Maisie the Mouse",
+    "description": "A tiny brave explorer with a big heart.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA044.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Mouse.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 31.88,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Nardo Grey",
+      "Matte Sakura Pink"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA045",
+    "name": "Nina the Narwhal",
+    "description": "A dreamy magical sea friend sparkling with wonder.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA045.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Narwhal.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 21.65,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Silk Blue"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA046",
+    "name": "Oliver the Octopus",
+    "description": "A creative helper with clever ideas in every tentacle.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA046.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Octopus.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 30.39,
+    "filaments": [
+      "Matte Charcoal",
+      "Silk Purple"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA047",
+    "name": "Oscar the Otter",
+    "description": "A playful adventurer who loves splashing about.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA047.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Otter.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 23.8,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Chocolate",
+      "Matte Desert Tan"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA048",
+    "name": "Olivia the Owl",
+    "description": "A wise and calm night-time friend.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA048.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Owl.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 33.92,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Brown",
+      "Matte Mandarin Orange"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA049",
+    "name": "Pablo the Parrot",
+    "description": "A funny colourful chatterbox full of personality.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA049.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Parrot.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 35.9,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Lemon Yellow",
+      "Matte Sky Blue"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA050",
+    "name": "Penny the Penguin Christmas",
+    "description": "A festive little waddler spreading holiday joy.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA050.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Penguin Christmas.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA051",
+    "name": "Phoebe the Pig",
+    "description": "A cheerful snuggle buddy who always wants snacks.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA051.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Pig.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 22.77,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Sakura Pink"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA052",
+    "name": "Philip the Platypus",
+    "description": "A quirky little pal who’s proudly one of a kind.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA052.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Platypus.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 31.13,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Brown",
+      "Matte Nardo Grey"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA053",
+    "name": "Patrick the Polar Bear",
+    "description": "A calm and caring snowy protector.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA053.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Polar Bear.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 28.44,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA054",
+    "name": "Ricky the Rabbit",
+    "description": "A speedy little hopper with a gentle heart.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA054.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Rabbit.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 24.0,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA055",
+    "name": "Rusty the Reindeer",
+    "description": "A festive adventurer ready to dash through winter fun.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA055.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Reindeer.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 4,
+    "recipe_weight_g": 22.81,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Dark Brown",
+      "Matte Scarlett Red"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA056",
+    "name": "Rolo the Rhino",
+    "description": "A tough but loyal friend who’s always there for you.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA056.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Rhino.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 21.6,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Nardo Grey"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA057",
+    "name": "Rachel the Robin",
+    "description": "A cheerful festive singer bringing cosy winter vibes.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA057.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Robin.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 4,
+    "recipe_weight_g": 39.92,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Mandarin Orange",
+      "Matte Nardo Grey"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA058",
+    "name": "Santa",
+    "description": "A jolly Christmas friend who spreads kindness, laughter, and festive magic wherever he goes.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA058.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA059",
+    "name": "Sammy the Seal",
+    "description": "A playful clumsy pal who loves splashing around.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA059.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Seal.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 26.93,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA060",
+    "name": "Sean the Shark",
+    "description": "A bold ocean explorer with a protective side.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA060.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Shark.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA061",
+    "name": "Sheila the Sheep",
+    "description": "A soft sleepy cuddle companion perfect for cosy nights.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA061.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Sheep.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 33.85,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA062",
+    "name": "Sophie the Sloth",
+    "description": "A relaxed lovable friend who takes life slow and steady.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA062.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Sloth.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 30.14,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Chocolate",
+      "Matte Desert Tan"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA063",
+    "name": "Sandy the Snail With Heart",
+    "description": "A sweet little snail spreading love wherever she goes.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA063.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Snail With Heart.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA064",
+    "name": "Sandy the Snail With Pumpkin",
+    "description": "A spooky-cute crawler full of Halloween cheer.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA064.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Snail With Pumpkin.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA065",
+    "name": "Sandra the Snake",
+    "description": "A calm clever slitherer with sneaky charm.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA065.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Snake.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 12.13,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Grass Green"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA066",
+    "name": "Snowy the Snowman",
+    "description": "A magical winter buddy full of jolly smiles.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA066.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Snowman.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 4,
+    "recipe_weight_g": 30.21,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Mandarin Orange",
+      "Matte Scarlett Red"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA067",
+    "name": "Stacey the Squirrel",
+    "description": "A busy woodland friend always hunting for treats.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA067.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Squirrel.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 26.86,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Brown"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA068",
+    "name": "Spike the Stegosaurus",
+    "description": "A gentle dino protector with a tough side.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA068.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Stegosaurus.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 21.53,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Green"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA069",
+    "name": "Simon the Swan",
+    "description": "A graceful elegant friend who glides through every adventure.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA069.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Swan.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 24.62,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Mandarin Orange"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA070",
+    "name": "Tony the T Rex",
+    "description": "A roaring dino buddy with a surprisingly caring heart.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA070.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/T Rex.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 22.03,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Green"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA071",
+    "name": "Terry the Tiger",
+    "description": "A fierce explorer who’s brave and loyal.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA071.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Tiger.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 30.0,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Mandarin Orange"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA072",
+    "name": "Tracey the Triceratops",
+    "description": "A strong stubborn sweetheart who protects her pals.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA072.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Triceratops.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 22.88,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Dark Green",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA073",
+    "name": "Taric the Turkey",
+    "description": "A noisy funny bird who loves being the centre of attention.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA073.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Turkey.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA074",
+    "name": "Todd the Turtle",
+    "description": "A wise and dependable pal who never rushes.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA074.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Turtle.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 36.19,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Grass Green"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA075",
+    "name": "Unity the Unicorn",
+    "description": "A dreamy magical friend sparkling with kindness.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA075.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Unicorn.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 24.33,
+    "filaments": [
+      "Matte Charcoal",
+      "Metal Iridium Gold Matalic",
+      "Silk Mulit Colur South Beach"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA076",
+    "name": "Winnie the Whale",
+    "description": "A gentle ocean giant always chasing adventure.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA076.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Whale.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 40.38,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Sky Blue"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA077",
+    "name": "Wallace the Wild Boar",
+    "description": "A brave little toughie with a loyal heart.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA077.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Wild Boar.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 4,
+    "recipe_weight_g": 24.28,
+    "filaments": [
+      "Matte Caramel",
+      "Matte Charcoal",
+      "Matte Dark Brown",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA078",
+    "name": "Winston the Wolf",
+    "description": "An intelligent protector always leading the pack on adventures.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA078.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Wolf.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 23.11,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Nardo Grey"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA079",
+    "name": "Penny the Penguin",
+    "description": "A cheerful little penguin who loves waddling into adventures and making everyone smile.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA079.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Penguin.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 35.1,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Ivory White",
+      "Matte Lemon Yellow"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA080",
+    "name": "Chris the Chameleon",
+    "description": "A colourful little explorer who loves blending into every adventure.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA080.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Chameleon.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 3,
+    "recipe_weight_g": 23.64,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Grass Green",
+      "Matte Ivory White"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA081",
+    "name": "Paul the Panther",
+    "description": "A brave and loyal jungle guardian with a calm and mysterious charm.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA081.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Panther.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 2,
+    "recipe_weight_g": 23.95,
+    "filaments": [
+      "Matte Charcoal",
+      "Matte Lemon Yellow"
+    ],
+    "recipe_ready": true
+  },
+  {
+    "sku": "PLA082",
+    "name": "Clawd the Crab",
+    "description": "A cheerful seaside explorer who loves collecting treasures and making new friends.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA082.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Crab.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "PLA083",
+    "name": "Gus the German Shepherd",
+    "description": "A brave and dependable best friend who's always ready to protect and explore.",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/PLA083.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/German Shepherd.png",
+    "type": "pal",
+    "keyring": false,
+    "recipe_rows": 0,
+    "recipe_weight_g": 0,
+    "filaments": [],
+    "recipe_ready": false
+  },
+  {
+    "sku": "STK001",
+    "name": "Aquatic Stickers",
+    "description": "",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/STK001.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Aquatic.png",
+    "type": "sticker",
+    "keyring": false
+  },
+  {
+    "sku": "STK002",
+    "name": "Bird Stickers",
+    "description": "",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/STK002.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Bird.png",
+    "type": "sticker",
+    "keyring": false
+  },
+  {
+    "sku": "STK003",
+    "name": "Farm Stickers",
+    "description": "",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/STK003.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Farm.png",
+    "type": "sticker",
+    "keyring": false
+  },
+  {
+    "sku": "STK004",
+    "name": "Safari Stickers",
+    "description": "",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/STK004.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Safari.png",
+    "type": "sticker",
+    "keyring": false
+  },
+  {
+    "sku": "STK005",
+    "name": "Woodland Stickers",
+    "description": "",
+    "barcode_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/STK005.pdf",
+    "character_path": "/Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/PLA Pals Photos/Character Photos/Woodland.png",
+    "type": "sticker",
+    "keyring": false
+  }
+]

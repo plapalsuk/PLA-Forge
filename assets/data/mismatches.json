@@ -1,0 +1,863 @@
+[
+  {
+    "stated_sku": "PLA006",
+    "resolved_sku": "PLA005",
+    "recipe": "Carmen the Camel",
+    "master_product": "Carmen the Camel",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA006",
+    "resolved_sku": "PLA005",
+    "recipe": "Carmen the Camel",
+    "master_product": "Carmen the Camel",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA007",
+    "resolved_sku": "PLA006",
+    "recipe": "Colin the Capybara",
+    "master_product": "Colin the Capybara",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA007",
+    "resolved_sku": "PLA006",
+    "recipe": "Colin the Capybara",
+    "master_product": "Colin the Capybara",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA007",
+    "resolved_sku": "PLA006",
+    "recipe": "Colin the Capybara",
+    "master_product": "Colin the Capybara",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA008",
+    "resolved_sku": "PLA007",
+    "recipe": "Crush the Cardinal Bird",
+    "master_product": "Crush the Cardinal Bird",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA008",
+    "resolved_sku": "PLA007",
+    "recipe": "Crush the Cardinal Bird",
+    "master_product": "Crush the Cardinal Bird",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA008",
+    "resolved_sku": "PLA007",
+    "recipe": "Crush the Cardinal Bird",
+    "master_product": "Crush the Cardinal Bird",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA005",
+    "resolved_sku": "PLA054",
+    "recipe": "Ricky the Rabbit",
+    "master_product": "Ricky the Rabbit",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA005",
+    "resolved_sku": "PLA054",
+    "recipe": "Ricky the Rabbit",
+    "master_product": "Ricky the Rabbit",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA009",
+    "resolved_sku": "PLA008",
+    "recipe": "Coco the Cat",
+    "master_product": "Coco the Cat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA009",
+    "resolved_sku": "PLA008",
+    "recipe": "Coco the Cat",
+    "master_product": "Coco the Cat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA009",
+    "resolved_sku": "PLA008",
+    "recipe": "Coco the Cat",
+    "master_product": "Coco the Cat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA010",
+    "resolved_sku": "PLA009",
+    "recipe": "Chip the Chick",
+    "master_product": "Chip the Chick",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA010",
+    "resolved_sku": "PLA009",
+    "recipe": "Chip the Chick",
+    "master_product": "Chip the Chick",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA010",
+    "resolved_sku": "PLA009",
+    "recipe": "Chip the Chick",
+    "master_product": "Chip the Chick",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA012",
+    "resolved_sku": "PLA011",
+    "recipe": "224 the Christmas Tree",
+    "master_product": "Christmas Tree",
+    "confidence": 1.13
+  },
+  {
+    "stated_sku": "PLA012",
+    "resolved_sku": "PLA011",
+    "recipe": "224 the Christmas Tree",
+    "master_product": "Christmas Tree",
+    "confidence": 1.13
+  },
+  {
+    "stated_sku": "PLA013",
+    "resolved_sku": "PLA012",
+    "recipe": "Candy the Cow",
+    "master_product": "Candy the Cow",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA013",
+    "resolved_sku": "PLA012",
+    "recipe": "Candy the Cow",
+    "master_product": "Candy the Cow",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA013",
+    "resolved_sku": "PLA012",
+    "recipe": "Candy the Cow",
+    "master_product": "Candy the Cow",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA013",
+    "resolved_sku": "PLA012",
+    "recipe": "Candy the Cow",
+    "master_product": "Candy the Cow",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA014",
+    "resolved_sku": "PLA013",
+    "recipe": "Cranky the Crocodile",
+    "master_product": "Cranky the Crocodile",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA014",
+    "resolved_sku": "PLA013",
+    "recipe": "Cranky the Crocodile",
+    "master_product": "Cranky the Crocodile",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA015",
+    "resolved_sku": "PLA014",
+    "recipe": "Dorian the Dog",
+    "master_product": "Dorian the Dog",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA015",
+    "resolved_sku": "PLA014",
+    "recipe": "Dorian the Dog",
+    "master_product": "Dorian the Dog",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA016",
+    "resolved_sku": "PLA015",
+    "recipe": "Dolores the Dolphin",
+    "master_product": "Dolores the Dolphin",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA016",
+    "resolved_sku": "PLA015",
+    "recipe": "Dolores the Dolphin",
+    "master_product": "Dolores the Dolphin",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA018",
+    "resolved_sku": "PLA017",
+    "recipe": "Dillan the Dragon",
+    "master_product": "Dillan the Dragon",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA018",
+    "resolved_sku": "PLA017",
+    "recipe": "Dillan the Dragon",
+    "master_product": "Dillan the Dragon",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA018",
+    "resolved_sku": "PLA017",
+    "recipe": "Dillan the Dragon",
+    "master_product": "Dillan the Dragon",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA020",
+    "resolved_sku": "PLA019",
+    "recipe": "Ellie the Elephant",
+    "master_product": "Ellie the Elephant",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA020",
+    "resolved_sku": "PLA019",
+    "recipe": "Ellie the Elephant",
+    "master_product": "Ellie the Elephant",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA021",
+    "resolved_sku": "PLA020",
+    "recipe": "Fran the Fish",
+    "master_product": "Fran the Fish",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA021",
+    "resolved_sku": "PLA020",
+    "recipe": "Fran the Fish",
+    "master_product": "Fran the Fish",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA022",
+    "resolved_sku": "PLA021",
+    "recipe": "Flora the Flamingo",
+    "master_product": "Flora the Flamingo",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA022",
+    "resolved_sku": "PLA021",
+    "recipe": "Flora the Flamingo",
+    "master_product": "Flora the Flamingo",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA022",
+    "resolved_sku": "PLA021",
+    "recipe": "Flora the Flamingo",
+    "master_product": "Flora the Flamingo",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA023",
+    "resolved_sku": "PLA022",
+    "recipe": "Fiona the Fox",
+    "master_product": "Fiona the Fox",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA023",
+    "resolved_sku": "PLA022",
+    "recipe": "Fiona the Fox",
+    "master_product": "Fiona the Fox",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA024",
+    "resolved_sku": "PLA023",
+    "recipe": "Freddy the Frog",
+    "master_product": "Freddy the Frog",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA024",
+    "resolved_sku": "PLA023",
+    "recipe": "Freddy the Frog",
+    "master_product": "Freddy the Frog",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA025",
+    "resolved_sku": "PLA024",
+    "recipe": "Coco the Ghost Cat",
+    "master_product": "Coco the Ghost Cat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA025",
+    "resolved_sku": "PLA024",
+    "recipe": "Coco the Ghost Cat",
+    "master_product": "Coco the Ghost Cat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA027",
+    "resolved_sku": "PLA026",
+    "recipe": "Glen the Giraffe",
+    "master_product": "Glen the Giraffe",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA027",
+    "resolved_sku": "PLA026",
+    "recipe": "Glen the Giraffe",
+    "master_product": "Glen the Giraffe",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA028",
+    "resolved_sku": "PLA027",
+    "recipe": "Ginger the Gingerbread Man",
+    "master_product": "Ginger the Gingerbread Man",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA028",
+    "resolved_sku": "PLA027",
+    "recipe": "Ginger the Gingerbread Man",
+    "master_product": "Ginger the Gingerbread Man",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA028",
+    "resolved_sku": "PLA027",
+    "recipe": "Ginger the Gingerbread Man",
+    "master_product": "Ginger the Gingerbread Man",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA028",
+    "resolved_sku": "PLA027",
+    "recipe": "Ginger the Gingerbread Man",
+    "master_product": "Ginger the Gingerbread Man",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA029",
+    "resolved_sku": "PLA028",
+    "recipe": "Gloria the Goat",
+    "master_product": "Gloria the Goat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA029",
+    "resolved_sku": "PLA028",
+    "recipe": "Gloria the Goat",
+    "master_product": "Gloria the Goat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA029",
+    "resolved_sku": "PLA028",
+    "recipe": "Gloria the Goat",
+    "master_product": "Gloria the Goat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA030",
+    "resolved_sku": "PLA029",
+    "recipe": "Gabe the Gorilla",
+    "master_product": "Gabe the Gorilla",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA030",
+    "resolved_sku": "PLA029",
+    "recipe": "Gabe the Gorilla",
+    "master_product": "Gabe the Gorilla",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA031",
+    "resolved_sku": "PLA030",
+    "recipe": "Gabby the Guinea Pig",
+    "master_product": "Gabby the Guinea Pig",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA031",
+    "resolved_sku": "PLA030",
+    "recipe": "Gabby the Guinea Pig",
+    "master_product": "Gabby the Guinea Pig",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA031",
+    "resolved_sku": "PLA030",
+    "recipe": "Gabby the Guinea Pig",
+    "master_product": "Gabby the Guinea Pig",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA033",
+    "resolved_sku": "PLA032",
+    "recipe": "Harry the Hedgehog",
+    "master_product": "Harry the Hedgehog",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA033",
+    "resolved_sku": "PLA032",
+    "recipe": "Harry the Hedgehog",
+    "master_product": "Harry the Hedgehog",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA033",
+    "resolved_sku": "PLA032",
+    "recipe": "Harry the Hedgehog",
+    "master_product": "Harry the Hedgehog",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA034",
+    "resolved_sku": "PLA033",
+    "recipe": "Hamish the Highland Cow",
+    "master_product": "Hamish the Highland Cow",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA034",
+    "resolved_sku": "PLA033",
+    "recipe": "Hamish the Highland Cow",
+    "master_product": "Hamish the Highland Cow",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA034",
+    "resolved_sku": "PLA033",
+    "recipe": "Hamish the Highland Cow",
+    "master_product": "Hamish the Highland Cow",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA035",
+    "resolved_sku": "PLA034",
+    "recipe": "Harriet the HiPLAo",
+    "master_product": "Harriet the Hippo",
+    "confidence": 1.16
+  },
+  {
+    "stated_sku": "PLA035",
+    "resolved_sku": "PLA034",
+    "recipe": "Harriet the HiPLAo",
+    "master_product": "Harriet the Hippo",
+    "confidence": 1.16
+  },
+  {
+    "stated_sku": "PLA036",
+    "resolved_sku": "PLA035",
+    "recipe": "Henry the Horse",
+    "master_product": "Henry the Horse",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA036",
+    "resolved_sku": "PLA035",
+    "recipe": "Henry the Horse",
+    "master_product": "Henry the Horse",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA036",
+    "resolved_sku": "PLA035",
+    "recipe": "Henry the Horse",
+    "master_product": "Henry the Horse",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA037",
+    "resolved_sku": "PLA036",
+    "recipe": "Karen the Kangaroo",
+    "master_product": "Karen the Kangaroo",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA037",
+    "resolved_sku": "PLA036",
+    "recipe": "Karen the Kangaroo",
+    "master_product": "Karen the Kangaroo",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA038",
+    "resolved_sku": "PLA037",
+    "recipe": "Laura the Ladybird",
+    "master_product": "Laura the Ladybird",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA038",
+    "resolved_sku": "PLA037",
+    "recipe": "Laura the Ladybird",
+    "master_product": "Laura the Ladybird",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA038",
+    "resolved_sku": "PLA037",
+    "recipe": "Laura the Ladybird",
+    "master_product": "Laura the Ladybird",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA039",
+    "resolved_sku": "PLA038",
+    "recipe": "Liam the Lion",
+    "master_product": "Liam the Lion",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA039",
+    "resolved_sku": "PLA038",
+    "recipe": "Liam the Lion",
+    "master_product": "Liam the Lion",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA039",
+    "resolved_sku": "PLA038",
+    "recipe": "Liam the Lion",
+    "master_product": "Liam the Lion",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA040",
+    "resolved_sku": "PLA039",
+    "recipe": "Llorna the Llama",
+    "master_product": "Llorna the Llama",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA040",
+    "resolved_sku": "PLA039",
+    "recipe": "Llorna the Llama",
+    "master_product": "Llorna the Llama",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA041",
+    "resolved_sku": "PLA040",
+    "recipe": "Mack the Macaw",
+    "master_product": "Mack the Macaw",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA041",
+    "resolved_sku": "PLA040",
+    "recipe": "Mack the Macaw",
+    "master_product": "Mack the Macaw",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA041",
+    "resolved_sku": "PLA040",
+    "recipe": "Mack the Macaw",
+    "master_product": "Mack the Macaw",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA041",
+    "resolved_sku": "PLA040",
+    "recipe": "Mack the Macaw",
+    "master_product": "Mack the Macaw",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA041",
+    "resolved_sku": "PLA040",
+    "recipe": "Mack the Macaw",
+    "master_product": "Mack the Macaw",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA042",
+    "resolved_sku": "PLA041",
+    "recipe": "Mike the Meerkat",
+    "master_product": "Mike the Meerkat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA042",
+    "resolved_sku": "PLA041",
+    "recipe": "Mike the Meerkat",
+    "master_product": "Mike the Meerkat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA042",
+    "resolved_sku": "PLA041",
+    "recipe": "Mike the Meerkat",
+    "master_product": "Mike the Meerkat",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA043",
+    "resolved_sku": "PLA042",
+    "recipe": "Milo the Monkey",
+    "master_product": "Milo the Monkey",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA043",
+    "resolved_sku": "PLA042",
+    "recipe": "Milo the Monkey",
+    "master_product": "Milo the Monkey",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA043",
+    "resolved_sku": "PLA042",
+    "recipe": "Milo the Monkey",
+    "master_product": "Milo the Monkey",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA044",
+    "resolved_sku": "PLA043",
+    "recipe": "Monica the Moose",
+    "master_product": "Monica the Moose",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA044",
+    "resolved_sku": "PLA043",
+    "recipe": "Monica the Moose",
+    "master_product": "Monica the Moose",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA044",
+    "resolved_sku": "PLA043",
+    "recipe": "Monica the Moose",
+    "master_product": "Monica the Moose",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA045",
+    "resolved_sku": "PLA044",
+    "recipe": "Maisie the Mouse",
+    "master_product": "Maisie the Mouse",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA045",
+    "resolved_sku": "PLA044",
+    "recipe": "Maisie the Mouse",
+    "master_product": "Maisie the Mouse",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA045",
+    "resolved_sku": "PLA044",
+    "recipe": "Maisie the Mouse",
+    "master_product": "Maisie the Mouse",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA046",
+    "resolved_sku": "PLA045",
+    "recipe": "Nina the Narwhal",
+    "master_product": "Nina the Narwhal",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA046",
+    "resolved_sku": "PLA045",
+    "recipe": "Nina the Narwhal",
+    "master_product": "Nina the Narwhal",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA046",
+    "resolved_sku": "PLA045",
+    "recipe": "Nina the Narwhal",
+    "master_product": "Nina the Narwhal",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA047",
+    "resolved_sku": "PLA046",
+    "recipe": "Oliver the Octopus",
+    "master_product": "Oliver the Octopus",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA047",
+    "resolved_sku": "PLA046",
+    "recipe": "Oliver the Octopus",
+    "master_product": "Oliver the Octopus",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA048",
+    "resolved_sku": "PLA047",
+    "recipe": "Oscar the Otter",
+    "master_product": "Oscar the Otter",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA048",
+    "resolved_sku": "PLA047",
+    "recipe": "Oscar the Otter",
+    "master_product": "Oscar the Otter",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA048",
+    "resolved_sku": "PLA047",
+    "recipe": "Oscar the Otter",
+    "master_product": "Oscar the Otter",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA049",
+    "resolved_sku": "PLA048",
+    "recipe": "Olivia the Owl",
+    "master_product": "Olivia the Owl",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA049",
+    "resolved_sku": "PLA048",
+    "recipe": "Olivia the Owl",
+    "master_product": "Olivia the Owl",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA049",
+    "resolved_sku": "PLA048",
+    "recipe": "Olivia the Owl",
+    "master_product": "Olivia the Owl",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA050",
+    "resolved_sku": "PLA049",
+    "recipe": "Pablo the Parrot",
+    "master_product": "Pablo the Parrot",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA050",
+    "resolved_sku": "PLA049",
+    "recipe": "Pablo the Parrot",
+    "master_product": "Pablo the Parrot",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA050",
+    "resolved_sku": "PLA049",
+    "recipe": "Pablo the Parrot",
+    "master_product": "Pablo the Parrot",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA052",
+    "resolved_sku": "PLA051",
+    "recipe": "Pheobe the Pig",
+    "master_product": "Phoebe the Pig",
+    "confidence": 1.28
+  },
+  {
+    "stated_sku": "PLA052",
+    "resolved_sku": "PLA051",
+    "recipe": "Pheobe the Pig",
+    "master_product": "Phoebe the Pig",
+    "confidence": 1.28
+  },
+  {
+    "stated_sku": "PLA053",
+    "resolved_sku": "PLA052",
+    "recipe": "Philip the Platypus",
+    "master_product": "Philip the Platypus",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA053",
+    "resolved_sku": "PLA052",
+    "recipe": "Philip the Platypus",
+    "master_product": "Philip the Platypus",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA053",
+    "resolved_sku": "PLA052",
+    "recipe": "Philip the Platypus",
+    "master_product": "Philip the Platypus",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA054",
+    "resolved_sku": "PLA053",
+    "recipe": "Patrick the Polar Bear",
+    "master_product": "Patrick the Polar Bear",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA054",
+    "resolved_sku": "PLA053",
+    "recipe": "Patrick the Polar Bear",
+    "master_product": "Patrick the Polar Bear",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA019",
+    "resolved_sku": "PLA018",
+    "recipe": "Daphne the Duck",
+    "master_product": "Daphne the Duck",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA019",
+    "resolved_sku": "PLA018",
+    "recipe": "Daphne the Duck",
+    "master_product": "Daphne the Duck",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA019",
+    "resolved_sku": "PLA018",
+    "recipe": "Daphne the Duck",
+    "master_product": "Daphne the Duck",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA051",
+    "resolved_sku": "PLA079",
+    "recipe": "Penny the Penguin",
+    "master_product": "Penny the Penguin",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA051",
+    "resolved_sku": "PLA079",
+    "recipe": "Penny the Penguin",
+    "master_product": "Penny the Penguin",
+    "confidence": 1.0
+  },
+  {
+    "stated_sku": "PLA051",
+    "resolved_sku": "PLA079",
+    "recipe": "Penny the Penguin",
+    "master_product": "Penny the Penguin",
+    "confidence": 1.0
+  }
+]
