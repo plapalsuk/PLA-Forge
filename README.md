@@ -261,3 +261,27 @@ If you dispatch the packed 5:
 - Build Plate requirement remains 0.
 
 This update does NOT trigger another clean reset. Existing v0.8.0 data is preserved.
+
+
+## v0.8.2 — Packing Station Pipeline-Aware Awaiting
+
+Fixed another stage of the same pipeline-accounting issue.
+
+Previous behaviour:
+- Packing Station `Awaiting` used the raw location stock deficit.
+- When the final assembled Pals were packed, Assembled stock reduced.
+- Packing Station then incorrectly treated those packed Pals as missing and showed them as still needed.
+
+New behaviour:
+- Packing Station `Awaiting` now uses `manufacturingNeed()`.
+- Packed Pals awaiting dispatch count toward fulfilling the production requirement.
+- Dispatched Pals are represented by location inventory.
+- Pals no longer reappear in Packing Station Awaiting simply because they moved from Assembled into Packed / Awaiting Dispatch.
+
+Axolotl example:
+- Target requirement: 10
+- 10 assembled
+- Pack first 5 → 5 assembled + 5 awaiting dispatch = 10 accounted for
+- Pack final 5 → 10 awaiting dispatch = 10 accounted for
+- Packing Station Awaiting = 0
+- Build Plate demand = 0

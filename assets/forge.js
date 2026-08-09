@@ -1056,6 +1056,8 @@ function printPalBarcode(sku,name){
  setTimeout(()=>w.print(),250);
 }
 async function packingStationPage(){
+ // v0.8.2: all Packing Station production-demand checks must be pipeline-aware.
+
  const s=state(),ps=await load('products'),pals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku));
  const readyList=document.querySelector('#packingReadyList'),awaitingList=document.querySelector('#packingAwaitingList'),q=document.querySelector('#q');
  const readyCount=document.querySelector('#packingReadyCount'),awaitingCount=document.querySelector('#packingAwaitingCount');
@@ -1092,7 +1094,10 @@ async function packingStationPage(){
   // Hide a Pal when the ONLY blocker is "Awaiting assembled Pal";
   // that belongs upstream at The Bench, not at Packing Station.
   const awaiting=searched.filter(p=>{
-    if(totalNeed(s,p.sku)<=0)return false;
+    // Packing Station must use pipeline-aware manufacturing demand.
+    // If the target is already covered by assembled / packed / dispatched stock,
+    // the Pal must not reappear here as "needed".
+    if(manufacturingNeed(s,p.sku)<=0)return false;
     const allBlockers=blockers(p);
     const packagingBlockers=allBlockers.filter(x=>x!=='Awaiting assembled Pal');
     return packagingBlockers.length>0;
@@ -1113,7 +1118,7 @@ async function packingStationPage(){
 
   awaitingList.innerHTML=awaiting.map(p=>{
     const packagingBlockers=blockers(p).filter(x=>x!=='Awaiting assembled Pal');
-    return `<div class="packing-card awaiting-pack-card"><div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge(`PRODUCTION NEED ${totalNeed(s,p.sku)}`,'warning')}</div>${stockStrip(p)}<div class="packing-blockers">${packagingBlockers.map(x=>`<span>! ${esc(x)}</span>`).join('')}</div></div>`;
+    return `<div class="packing-card awaiting-pack-card"><div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge(`PRODUCTION NEED ${manufacturingNeed(s,p.sku)}`,'warning')}</div>${stockStrip(p)}<div class="packing-blockers">${packagingBlockers.map(x=>`<span>! ${esc(x)}</span>`).join('')}</div></div>`;
   }).join('')||'<div class="bench-empty">Nothing in the Production Planner is currently waiting for packaging materials or inserts.</div>';
 
   document.querySelectorAll('.batchQty').forEach(el=>el.onchange=()=>{const sku=el.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};j.qty=Math.min(maxBatch(p),Math.max(1,Number(el.value||1)));save(s);render()});
