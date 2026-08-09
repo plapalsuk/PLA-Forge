@@ -9,6 +9,7 @@ function state(){
   s.plates=s.plates||[]; s.printHistory=s.printHistory||[]; s.failedParts=s.failedParts||[]; s.plateSeq=Number(s.plateSeq||1);
   s.printers=s.printers||[]; s.siteSettings=s.siteSettings||{defaultPrinter:'',defaultLocation:'boat'};
   s.assembled=s.assembled||{}; s.assemblyHistory=s.assemblyHistory||[];
+  s.boxes=s.boxes||{}; s.boxHistory=s.boxHistory||[]; s.packagingComponents=s.packagingComponents||{clear_boxes:0,inserts:0,stickers:0,barcode_labels:0};
   return s;
 }
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
@@ -615,4 +616,38 @@ async function assemblyPage(){
 
  q.oninput=render;
  render();
+}
+
+
+async function boxProductionPage(){
+ const s=state(), ps=await load('products');
+ const pals=ps.filter(p=>p.type==='pal');
+ const q=document.querySelector('#q'), ready=document.querySelector('#boxReady'), history=document.querySelector('#boxHistory');
+ const lowKpi=document.querySelector('#boxLowKpi'), totalKpi=document.querySelector('#boxTotalKpi'), printKpi=document.querySelector('#boxPrintKpi');
+
+ function stock(sku){return Number(s.boxes[sku]||0)}
+ function target(){return 10}
+ function printNeed(p){return Math.max(0,target()-stock(p.sku))}
+ function render(){
+   const text=(q.value||'').toLowerCase();
+   const data=pals.map(p=>({p,stock:stock(p.sku),need:printNeed(p)}))
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
+     .sort((a,b)=>(a.stock<4?-1:1)-(b.stock<4?-1:1)||b.need-a.need||a.p.name.localeCompare(b.p.name));
+   lowKpi.textContent=data.filter(x=>x.stock<4).length;
+   totalKpi.textContent=data.reduce((a,x)=>a+x.stock,0);
+   printKpi.textContent=data.reduce((a,x)=>a+x.need,0);
+   ready.innerHTML=data.map(x=>`<div class="box-card ${x.stock<4?'urgent':x.stock<10?'low':''}">
+     <div class="assembly-card-head"><div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>${x.stock<4?badge('PRINT NOW','warning'):x.stock<10?badge('Below Target','warning'):badge('Stock OK','ok')}</div>
+     <div class="box-stock-number">${x.stock}<span> / 10</span></div>
+     <div class="small">character boxes currently in stock</div>
+     <div class="box-progress"><span style="width:${Math.min(100,x.stock*10)}%"></span></div>
+     <div class="box-actions"><div><strong>${x.need}</strong><span class="small"> suggested to print</span></div><label><span class="small">Qty Printed</span><input class="number boxqty" id="box-${x.p.sku}" type="number" min="1" value="${Math.max(1,x.need||1)}"></label><button class="btn addboxes" data-sku="${x.p.sku}">Add Boxes</button></div>
+   </div>`).join('');
+   document.querySelectorAll('.addboxes').forEach(btn=>btn.onclick=()=>{
+     const sku=btn.dataset.sku,p=pals.find(x=>x.sku===sku),qty=Math.max(1,Number(document.querySelector('#box-'+sku)?.value||1));
+     s.boxes[sku]=stock(sku)+qty;s.boxHistory.push({id:makeId(),sku,name:p.name,qty,created_at:new Date().toISOString()});save(s);render();
+   });
+   history.innerHTML=s.boxHistory.slice().reverse().slice(0,30).map(h=>`<tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>+${h.qty}</td></tr>`).join('')||'<tr><td colspan="3">No boxes recorded yet.</td></tr>';
+ }
+ q.oninput=render;render();
 }

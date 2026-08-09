@@ -1,6 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Packing Station | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=032"></head>
-<body><div class="app">
-<aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Box Production | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=040"></head><body><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
   <div class="navgroup">Forge Control</div>
@@ -10,11 +8,30 @@
   <div class="navgroup">The Workshop</div>
   <a href="production.html">⚙ Production Planner</a><a href="recipes.html">⌘ Recipes</a><a href="plates.html">▱ Build Plates</a><a href="parts.html">◫ Printed Parts</a><a href="assembly.html">⌁ The Bench</a>
   <div class="navgroup">Packing & Dispatch</div>
-  <a href="packaging.html">□ Packing Station</a><a href="deliveries.html">⇢ Dispatch</a>
+  <a href="packaging.html">□ Box Production</a><a href="deliveries.html">⇢ Dispatch</a>
   <div class="navgroup">Materials</div>
   <a href="filament.html">≋ Filament</a>
   <div class="navgroup">Administration</div>
   <a href="data-health.html">! Data Health</a><a href="settings.html">⚙ Settings</a>
  </nav>
-</aside>
-<main><div class="topbar"><div class="pageTitle"><h1>Packing Station</h1><div class="small">Character + clear box + insert + sticker + barcode.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="card"><h2 style="margin-top:0">Module scaffold ready</h2><p class="muted">This screen is included in the v0.1 application shell and will be wired into production state in the next build.</p></div><div class="footer-note">PLA Forge v0.3.2 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=032"></script></body></html>
+</aside><main class="bench-main">
+<div class="topbar">
+ <div class="pageTitle"><h1>Box Production</h1><div class="small">Keep each Pal's custom printed box ready for the Box Production.</div></div>
+ <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Target 10. Alert below 4.</div></div></div>
+</div>
+<div class="grid kpis bench-kpis">
+ <div class="card kpi"><div class="label">Print Now</div><div class="value accent" id="boxLowKpi">0</div><div class="small">box designs below 4 in stock</div></div>
+ <div class="card kpi"><div class="label">Boxes In Stock</div><div class="value" id="boxTotalKpi">0</div><div class="small">all character boxes</div></div>
+ <div class="card kpi"><div class="label">Suggested Print Qty</div><div class="value" id="boxPrintKpi">0</div><div class="small">to restore every Pal to 10</div></div>
+</div>
+<div class="toolbar bench-toolbar"><input id="q" class="search" placeholder="Search Pal or SKU"></div>
+<div class="card">
+ <div class="section-title"><div><h2>Character Box Stock</h2><div class="small">Every Pal has its own printed artwork, but all boxes use the same physical size.</div></div><span class="badge warning">Minimum 4 · Target 10</span></div>
+ <div id="boxReady" class="assembly-grid box-grid"></div>
+</div>
+<div class="card bench-history">
+ <div class="section-title"><div><h2>Box Print History</h2><div class="small">Boxes added into production stock.</div></div></div>
+ <div style="overflow:auto"><table><thead><tr><th>Date</th><th>Pal / Box</th><th>Qty Added</th></tr></thead><tbody id="boxHistory"></tbody></table></div>
+</div>
+<div class="footer-note">PLA Forge v0.4.0 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=040"></script><script>boxProductionPage()</script></body></html>
