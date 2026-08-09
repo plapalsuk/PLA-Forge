@@ -672,7 +672,7 @@ async function insertProductionPage(){
  const q=document.querySelector('#q');
  const printCards=document.querySelector('#insertPrintCards');
  const cutCards=document.querySelector('#insertCutCards');
- const history=document.querySelector('#insertHistory');
+ const inventory=document.querySelector('#insertInventory');
  const readyKpi=document.querySelector('#insertReadyKpi');
  const cutKpi=document.querySelector('#insertCutKpi');
  const printKpi=document.querySelector('#insertPrintKpi');
@@ -695,15 +695,12 @@ async function insertProductionPage(){
        <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
        ${x.r.ready<4?badge('URGENT','danger'):badge(`PRINT ${x.need}`,'warning')}
      </div>
-
      <div class="insert-job-stats">
        <div><span>Ready</span><strong>${Number(x.r.ready||0)}</strong></div>
        <div><span>In Cut & Score</span><strong>${Number(x.r.awaiting_cut||0)}</strong></div>
        <div><span>Need Print</span><strong class="accent">${x.need}</strong></div>
      </div>
-
      <div class="insert-file-name">${x.file?'PDF linked from Google Drive':'No PDF mapped for this SKU'}</div>
-
      <div class="insert-action-row">
        ${x.file?`<a class="btn secondary" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open / Print PDF</a>`:`<button class="btn secondary" disabled>No PDF</button>`}
        <label class="compact-label"><span>Qty Printed</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" value="${Math.max(1,x.need||1)}"></label>
@@ -718,19 +715,16 @@ async function insertProductionPage(){
        <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
        ${badge(`${awaiting} WAITING`,'warning')}
      </div>
-
      <div class="cut-score-hero">
        <div class="cut-score-number">${awaiting}</div>
        <div><strong>Printed Insert${awaiting===1?'':'s'}</strong><div class="small">ready to cut and score</div></div>
      </div>
-
      <div class="insert-action-row">
        <label class="compact-label"><span>Qty Completed</span><input class="number cutQty" id="cut-${x.p.sku}" type="number" min="1" max="${awaiting}" value="${awaiting}"></label>
        <button class="btn completeCut" data-sku="${x.p.sku}">Cut & Score Complete</button>
      </div>
    </div>`;
  }
-
  function render(){
    const text=(q.value||'').toLowerCase();
    const data=pals.map(p=>({p,r:rec(p.sku),need:needPrint(p.sku),file:files[p.sku]||null}))
@@ -738,7 +732,6 @@ async function insertProductionPage(){
 
    const printJobs=data.filter(x=>x.need>0)
      .sort((a,b)=>(a.r.ready<4?-1:0)-(b.r.ready<4?-1:0)||b.need-a.need||a.p.name.localeCompare(b.p.name));
-
    const cutJobs=data.filter(x=>Number(x.r.awaiting_cut||0)>0)
      .sort((a,b)=>Number(b.r.awaiting_cut||0)-Number(a.r.awaiting_cut||0)||a.p.name.localeCompare(b.p.name));
 
@@ -758,33 +751,33 @@ async function insertProductionPage(){
      ? cutJobs.map(renderCutCard).join('')
      : '<div class="bench-empty">Nothing is waiting for Cut & Score.</div>';
 
+   inventory.innerHTML=data
+     .sort((a,b)=>a.p.name.localeCompare(b.p.name))
+     .map(x=>`<tr>
+       <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
+       <td>${Number(x.r.awaiting_cut||0)}</td>
+       <td>${Number(x.r.ready||0)}</td>
+       <td>${Number(x.r.awaiting_cut||0)+Number(x.r.ready||0)}</td>
+       <td>${x.need}</td>
+     </tr>`).join('')||'<tr><td colspan="5">No On Sale Pals.</td></tr>';
+
    document.querySelectorAll('.markPrinted').forEach(btn=>btn.onclick=()=>{
      const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku), r=rec(sku);
      const qty=Math.max(1,Number(document.querySelector('#printed-'+sku)?.value||1));
      r.awaiting_cut=Number(r.awaiting_cut||0)+qty;
-     s.insertHistory.push({id:makeId(),sku,name:p.name,stage:'printed',qty,created_at:new Date().toISOString()});
      save(s);render();
    });
 
    document.querySelectorAll('.completeCut').forEach(btn=>btn.onclick=()=>{
-     const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku), r=rec(sku);
+     const sku=btn.dataset.sku, r=rec(sku);
      const available=Number(r.awaiting_cut||0);
      const qty=Math.max(1,Math.min(available,Number(document.querySelector('#cut-'+sku)?.value||1)));
      if(available<=0)return;
      r.awaiting_cut=available-qty;
      r.ready=Number(r.ready||0)+qty;
-     s.insertHistory.push({id:makeId(),sku,name:p.name,stage:'cut_scored',qty,created_at:new Date().toISOString()});
      save(s);render();
    });
-
-   history.innerHTML=(s.insertHistory||[]).slice().reverse().slice(0,40).map(h=>`<tr>
-     <td>${fmtDate(h.created_at)}</td>
-     <td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td>
-     <td>${h.stage==='printed'?badge('PRINTED','info'):badge('CUT & SCORED','ok')}</td>
-     <td>${h.qty}</td>
-   </tr>`).join('')||'<tr><td colspan="4">No insert production recorded yet.</td></tr>';
  }
-
  q.oninput=render;
  render();
 }

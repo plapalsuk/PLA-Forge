@@ -385,3 +385,8 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .assembly-demand-strip strong{display:block;color:#fff;font-size:14px;margin-top:2px}
 .assembly-demand-strip strong.accent{color:var(--orange)}
 @media(max-width:750px){.assembly-demand-strip{grid-template-columns:1fr}}
+
+/* v0.7.6 Insert Inventory */
+#insertInventory td:nth-child(n+2){text-align:center}
+#insertInventory td:nth-child(3){font-weight:800;color:#64db94}
+#insertInventory td:nth-child(5){font-weight:800;color:var(--orange)}

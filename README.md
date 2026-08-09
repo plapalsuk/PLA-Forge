@@ -169,3 +169,15 @@ v0.2 still uses browser localStorage for operational state until the shared back
   - Already Assembled
   - Still Needed
 - Assembly quantities are limited to useful Production Planner demand when there is an active requirement.
+
+
+## v0.7.6 — Insert Inventory
+
+- Removed Insert Production History from the Insert Production page.
+- Added a live Insert Inventory table for all Pals currently marked On Sale.
+- Inventory shows:
+  - Printed / Awaiting Cut & Score
+  - Cut & Scored / Ready
+  - Total inserts in the production pipeline
+  - Current quantity still needing to be printed
+- Mark Printed and Cut & Score Complete now update this inventory immediately.
