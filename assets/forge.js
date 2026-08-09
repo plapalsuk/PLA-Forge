@@ -11,6 +11,13 @@ function state(){
   s.assembled=s.assembled||{}; s.assemblyHistory=s.assemblyHistory||[];
   s.boxes=s.boxes||{}; s.boxHistory=s.boxHistory||[]; s.packagingComponents=s.packagingComponents||{clear_boxes:0,inserts:0,stickers:0,barcode_labels:0};
   s.inserts=s.inserts||{}; s.insertHistory=s.insertHistory||[];
+  s.consumables=s.consumables||{
+    clear_boxes:{name:'Flat Clear Boxes',stock:0,reorder:25,unit:'boxes'},
+    bottom_cards:{name:'Bottom Card Squares',stock:0,reorder:25,unit:'cards'},
+    stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'},
+    barcode_labels:{name:'Barcode Labels',stock:0,reorder:50,unit:'labels'}
+  };
+  s.consumableHistory=s.consumableHistory||[];
   s.productAvailability=s.productAvailability||{};
   return s;
 }
@@ -832,5 +839,79 @@ async function settingsAvailabilityPage(){
 
  q.oninput=render;
  filter.onchange=render;
+ render();
+}
+
+async function consumablesPage(){
+ const s=state();
+ const cards=document.querySelector('#consumableCards');
+ const history=document.querySelector('#consumableHistory');
+ const totalKpi=document.querySelector('#consumableTotalKpi');
+ const lowKpi=document.querySelector('#consumableLowKpi');
+ const okKpi=document.querySelector('#consumableOkKpi');
+
+ const defaults={
+   clear_boxes:{name:'Flat Clear Boxes',stock:0,reorder:25,unit:'boxes'},
+   bottom_cards:{name:'Bottom Card Squares',stock:0,reorder:25,unit:'cards'},
+   stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'},
+   barcode_labels:{name:'Barcode Labels',stock:0,reorder:50,unit:'labels'}
+ };
+ Object.entries(defaults).forEach(([k,v])=>s.consumables[k]=Object.assign({},v,s.consumables[k]||{}));
+ save(s);
+
+ function render(){
+   const entries=Object.entries(s.consumables);
+   const low=entries.filter(([k,x])=>Number(x.stock||0)<=Number(x.reorder||0));
+   totalKpi.textContent=entries.reduce((a,[k,x])=>a+Number(x.stock||0),0);
+   lowKpi.textContent=low.length;
+   okKpi.textContent=entries.length-low.length;
+
+   cards.innerHTML=entries.map(([key,x])=>{
+     const stock=Number(x.stock||0), reorder=Number(x.reorder||0), isLow=stock<=reorder;
+     return `<div class="consumable-card ${isLow?'low':''}">
+       <div class="consumable-card-head">
+         <div><strong>${esc(x.name)}</strong><div class="small">${esc(x.unit||'units')}</div></div>
+         ${isLow?badge('ORDER','danger'):badge('STOCK OK','ok')}
+       </div>
+       <div class="consumable-stock">${stock}</div>
+       <div class="small">currently in stock</div>
+       <div class="consumable-meter"><span style="width:${Math.min(100,reorder>0?(stock/(reorder*2))*100:100)}%"></span></div>
+       <div class="consumable-settings">
+         <label><span>Reorder Level</span><input class="number reorderLevel" data-key="${key}" type="number" min="0" value="${reorder}"></label>
+         <label><span>Qty</span><input class="number restockQty" id="restock-${key}" type="number" min="1" value="25"></label>
+         <button class="btn addConsumable" data-key="${key}">Add Stock</button>
+       </div>
+       <div class="consumable-adjust">
+         <button class="iconbtn adjustConsumable" data-key="${key}" data-d="-1">−1</button>
+         <button class="iconbtn adjustConsumable" data-key="${key}" data-d="1">+1</button>
+       </div>
+     </div>`;
+   }).join('');
+
+   document.querySelectorAll('.reorderLevel').forEach(el=>el.onchange=()=>{
+     s.consumables[el.dataset.key].reorder=Math.max(0,Number(el.value||0));
+     save(s);render();
+   });
+   document.querySelectorAll('.addConsumable').forEach(btn=>btn.onclick=()=>{
+     const key=btn.dataset.key,x=s.consumables[key];
+     const qty=Math.max(1,Number(document.querySelector('#restock-'+key)?.value||1));
+     x.stock=Number(x.stock||0)+qty;
+     s.consumableHistory.push({id:makeId(),key,name:x.name,change:qty,type:'restock',created_at:new Date().toISOString()});
+     save(s);render();
+   });
+   document.querySelectorAll('.adjustConsumable').forEach(btn=>btn.onclick=()=>{
+     const key=btn.dataset.key,x=s.consumables[key],d=Number(btn.dataset.d||0);
+     const before=Number(x.stock||0); x.stock=Math.max(0,before+d);
+     const actual=x.stock-before;
+     if(actual!==0)s.consumableHistory.push({id:makeId(),key,name:x.name,change:actual,type:'adjustment',created_at:new Date().toISOString()});
+     save(s);render();
+   });
+
+   history.innerHTML=(s.consumableHistory||[]).slice().reverse().slice(0,40).map(h=>`<tr>
+     <td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong></td>
+     <td>${h.change>0?badge('STOCK IN','ok'):badge('ADJUSTMENT','warning')}</td>
+     <td><strong>${h.change>0?'+':''}${h.change}</strong></td>
+   </tr>`).join('')||'<tr><td colspan="4">No consumable movements recorded yet.</td></tr>';
+ }
  render();
 }

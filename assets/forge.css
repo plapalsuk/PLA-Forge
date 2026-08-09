@@ -315,3 +315,18 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 @media(max-width:1050px){
  .insert-workstations{grid-template-columns:1fr}
 }
+
+/* v0.6.0 Consumables */
+.consumable-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+.consumable-card{background:#11161c;border:1px solid var(--line);border-radius:12px;padding:13px}
+.consumable-card.low{border-color:rgba(240,92,99,.45)}
+.consumable-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.consumable-stock{font-size:32px;font-weight:850;margin-top:15px}
+.consumable-meter{height:5px;border-radius:99px;background:#252c34;overflow:hidden;margin:10px 0 13px}
+.consumable-meter span{display:block;height:100%;background:var(--orange)}
+.consumable-settings{display:flex;flex-direction:column;gap:8px;border-top:1px solid #252c34;padding-top:10px}
+.consumable-settings label{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:9px;text-transform:uppercase;color:var(--muted)}
+.consumable-settings .number{width:75px}
+.consumable-adjust{display:flex;gap:6px;margin-top:8px}
+@media(max-width:1250px){.consumable-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.consumable-grid{grid-template-columns:1fr}}
