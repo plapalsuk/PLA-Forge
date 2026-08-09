@@ -18,6 +18,7 @@ function state(){
   };
   s.consumableHistory=s.consumableHistory||[];
   s.packingJobs=s.packingJobs||{}; s.packingHistory=s.packingHistory||[];
+  s.finishedStock=s.finishedStock||{boat:{},cornwall:{}}; s.transfers=s.transfers||[];
   if(s.consumables && s.consumables.barcode_labels) delete s.consumables.barcode_labels;
   s.printerRoles=s.printerRoles||{};
 
@@ -997,12 +998,12 @@ async function packingStationPage(){
   readyCount.textContent=`${ready.length} Pal${ready.length===1?'':'s'}`;awaitingCount.textContent=`${awaiting.length} Pal${awaiting.length===1?'':'s'}`;
 
   readyList.innerHTML=ready.map(p=>{
-    let job=s.packingJobs[p.sku]||{step:1,qty:Math.min(1,maxBatch(p))};
+    let job=s.packingJobs[p.sku]||{step:1,qty:Math.min(1,maxBatch(p)),destination:'boat'};job.destination=job.destination||'boat';
     job.qty=Math.min(Math.max(1,Number(job.qty||1)),maxBatch(p));s.packingJobs[p.sku]=job;
     return `<div class="packing-card ready-pack-card">
       <div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge(`${maxBatch(p)} AVAILABLE`,'ok')}</div>
       ${stockStrip(p)}
-      <div class="batch-pack-bar"><div><strong>Batch Pack</strong><div class="small">Choose how many ${esc(p.name)} you are packing together.</div></div><div class="batch-qty"><button class="iconbtn batchMinus" data-sku="${p.sku}">−</button><input class="number batchQty" id="batch-${p.sku}" data-sku="${p.sku}" type="number" min="1" max="${maxBatch(p)}" value="${job.qty}"><button class="iconbtn batchPlus" data-sku="${p.sku}">+</button></div></div>
+      <div class="batch-pack-bar"><div><strong>Batch Pack</strong><div class="small">Choose how many ${esc(p.name)} you are packing together.</div></div><div class="batch-qty"><button class="iconbtn batchMinus" data-sku="${p.sku}">−</button><input class="number batchQty" id="batch-${p.sku}" data-sku="${p.sku}" type="number" min="1" max="${maxBatch(p)}" value="${job.qty}"><button class="iconbtn batchPlus" data-sku="${p.sku}">+</button></div><label class="destination-label"><span>Destination</span><select class="packDestination" data-sku="${p.sku}"><option value="boat" ${job.destination==='boat'?'selected':''}>Kitsune Boat</option><option value="cornwall" ${job.destination==='cornwall'?'selected':''}>Kitsune Cornwall</option></select></label></div>
       <div class="packing-steps">${steps.map((n,i)=>`<div class="${job.step>i+1?'done':job.step===i+1?'active':''}"><b>${i+1}</b><span>${n}</span>${job.qty>1?`<em>× ${job.qty}</em>`:''}</div>`).join('')}</div>
       <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}">${job.step<8?`Complete Step ${job.step} for all ${job.qty}`:`Print ${job.qty} Barcode${job.qty===1?'':'s'}`}</button>${job.step===8?`<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>`:''}</div>
     </div>`;
@@ -1010,10 +1011,11 @@ async function packingStationPage(){
 
   awaitingList.innerHTML=awaiting.map(p=>`<div class="packing-card awaiting-pack-card"><div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge('AWAITING','warning')}</div>${stockStrip(p)}<div class="packing-blockers">${blockers(p).map(x=>`<span>! ${esc(x)}</span>`).join('')}</div></div>`).join('')||'<div class="bench-empty">Nothing is currently awaiting packaging requirements.</div>';
 
+  document.querySelectorAll('.packDestination').forEach(el=>el.onchange=()=>{const sku=el.dataset.sku,j=s.packingJobs[sku]||{step:1,qty:1,destination:'boat'};j.destination=el.value;save(s);render()});
   document.querySelectorAll('.batchQty').forEach(el=>el.onchange=()=>{const sku=el.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};j.qty=Math.min(maxBatch(p),Math.max(1,Number(el.value||1)));save(s);render()});
   document.querySelectorAll('.batchMinus,.batchPlus').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};j.qty=Math.min(maxBatch(p),Math.max(1,Number(j.qty||1)+(b.classList.contains('batchPlus')?1:-1)));save(s);render()});
   document.querySelectorAll('.nextPackStep').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};if(j.step<8){j.step++;save(s);render()}else{for(let n=0;n<j.qty;n++)printPalBarcode(sku,p.name)}});
-  document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku];if(!j||j.step!==8)return;const qty=Math.min(j.qty,maxBatch(p));setAssembled(sku,assembled(sku)-qty);s.inserts[sku].ready=Math.max(0,ins(sku)-qty);['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-qty));delete s.packingJobs[sku];s.packingHistory.push({id:makeId(),sku,name:p.name,qty,created_at:new Date().toISOString(),status:'complete'});save(s);render()});
+  document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku];if(!j||j.step!==8)return;const qty=Math.min(j.qty,maxBatch(p));setAssembled(sku,assembled(sku)-qty);s.inserts[sku].ready=Math.max(0,ins(sku)-qty);['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-qty));const dest=j.destination||'boat';if(dest==='boat'){s.finishedStock.boat[sku]=Number(s.finishedStock.boat[sku]||0)+qty}else{s.transfers.push({id:makeId(),sku,name:p.name,qty,destination:'cornwall',status:'awaiting_delivery',packed_at:new Date().toISOString(),received_at:null})}delete s.packingJobs[sku];s.packingHistory.push({id:makeId(),sku,name:p.name,qty,destination:dest,created_at:new Date().toISOString(),status:'complete'});save(s);render()});
   save(s);
  }
  q.oninput=render;render();
@@ -1037,4 +1039,17 @@ function barcodePrinterSettings(){
    s.printerRoles=s.printerRoles||{};s.printerRoles.barcode=val;save(s);
    alert(val?`Barcode printer saved: ${val}`:'Barcode printer selection cleared.');
  };
+}
+
+async function deliveriesPage(){
+ const s=state(),a=document.querySelector('#awaitingDeliveries'),r=document.querySelector('#receivedDeliveries');
+ const ak=document.querySelector('#awaitingDeliveryKpi'),rk=document.querySelector('#receivedDeliveryKpi'),bk=document.querySelector('#boatFinishedKpi'),ck=document.querySelector('#cornwallFinishedKpi');
+ function draw(){
+  const aw=s.transfers.filter(t=>t.status==='awaiting_delivery'),rc=s.transfers.filter(t=>t.status==='received').slice().reverse();
+  ak.textContent=aw.reduce((n,t)=>n+Number(t.qty||0),0);rk.textContent=rc.reduce((n,t)=>n+Number(t.qty||0),0);
+  bk.textContent=Object.values(s.finishedStock.boat||{}).reduce((n,v)=>n+Number(v||0),0);ck.textContent=Object.values(s.finishedStock.cornwall||{}).reduce((n,v)=>n+Number(v||0),0);
+  a.innerHTML=aw.length?aw.map(t=>`<div class="delivery-card"><div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Packed ${fmtDate(t.packed_at)}</div></div><b>× ${t.qty}</b><button class="btn receiveDelivery" data-id="${t.id}">Received in Cornwall</button></div>`).join(''):'<div class="bench-empty">No stock awaiting delivery.</div>';
+  r.innerHTML=rc.length?rc.map(t=>`<div class="delivery-card received-delivery"><div><strong>${esc(t.name)}</strong><div class="sku">${t.sku}</div><div class="small">Received ${fmtDate(t.received_at)}</div></div><b>× ${t.qty}</b>${badge('RECEIVED','ok')}</div>`).join(''):'<div class="bench-empty">No deliveries received yet.</div>';
+  document.querySelectorAll('.receiveDelivery').forEach(b=>b.onclick=()=>{const t=s.transfers.find(x=>x.id===b.dataset.id);if(!t)return;t.status='received';t.received_at=new Date().toISOString();s.finishedStock.cornwall[t.sku]=Number(s.finishedStock.cornwall[t.sku]||0)+Number(t.qty||0);save(s);draw()});
+ } draw();
 }
