@@ -390,3 +390,6 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 #insertInventory td:nth-child(n+2){text-align:center}
 #insertInventory td:nth-child(3){font-weight:800;color:#64db94}
 #insertInventory td:nth-child(5){font-weight:800;color:var(--orange)}
+
+/* v0.7.7 Insert Inventory simplified */
+#insertInventory td:nth-child(2){text-align:center;font-weight:800;color:#64db94}

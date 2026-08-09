@@ -755,11 +755,8 @@ async function insertProductionPage(){
      .sort((a,b)=>a.p.name.localeCompare(b.p.name))
      .map(x=>`<tr>
        <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
-       <td>${Number(x.r.awaiting_cut||0)}</td>
-       <td>${Number(x.r.ready||0)}</td>
-       <td>${Number(x.r.awaiting_cut||0)+Number(x.r.ready||0)}</td>
-       <td>${x.need}</td>
-     </tr>`).join('')||'<tr><td colspan="5">No On Sale Pals.</td></tr>';
+       <td><strong>${Number(x.r.ready||0)}</strong></td>
+     </tr>`).join('')||'<tr><td colspan="2">No On Sale Pals.</td></tr>';
 
    document.querySelectorAll('.markPrinted').forEach(btn=>btn.onclick=()=>{
      const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku), r=rec(sku);

@@ -181,3 +181,9 @@ v0.2 still uses browser localStorage for operational state until the shared back
   - Total inserts in the production pipeline
   - Current quantity still needing to be printed
 - Mark Printed and Cut & Score Complete now update this inventory immediately.
+
+
+## v0.7.7 — Simplified Insert Inventory
+
+- Insert Inventory now shows only On Sale Pals and their Ready insert quantity.
+- Printed / Awaiting Cut & Score remains visible in the production queues, but is no longer repeated in the inventory table.
