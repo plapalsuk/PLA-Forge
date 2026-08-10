@@ -2286,3 +2286,8 @@ body.forge-page-consumables input:disabled{
   opacity:.65;
   cursor:wait;
 }
+
+/* v0.11.2 — Consumables live sync */
+body.forge-page-consumables .consumable-card{
+  transition:border-color .2s ease, box-shadow .2s ease;
+}

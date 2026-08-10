@@ -119,17 +119,38 @@ let forgeLiveSyncBusy=false;
 
 async function forgeCloudStamp(){
  try{
-   const [d,availability]=await Promise.all([
+   const [d,availability,consumableData]=await Promise.all([
      cloudFetch('/production/sync-status'),
-     cloudAvailability()
+     cloudAvailability(),
+     cloudConsumables()
    ]);
+
+   const availabilityStamp=(availability||[])
+     .map(x=>`${x.sku}:${x.on_sale?'1':'0'}:${x.release_date||''}:${x.updated_at||''}`)
+     .sort()
+     .join('|');
+
+   const consumableStamp=(consumableData?.consumables||[])
+     .map(x=>`${x.key}:${Number(x.stock||0)}:${Number(x.reorder||0)}:${x.updated_at||''}`)
+     .sort()
+     .join('|');
+
+   const historyStamp=(consumableData?.history||[])
+     .slice(0,5)
+     .map(x=>`${x.id}:${x.change}:${x.created_at||''}`)
+     .join('|');
+
    return JSON.stringify({
      production:d?.production?.updated_at||null,
      build_count:Number(d?.build_plates?.count||0),
      build_updated:d?.build_plates?.updated_at||null,
-     availability:(availability||[]).map(x=>`${x.sku}:${x.on_sale?'1':'0'}:${x.release_date||''}:${x.updated_at||''}`).sort().join('|')
+     availability:availabilityStamp,
+     consumables:consumableStamp,
+     consumable_history:historyStamp
    });
- }catch(e){return null}
+ }catch(e){
+   return null;
+ }
 }
 
 async function startForgeLiveSync(onChange){
@@ -2271,8 +2292,6 @@ async function consumablesPage(){
 
  await startForgeLiveSync(async fresh=>{
    s=JSON.parse(JSON.stringify(fresh));
-   const data=await cloudConsumables();
-   applyCloudConsumables(s,data);
    render();
  });
 }

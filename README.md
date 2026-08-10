@@ -1306,3 +1306,13 @@ Consumables are now D1-backed.
 - Insert Production and Packing Station now receive consumable stock through cloud hydration.
 - No browser-local consumable inventory is used by migrated production pages.
 - Consumables live-sync between devices.
+
+
+## v0.11.2 — Consumables Live Sync
+
+Consumables are now part of Forge's global cloud-change signature.
+
+- Changes to stock, reorder levels or recent consumable history trigger live re-hydration.
+- Consumables pages update automatically without refresh.
+- Insert Production and Packing Station also receive updated consumable stock automatically while open.
+- No Worker or D1 changes are required for this update.
