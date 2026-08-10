@@ -231,6 +231,7 @@ async function buildPlatePlanner(){
  const completedKpi=document.querySelector('#completedKpi');
  const colourDemandCards=document.querySelector('#colourDemandCards');
  const colourDemandEmpty=document.querySelector('#colourDemandEmpty');
+ const checklistSearch=document.querySelector('#plateChecklistSearch');
 
  let plateDraft={id:null,colour:colours[0]||'',printer:'',name:'',items:[]};
 
@@ -309,7 +310,8 @@ async function buildPlatePlanner(){
  }
 
  function drawChecklist(){
-   const rows=rowData();
+   const searchText=(checklistSearch?.value||'').trim().toLowerCase();
+   const rows=rowData().filter(x=>!searchText||`${x.p.name} ${x.r.sku} ${x.r.parts} ${x.r.filament}`.toLowerCase().includes(searchText));
    checklist.innerHTML=rows.length?rows.map((x,idx)=>`<tr class="${x.remain===0?'dimrow':''}">
      <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.r.sku}</span></td>
      <td>${esc(x.r.parts)}</td>
@@ -324,7 +326,7 @@ async function buildPlatePlanner(){
        <select id="exact-file-${idx}" class="select">${x.recoveryFiles.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select>
        <label class="small">Qty <input id="exact-qty-${idx}" class="number" type="number" min="1" value="1"></label>
        <button class="btn addexact" data-row="${idx}">Add Exact Part</button>
-     </div></td></tr>`:''}`).join(''):`<tr><td colspan="11" class="muted" style="padding:24px">No recipe rows found for ${esc(plateDraft.colour)}.</td></tr>`;
+     </div></td></tr>`:''}`).join(''):`<tr><td colspan=\"11\" class=\"muted\" style=\"padding:24px\">${searchText?'No checklist rows match your search.':`No recipe rows found for ${esc(plateDraft.colour)}.`}</td></tr>`;
 
    document.querySelectorAll('.addgroup').forEach(btn=>btn.onclick=()=>{
      const idx=Number(btn.dataset.row),x=rows[idx];
@@ -361,12 +363,12 @@ async function buildPlatePlanner(){
    demandKpi.textContent=open;
    plannedKpi.textContent=s.plates.filter(p=>p.status==='draft').length;
    printingKpi.textContent=s.plates.filter(p=>p.status==='printing').length;
-   completedKpi.textContent=s.plates.filter(p=>p.status==='complete').length;
+   completedKpi.textContent=(s.printHistory||[]).length;
  }
  function plateSummary(p){const g=(p.items||[]).reduce((a,i)=>a+Number(i.weight_each||0)*Number(i.qty||0),0);return `${(p.items||[]).reduce((a,i)=>a+Number(i.qty||0),0)} set(s) · ${g.toFixed(1)}g`}
  function drawPlates(){
-   const items=[...s.plates].sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
-   platesList.innerHTML=items.length?items.map(p=>`<div class="saved-plate"><div class="saved-plate-main"><div><strong>${esc(p.code)} · ${esc(p.name||p.colour)}</strong><div class="small">${esc(p.colour)} · ${esc(printerLabel(p.printer))} · ${plateSummary(p)}</div></div><div>${statusLabel(p.status)}</div></div><div class="saved-plate-items">${(p.items||[]).map(i=>`<span>${esc(i.product_name)} ×${i.qty}</span>`).join('')}</div><div class="plate-actions">${p.status==='draft'?`<button class="btn secondary loadplate" data-id="${p.id}">Edit</button><button class="btn startplate" data-id="${p.id}">Start Print</button>`:''}${p.status==='printing'?`<button class="btn completeplate" data-id="${p.id}">Complete Print</button>`:''}${p.status!=='complete'?`<button class="btn ghost cancelplate" data-id="${p.id}">Cancel</button>`:''}${p.status==='complete'?`<span class="small">Completed ${fmtDate(p.completed_at)}</span>`:''}</div><div class="completion-panel" id="complete-${p.id}"></div></div>`).join(''):'<div class="empty-state">No build plates yet.</div>';
+   const items=[...s.plates].filter(p=>p.status==='draft'||p.status==='printing').sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+   platesList.innerHTML=items.length?items.map(p=>`<div class="saved-plate"><div class="saved-plate-main"><div><strong>${esc(p.code)} · ${esc(p.name||p.colour)}</strong><div class="small">${esc(p.colour)} · ${esc(printerLabel(p.printer))} · ${plateSummary(p)}</div></div><div>${statusLabel(p.status)}</div></div><div class="saved-plate-items">${(p.items||[]).map(i=>`<span>${esc(i.product_name)} ×${i.qty}</span>`).join('')}</div><div class="plate-actions">${p.status==='draft'?`<button class="btn secondary loadplate" data-id="${p.id}">Edit</button><button class="btn startplate" data-id="${p.id}">Start Print</button>`:''}${p.status==='printing'?`<button class="btn completeplate" data-id="${p.id}">Complete Print</button>`:''}${p.status!=='complete'?`<button class="btn ghost cancelplate" data-id="${p.id}">Cancel</button>`:''}${p.status==='complete'?`<span class="small">Completed ${fmtDate(p.completed_at)}</span>`:''}</div><div class="completion-panel" id="complete-${p.id}"></div></div>`).join(''):'<div class="empty-state">No saved build plates.</div>';
    document.querySelectorAll('.loadplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(!p)return;plateDraft=JSON.parse(JSON.stringify(p));s.plates=s.plates.filter(x=>x.id!==p.id);save(s);colourEl.value=plateDraft.colour;printerEl.value=plateDraft.printer||'';nameEl.value=plateDraft.name||'';drawAll()});
    document.querySelectorAll('.startplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(p){p.status='printing';p.started_at=new Date().toISOString();save(s);drawAll()}});
    document.querySelectorAll('.cancelplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(p){p.status='cancelled';save(s);drawAll()}});
@@ -538,13 +540,18 @@ async function buildPlatePlanner(){
      }
    });
 
-   p.status='complete';
-   p.completed_at=new Date().toISOString();
-   p.result=results;
+   const completedAt=new Date().toISOString();
    s.printHistory.push({
-     plate_id:p.id,plate_code:p.code,completed_at:p.completed_at,
-     items:p.items,result:results
+     plate_id:p.id,
+     plate_code:p.code,
+     plate_name:p.name||'',
+     colour:p.colour,
+     printer:p.printer,
+     completed_at:completedAt,
+     items:JSON.parse(JSON.stringify(p.items||[])),
+     result:results
    });
+   s.plates=s.plates.filter(x=>x.id!==p.id);
    save(s);
    drawAll();
  }
@@ -558,6 +565,7 @@ async function buildPlatePlanner(){
  colourEl.onchange=()=>{plateDraft.colour=String(colourEl.value||'').trim();plateDraft.items=[];drawAll()};
  printerEl.onchange=()=>{plateDraft.printer=printerEl.value||''};
  nameEl.oninput=()=>{plateDraft.name=nameEl.value||''};
+ if(checklistSearch)checklistSearch.oninput=()=>drawChecklist();
  document.querySelector('#savePlate').onclick=()=>saveDraft(false);
  document.querySelector('#startPlate').onclick=()=>saveDraft(true);
  drawAll();

@@ -488,3 +488,11 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 
 /* v0.8.12 Cornwall insert target stock */
 .low-spare-row td:nth-child(2) strong{color:#ff858a}
+
+/* v0.8.15 Build Plate checklist */
+.checklist-search-row{margin:10px 0 12px}
+.checklist-search-row .search{width:100%}
+.plate-checklist-scroll{overflow:auto;max-height:330px;border:1px solid var(--line);border-radius:9px}
+.plate-checklist-scroll table{margin:0;min-width:1050px}
+.plate-checklist-scroll thead th{position:sticky;top:0;z-index:2;background:#171d24}
+.plate-checklist-scroll tbody>tr:not(.exact-row){height:56px}

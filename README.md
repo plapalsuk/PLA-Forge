@@ -577,3 +577,16 @@ Updated the Forge side navigation:
 - Consumables
 
 Recipes and Printed Parts have been moved from The Workshop into Materials on every Forge page. No operational data or workflow logic has been changed.
+
+
+## v0.8.15 — Build Plate Checklist Improvements
+
+- Colour-sorted Print Checklist is now limited to approximately 5 visible rows.
+- Additional checklist rows are accessed with a vertical scrollbar.
+- The table header remains visible while scrolling.
+- Added checklist search by Pal name, SKU, colour group / parts, and filament colour.
+- Completing a print now removes the plate from Saved Build Plates.
+- Completed plate details remain retained in Print History.
+- Completed Plates KPI now reads from Print History.
+- Legacy completed/cancelled plates are hidden from Saved Build Plates.
+- Existing operational data is preserved and no reset is triggered.
