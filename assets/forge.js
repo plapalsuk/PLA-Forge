@@ -164,7 +164,7 @@ window.addEventListener('beforeunload',()=>{
 });
 
 function installForgeCloudSyncBadge(){
- if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html'].includes(forgeCurrentPage()))return;
+ if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
  const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
  const wrap=document.createElement('div');
@@ -191,11 +191,12 @@ async function hydrateProductionCloud(force=false){
  if(!cloudToken())throw new Error('Cloud login required.');
  setForgeCloudSync('syncing','Loading live state from Cloudflare D1');
  try{
-   const [st,bp,targetData,availabilityData]=await Promise.all([
+   const [st,bp,targetData,availabilityData,consumableData]=await Promise.all([
      cloudFetch('/production/state'),
      cloudFetch('/build-plates'),
      cloudFetch('/targets'),
-     cloudAvailability()
+     cloudAvailability(),
+     cloudConsumables()
    ]);
 
    const s=emptyCloudWorkingState();
@@ -216,6 +217,9 @@ async function hydrateProductionCloud(force=false){
 
    // One authoritative availability source for every page.
    applyCloudAvailability(s,availabilityData);
+
+   // Consumables are also authoritative from D1.
+   applyCloudConsumables(s,consumableData);
 
    s.plates=(bp?.plates||[]).map(p=>({
      id:p.id,code:p.code,name:p.name||'',colour:p.colour||'',printer:p.printer||'',
@@ -462,6 +466,22 @@ async function cloudAvailability(){
  if(!cloudToken())throw new Error('Cloud login required.');
  const d=await cloudFetchTimed('/availability',{},10000);
  return d.availability||[];
+}
+async function cloudConsumables(){
+ if(!cloudToken())throw new Error('Cloud login required.');
+ return await cloudFetchTimed('/consumables',{},10000);
+}
+function applyCloudConsumables(s,data){
+ s.consumables={};
+ (data?.consumables||[]).forEach(x=>{
+   s.consumables[x.key]={
+     name:x.name,
+     stock:Number(x.stock||0),
+     reorder:Number(x.reorder||0),
+     unit:x.unit||'units'
+   };
+ });
+ s.consumableHistory=(data?.history||[]).slice();
 }
 function applyCloudAvailability(s,rows){
  s.productAvailability={};
@@ -2137,30 +2157,31 @@ async function settingsAvailabilityPage(){
 }
 
 async function consumablesPage(){
- const s=state();
+ installForgeCloudSyncBadge();
+ if(!forgeProductionCloudReady){
+   try{await hydrateProductionCloud()}
+   catch(e){showCloudRequiredError(e.message);return}
+ }
+ let s=cloudOperationalState();
+
  const cards=document.querySelector('#consumableCards');
  const history=document.querySelector('#consumableHistory');
  const totalKpi=document.querySelector('#consumableTotalKpi');
  const lowKpi=document.querySelector('#consumableLowKpi');
  const okKpi=document.querySelector('#consumableOkKpi');
 
- const defaults={
-   clear_boxes:{name:'Flat Clear Boxes',stock:0,reorder:25,unit:'boxes'},
-   bottom_cards:{name:'Bottom Card Squares',stock:0,reorder:25,unit:'cards'},
-   stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'}
- };
- Object.entries(defaults).forEach(([k,v])=>s.consumables[k]=Object.assign({},v,s.consumables[k]||{}));
- save(s);
-
  function render(){
-   const entries=Object.entries(s.consumables);
+   const entries=Object.entries(s.consumables||{});
    const low=entries.filter(([k,x])=>Number(x.stock||0)<=Number(x.reorder||0));
+
    totalKpi.textContent=entries.reduce((a,[k,x])=>a+Number(x.stock||0),0);
    lowKpi.textContent=low.length;
    okKpi.textContent=entries.length-low.length;
 
    cards.innerHTML=entries.map(([key,x])=>{
-     const stock=Number(x.stock||0), reorder=Number(x.reorder||0), isLow=stock<=reorder;
+     const stock=Number(x.stock||0);
+     const reorder=Number(x.reorder||0);
+     const isLow=stock<=reorder;
      return `<div class="consumable-card ${isLow?'low':''}">
        <div class="consumable-card-head">
          <div><strong>${esc(x.name)}</strong><div class="small">${esc(x.unit||'units')}</div></div>
@@ -2181,33 +2202,81 @@ async function consumablesPage(){
      </div>`;
    }).join('');
 
-   document.querySelectorAll('.reorderLevel').forEach(el=>el.onchange=()=>{
-     s.consumables[el.dataset.key].reorder=Math.max(0,Number(el.value||0));
-     save(s);render();
-   });
-   document.querySelectorAll('.addConsumable').forEach(btn=>btn.onclick=()=>{
-     const key=btn.dataset.key,x=s.consumables[key];
-     const qty=Math.max(1,Number(document.querySelector('#restock-'+key)?.value||1));
-     x.stock=Number(x.stock||0)+qty;
-     s.consumableHistory.push({id:makeId(),key,name:x.name,change:qty,type:'restock',created_at:new Date().toISOString()});
-     save(s);render();
-   });
-   document.querySelectorAll('.adjustConsumable').forEach(btn=>btn.onclick=()=>{
-     const key=btn.dataset.key,x=s.consumables[key],d=Number(btn.dataset.d||0);
-     const before=Number(x.stock||0); x.stock=Math.max(0,before+d);
-     const actual=x.stock-before;
-     if(actual!==0)s.consumableHistory.push({id:makeId(),key,name:x.name,change:actual,type:'adjustment',created_at:new Date().toISOString()});
-     save(s);render();
+   document.querySelectorAll('.reorderLevel').forEach(el=>el.onchange=async()=>{
+     const key=el.dataset.key;
+     const x=s.consumables[key];
+     const reorder=Math.max(0,Number(el.value||0));
+     el.disabled=true;
+     try{
+       await cloudFetch(`/consumables/${encodeURIComponent(key)}`,{
+         method:'PUT',
+         headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({reorder})
+       });
+       x.reorder=reorder;
+       render();
+     }catch(e){
+       alert(`Reorder level was not saved: ${e.message}`);
+       render();
+     }
    });
 
-   history.innerHTML=(s.consumableHistory||[]).slice().reverse().slice(0,40).map(h=>`<tr>
-     <td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong></td>
-     <td>${h.change>0?badge('STOCK IN','ok'):badge('ADJUSTMENT','warning')}</td>
+   document.querySelectorAll('.addConsumable').forEach(btn=>btn.onclick=async()=>{
+     const key=btn.dataset.key;
+     const qty=Math.max(1,Number(document.querySelector('#restock-'+key)?.value||1));
+     btn.disabled=true;
+     try{
+       await cloudFetch(`/consumables/${encodeURIComponent(key)}/adjust`,{
+         method:'POST',
+         headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({change:qty,type:'restock',reason:'Stock added in Forge'})
+       });
+       const data=await cloudConsumables();
+       applyCloudConsumables(s,data);
+       render();
+     }catch(e){
+       alert(`Stock was not added: ${e.message}`);
+       render();
+     }
+   });
+
+   document.querySelectorAll('.adjustConsumable').forEach(btn=>btn.onclick=async()=>{
+     const key=btn.dataset.key;
+     const d=Number(btn.dataset.d||0);
+     btn.disabled=true;
+     try{
+       await cloudFetch(`/consumables/${encodeURIComponent(key)}/adjust`,{
+         method:'POST',
+         headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({change:d,type:'adjustment',reason:'Manual stock adjustment'})
+       });
+       const data=await cloudConsumables();
+       applyCloudConsumables(s,data);
+       render();
+     }catch(e){
+       alert(`Stock adjustment failed: ${e.message}`);
+       render();
+     }
+   });
+
+   history.innerHTML=(s.consumableHistory||[]).slice(0,50).map(h=>`<tr>
+     <td>${fmtDate(h.created_at)}</td>
+     <td><strong>${esc(h.name)}</strong></td>
+     <td>${h.change>0?badge(h.type==='restock'?'STOCK IN':'ADJUSTMENT','ok'):badge('ADJUSTMENT','warning')}</td>
      <td><strong>${h.change>0?'+':''}${h.change}</strong></td>
    </tr>`).join('')||'<tr><td colspan="4">No consumable movements recorded yet.</td></tr>';
  }
+
  render();
+
+ await startForgeLiveSync(async fresh=>{
+   s=JSON.parse(JSON.stringify(fresh));
+   const data=await cloudConsumables();
+   applyCloudConsumables(s,data);
+   render();
+ });
 }
+
 
 function code128BSvg(text){
  const patterns=[
@@ -3710,7 +3779,7 @@ async function employeeAdminPage(){
 })();
 
 document.addEventListener('visibilitychange',async()=>{
- if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html'].includes(forgeCurrentPage())){
+ if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html'].includes(forgeCurrentPage())){
    const stamp=await forgeCloudStamp();
    if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
      // interval will pick this up immediately on its next tick

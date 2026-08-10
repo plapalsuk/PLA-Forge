@@ -1294,3 +1294,15 @@ The old mixed availability logic has been removed from the cloud flow.
 Worker v3g adds GET /availability and hardens PUT /products/:sku/availability.
 Every cloud-enabled Forge page now receives On Sale from the same GET /availability response.
 Pals no longer depends on availability being embedded in production state.
+
+
+## v0.11.1 — Consumables Cloud
+
+Consumables are now D1-backed.
+
+- Consumable stock and reorder levels are read from D1.
+- Restocks and +/- adjustments write directly to D1.
+- Every stock movement creates a consumable-history record.
+- Insert Production and Packing Station now receive consumable stock through cloud hydration.
+- No browser-local consumable inventory is used by migrated production pages.
+- Consumables live-sync between devices.

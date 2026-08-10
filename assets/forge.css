@@ -2276,3 +2276,13 @@ body.forge-page-packaging .completeCut:disabled{
 }
 
 /* v0.11.0 Availability API rebuild */
+
+/* v0.11.1 — Consumables Cloud */
+body.forge-page-consumables .forge-cloud-sync{
+  margin-bottom:10px;
+}
+body.forge-page-consumables button:disabled,
+body.forge-page-consumables input:disabled{
+  opacity:.65;
+  cursor:wait;
+}
