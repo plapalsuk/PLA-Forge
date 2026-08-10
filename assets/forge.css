@@ -505,3 +505,21 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 /* v0.8.17 Insert Inventory search */
 .insert-inventory-search{margin:10px 0 12px}
 .insert-inventory-search .search{width:100%}
+
+/* v0.9.0 New Pal Setup */
+.newpal-step{margin-top:14px}
+.newpal-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0}
+.newpal-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.newpal-grid .wide{grid-column:span 2}
+.newpal-check{display:flex;align-items:center;gap:8px;background:#171d24;border:1px solid var(--line);border-radius:9px;padding:10px;margin-top:18px}
+.newpal-step textarea{width:100%;resize:vertical;background:#10151b;color:#fff;border:1px solid var(--line);border-radius:8px;padding:10px}
+.newpal-recipes{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.newpal-recipe-row{display:grid;grid-template-columns:1fr 1.2fr 1fr 1.5fr 100px 100px auto;gap:8px;align-items:end;background:#11161c;border:1px solid var(--line);border-radius:10px;padding:10px}
+.newpal-recipe-row .form-field{margin:0}
+.newpal-review-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.newpal-review-grid>div{background:#171d24;border:1px solid var(--line);border-radius:8px;padding:10px}
+.newpal-review-grid span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:4px}
+.newpal-errors{display:flex;flex-direction:column;gap:5px;background:rgba(240,92,99,.07);border:1px solid rgba(240,92,99,.25);padding:10px;border-radius:9px;color:#ff858a}
+.newpal-create-footer{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:12px}
+@media(max-width:1200px){.newpal-grid{grid-template-columns:repeat(2,1fr)}.newpal-recipe-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.newpal-grid,.newpal-grid.three,.newpal-review-grid,.newpal-recipe-row{grid-template-columns:1fr}.newpal-grid .wide{grid-column:auto}.newpal-create-footer{align-items:stretch;flex-direction:column}}

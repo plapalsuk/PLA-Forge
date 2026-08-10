@@ -41,6 +41,8 @@ function blankOperationalState(){
    printerRoles:{},
    siteSettings:{defaultPrinter:'',defaultLocation:'boat'},
    productAvailability:{},
+   customData:{products:[],recipes:[],insert_files:{}},
+   shopifyProducts:{},
    resetRelease:RESET_RELEASE
  };
 }
@@ -86,11 +88,38 @@ function state(){
   s.damageHistory=s.damageHistory||[];
   s.damageReworkJobs=s.damageReworkJobs||[];
   s.damageInsertDemand=s.damageInsertDemand||{};
+  s.customData=s.customData||{products:[],recipes:[],insert_files:{}};
+  s.customData.products=s.customData.products||[];
+  s.customData.recipes=s.customData.recipes||[];
+  s.customData.insert_files=s.customData.insert_files||{};
+  s.shopifyProducts=s.shopifyProducts||{};
+  s.siteSettings=s.siteSettings||{defaultPrinter:'',defaultLocation:'boat'};
+  s.siteSettings.shopifyBridgeUrl=s.siteSettings.shopifyBridgeUrl||'';
+  s.siteSettings.shopifyVendor=s.siteSettings.shopifyVendor||'PLA Pals';
+  s.siteSettings.shopifyProductType=s.siteSettings.shopifyProductType||'PLA Pal';
   s.productAvailability=s.productAvailability||{};
   return s;
 }
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
-async function load(name){return (await fetch('data/'+name+'.json')).json()}
+async function load(name){
+ const base=await (await fetch('data/'+name+'.json')).json();
+ const s=state();
+ if(name==='products'){
+   const custom=s.customData?.products||[];
+   const bySku=new Map((base||[]).map(x=>[x.sku,x]));
+   custom.forEach(x=>bySku.set(x.sku,x));
+   return [...bySku.values()];
+ }
+ if(name==='recipes'){
+   const custom=s.customData?.recipes||[];
+   const existing=(base||[]).filter(x=>!custom.some(c=>c.sku===x.sku&&c.filament===x.filament&&c.grouped_stl===x.grouped_stl));
+   return existing.concat(custom);
+ }
+ if(name==='insert_files'){
+   return {...(base||{}),...(s.customData?.insert_files||{})};
+ }
+ return base;
+}
 function badge(txt, cls='info'){return `<span class="badge ${cls}">${txt}</span>`}
 function targetKey(sku,loc){return `${sku}:${loc}`}
 function getTarget(s,sku,loc){return Number(s.targets[targetKey(sku,loc)]||0)}
@@ -2125,4 +2154,194 @@ async function reworkPage(){
 
  q.oninput=draw;
  draw();
+}
+
+
+function extractDriveFileId(url){
+ const v=String(url||'').trim();
+ const m=v.match(/\/d\/([^/]+)/)||v.match(/[?&]id=([^&]+)/);
+ return m?m[1]:'';
+}
+function nextPalSku(products){
+ let max=0;
+ (products||[]).forEach(p=>{
+   const m=String(p.sku||'').match(/^PLA(\d+)$/i);
+   if(m)max=Math.max(max,Number(m[1]));
+ });
+ return `PLA${String(max+1).padStart(3,'0')}`;
+}
+async function newPalPage(){
+ const s=state();
+ const existingProducts=await load('products');
+ const form=document.querySelector('#newPalForm');
+ const status=document.querySelector('#newPalStatus');
+ const recipeRows=document.querySelector('#newPalRecipeRows');
+ const addRecipe=document.querySelector('#addRecipeRow');
+ const review=document.querySelector('#newPalReview');
+ const createBtn=document.querySelector('#createNewPal');
+ const shopifyBridge=document.querySelector('#newPalShopifyBridge');
+ const shopifyStatus=document.querySelector('#shopifyCreateStatus');
+ const skuEl=document.querySelector('#npSku');
+
+ skuEl.value=nextPalSku(existingProducts);
+ shopifyBridge.value=s.siteSettings.shopifyBridgeUrl||'';
+
+ let recipes=[{filament:'',parts:'Body',grouped_stl:'',separate_stls:'',part_count:1,weight_g:0}];
+
+ function recipeHtml(r,idx){
+   return `<div class="newpal-recipe-row">
+     <div class="form-field"><label>Filament</label><input data-r="${idx}" data-k="filament" value="${esc(r.filament)}" placeholder="e.g. Matte Sakura Pink"></div>
+     <div class="form-field"><label>Parts / Colour Group</label><input data-r="${idx}" data-k="parts" value="${esc(r.parts)}" placeholder="Body / Eye 1; Eye 2"></div>
+     <div class="form-field"><label>Grouped STL</label><input data-r="${idx}" data-k="grouped_stl" value="${esc(r.grouped_stl)}" placeholder="grouped_file.stl"></div>
+     <div class="form-field"><label>Individual STL(s)</label><input data-r="${idx}" data-k="separate_stls" value="${esc(r.separate_stls)}" placeholder="part1.stl; part2.stl"></div>
+     <div class="form-field small-field"><label>Part Count</label><input class="number" type="number" min="1" data-r="${idx}" data-k="part_count" value="${Number(r.part_count||1)}"></div>
+     <div class="form-field small-field"><label>Weight (g)</label><input class="number" type="number" min="0" step="0.01" data-r="${idx}" data-k="weight_g" value="${Number(r.weight_g||0)}"></div>
+     <button type="button" class="iconbtn removeRecipeRow" data-r="${idx}" title="Remove recipe row">×</button>
+   </div>`;
+ }
+ function drawRecipes(){
+   recipeRows.innerHTML=recipes.map(recipeHtml).join('');
+   recipeRows.querySelectorAll('input[data-r]').forEach(el=>el.oninput=()=>{
+     const i=Number(el.dataset.r),k=el.dataset.k;
+     recipes[i][k]=['part_count','weight_g'].includes(k)?Number(el.value||0):el.value;
+     drawReview();
+   });
+   recipeRows.querySelectorAll('.removeRecipeRow').forEach(b=>b.onclick=()=>{
+     if(recipes.length<=1)return;
+     recipes.splice(Number(b.dataset.r),1);drawRecipes();drawReview();
+   });
+ }
+ function val(id){return String(document.querySelector('#'+id)?.value||'').trim()}
+ function checked(id){return !!document.querySelector('#'+id)?.checked}
+ function payload(){
+   const sku=val('npSku').toUpperCase();
+   const first=val('npFirstName'),animal=val('npAnimal');
+   const full=val('npFullName')||`${first}${animal?' the '+animal:''}`;
+   const filaments=[...new Set(recipes.map(r=>String(r.filament||'').trim()).filter(Boolean))];
+   const product={
+     sku,name:full,description:val('npShortDescription'),type:'pal',keyring:false,
+     recipe_rows:recipes.length,
+     recipe_weight_g:recipes.reduce((a,r)=>a+Number(r.weight_g||0),0),
+     filaments,recipe_ready:recipes.every(r=>r.filament&&r.parts),
+     animal,first_name:first,
+     characteristics:[val('npChar1'),val('npChar2'),val('npChar3')].filter(Boolean),
+     full_description:val('npFullDescription'),
+     size_height_cm:Number(val('npHeight')||0),
+     size_width_cm:Number(val('npWidth')||0),
+     size_depth_cm:Number(val('npDepth')||0),
+     barcode:val('npBarcode'),
+     collection:val('npCollection'),
+     price:Number(val('npPrice')||0)
+   };
+   const recipeData=recipes.map(r=>({
+     stated_sku:sku,sku,animal,name:first,
+     filament:String(r.filament||'').trim(),
+     parts:String(r.parts||'').trim(),
+     grouped_stl:String(r.grouped_stl||'').trim(),
+     separate_stls:String(r.separate_stls||'').trim(),
+     part_count:Number(r.part_count||1),
+     weight_g:Number(r.weight_g||0)
+   }));
+   const drive=val('npInsertUrl'),fileId=extractDriveFileId(drive);
+   const insertFile=drive?{file_id:fileId,view_url:drive,print_url:drive}:null;
+   const shopify={
+     title:full,
+     descriptionHtml:val('npFullDescription')||val('npShortDescription'),
+     vendor:val('npVendor')||s.siteSettings.shopifyVendor||'PLA Pals',
+     productType:val('npProductType')||s.siteSettings.shopifyProductType||'PLA Pal',
+     tags:val('npTags').split(',').map(x=>x.trim()).filter(Boolean),
+     status:'DRAFT',
+     price:Number(val('npPrice')||0),
+     sku,
+     barcode:val('npBarcode'),
+     dimensions:{height_cm:Number(val('npHeight')||0),width_cm:Number(val('npWidth')||0),depth_cm:Number(val('npDepth')||0)}
+   };
+   return {product,recipes:recipeData,insertFile,shopify,onSale:checked('npOnSale'),releaseDate:val('npReleaseDate')};
+ }
+ function validate(data){
+   const errors=[];
+   if(!/^PLA\d{3,}$/.test(data.product.sku))errors.push('SKU must look like PLA084.');
+   if(existingProducts.some(p=>p.sku===data.product.sku))errors.push(`${data.product.sku} already exists.`);
+   if(!data.product.name)errors.push('Pal name is required.');
+   if(!data.product.animal)errors.push('Animal is required.');
+   if(!data.recipes.length||data.recipes.some(r=>!r.filament||!r.parts))errors.push('Every recipe row needs a filament and parts/colour group.');
+   if(data.product.price<0)errors.push('Price cannot be negative.');
+   return errors;
+ }
+ function drawReview(){
+   const d=payload(), errs=validate(d);
+   review.innerHTML=`<div class="newpal-review-grid">
+     <div><span>Pal</span><strong>${esc(d.product.name||'—')}</strong></div>
+     <div><span>SKU</span><strong>${esc(d.product.sku||'—')}</strong></div>
+     <div><span>Recipe Groups</span><strong>${d.recipes.length}</strong></div>
+     <div><span>Filaments</span><strong>${d.product.filaments.length}</strong></div>
+     <div><span>Insert PDF</span><strong>${d.insertFile?'Linked':'Not linked'}</strong></div>
+     <div><span>Shopify</span><strong>${shopifyBridge.value.trim()?'Bridge configured':'Pending bridge'}</strong></div>
+   </div>${errs.length?`<div class="newpal-errors">${errs.map(e=>`<div>${esc(e)}</div>`).join('')}</div>`:''}`;
+   createBtn.disabled=errs.length>0;
+ }
+ async function sendShopify(d){
+   const url=shopifyBridge.value.trim();
+   if(!url){
+     return {ok:false,pending:true,message:'Forge Pal created. Shopify is pending because no secure Shopify Bridge URL is configured.'};
+   }
+   try{
+     const res=await fetch(url,{
+       method:'POST',
+       headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({action:'create_pal_product',product:d.shopify})
+     });
+     const body=await res.json().catch(()=>({}));
+     if(!res.ok)throw new Error(body.error||body.message||`HTTP ${res.status}`);
+     return {ok:true,body};
+   }catch(e){
+     return {ok:false,pending:true,message:`Forge Pal created, but Shopify creation failed: ${e.message}`};
+   }
+ }
+
+ addRecipe.onclick=()=>{recipes.push({filament:'',parts:'',grouped_stl:'',separate_stls:'',part_count:1,weight_g:0});drawRecipes();drawReview()};
+ form.querySelectorAll('input,textarea,select').forEach(el=>el.addEventListener('input',drawReview));
+ shopifyBridge.addEventListener('change',()=>{
+   s.siteSettings.shopifyBridgeUrl=shopifyBridge.value.trim();save(s);drawReview();
+ });
+
+ createBtn.onclick=async()=>{
+   const d=payload(),errors=validate(d);
+   if(errors.length){status.innerHTML=badge(errors[0],'danger');return}
+   createBtn.disabled=true;
+   status.innerHTML=badge('Creating Pal in Forge…','warning');
+
+   s.customData.products=s.customData.products.filter(x=>x.sku!==d.product.sku);
+   s.customData.products.push(d.product);
+   s.customData.recipes=s.customData.recipes.filter(x=>x.sku!==d.product.sku).concat(d.recipes);
+   if(d.insertFile)s.customData.insert_files[d.product.sku]=d.insertFile;
+   s.productAvailability[d.product.sku]={on_sale:d.onSale,release_date:d.releaseDate};
+   s.shopifyProducts[d.product.sku]={status:'pending',created_at:new Date().toISOString(),payload:d.shopify};
+   s.siteSettings.shopifyBridgeUrl=shopifyBridge.value.trim();
+   save(s);
+
+   status.innerHTML=badge('Forge created · sending Shopify…','warning');
+   const result=await sendShopify(d);
+   if(result.ok){
+     s.shopifyProducts[d.product.sku]={
+       ...s.shopifyProducts[d.product.sku],
+       status:'created',
+       shopify_product_id:result.body.productId||result.body.product_id||result.body.id||'',
+       shopify_variant_id:result.body.variantId||result.body.variant_id||'',
+       response:result.body
+     };
+     save(s);
+     status.innerHTML=`${badge('PAL CREATED','ok')} <span class="small">Forge setup complete and Shopify product created as Draft.</span>`;
+     shopifyStatus.innerHTML=badge('Shopify Draft Created','ok');
+   }else{
+     save(s);
+     status.innerHTML=`${badge('FORGE CREATED','ok')} <span class="small">${esc(result.message)}</span>`;
+     shopifyStatus.innerHTML=badge('Shopify Pending','warning');
+   }
+
+   existingProducts.push(d.product);
+   skuEl.value=nextPalSku(existingProducts);
+   createBtn.disabled=false;
+ };
+ drawRecipes();drawReview();
 }

@@ -630,3 +630,57 @@ Recipes and Printed Parts have been moved from The Workshop into Materials on ev
 - If there is not enough 210gsm Card available, `Mark Printed` is blocked and Forge shows the required and available quantities.
 - Consumable History records the usage as `Insert printed · SKU`.
 - Existing operational data is preserved and no reset is triggered.
+
+
+## v0.9.0 — New Pal Setup
+
+Added a dedicated `New Pal Setup` page under Administration.
+
+The setup flow captures:
+- SKU
+- Pal name / animal
+- Collection
+- Barcode
+- Price
+- Release date / On Sale status
+- 3 characteristics
+- Short and full product descriptions
+- Height / width / depth
+- Production recipe colour groups
+- Filament
+- Parts / grouped set
+- Grouped STL
+- Individual recovery STL files
+- Part count
+- Weight
+- Folded Insert Google Drive PDF
+- Shopify vendor, product type and tags
+
+### Forge integration
+New Pals are stored as persistent custom catalogue data in the browser and automatically merge into the normal Forge data loaders.
+
+This means a newly created Pal becomes available to:
+- Pals
+- Recipes
+- Production Planner
+- Build Plates
+- Printed Parts
+- The Bench
+- On Sale / Availability
+- Insert Production
+- Packing Station
+- Dispatch
+- Rework
+
+No static JSON file needs to be manually edited for a new Pal.
+
+### Shopify hand-off
+New Pal Setup supports a configurable `Secure Shopify Bridge URL`.
+
+For security, Forge does not store a Shopify Admin token in the GitHub Pages JavaScript.
+
+When a Bridge URL is configured, Forge sends a product-creation payload to it and expects the bridge to create a Draft Shopify product and return the Shopify product / variant identifiers.
+
+If no bridge is configured, the Pal is still fully created in Forge and its Shopify status is stored as `Pending`, ready to send once the secure bridge is connected.
+
+Existing operational data is preserved and no reset is triggered.
