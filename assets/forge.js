@@ -190,10 +190,11 @@ async function hydrateProductionCloud(force=false){
  if(!cloudToken())throw new Error('Cloud login required.');
  setForgeCloudSync('syncing','Loading live state from Cloudflare D1');
  try{
-   const [st,bp,targetData]=await Promise.all([
+   const [st,bp,targetData,productData]=await Promise.all([
      cloudFetch('/production/state'),
      cloudFetch('/build-plates'),
-     cloudFetch('/targets')
+     cloudFetch('/targets'),
+     cloudFetch('/products')
    ]);
 
    const s=emptyCloudWorkingState();
@@ -210,6 +211,17 @@ async function hydrateProductionCloud(force=false){
    (targetData?.targets||[]).forEach(t=>{
      const loc=t.location_id==='factory'?'boat':t.location_id;
      s.targets[targetKey(t.sku,loc)]=Number(t.target_qty||0);
+   });
+
+   // D1 products are the single source of truth for On Sale / release state.
+   // Never use browser-cached availability when rendering operational pages.
+   s.productAvailability={};
+   (productData?.products||[]).forEach(raw=>{
+     const p=normaliseCloudProduct(raw);
+     s.productAvailability[p.sku]={
+       on_sale:p.on_sale===true,
+       release_date:raw.release_date||p.release_date||''
+     };
    });
 
    s.plates=(bp?.plates||[]).map(p=>({
