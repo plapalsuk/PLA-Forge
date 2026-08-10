@@ -609,3 +609,24 @@ Recipes and Printed Parts have been moved from The Workshop into Materials on ev
 - Search filters by Pal name or SKU.
 - The Insert Inventory search is independent from the main Insert Production search, so it does not affect Print or Cut & Score queues.
 - Existing operational data is preserved and no reset is triggered.
+
+
+## v0.8.18 — 210gsm Card Consumable
+
+- Added `210gsm Card` to Consumables.
+- Unit: sheets.
+- Default reorder level: 25 sheets.
+- Insert Production now consumes 1 sheet of 210gsm Card for every 1 Insert completed through Cut & Score.
+- Cut & Score completion is blocked if there is not enough 210gsm Card stock.
+- Card usage is recorded in Consumable History.
+- Existing operational data is preserved; no reset is triggered.
+
+
+## v0.8.19 — 210gsm Card Deduction Timing
+
+- Corrected 210gsm Card consumption timing.
+- 1 sheet of 210gsm Card is now deducted when an Insert is marked **Printed**.
+- Cut & Score no longer deducts any card.
+- If there is not enough 210gsm Card available, `Mark Printed` is blocked and Forge shows the required and available quantities.
+- Consumable History records the usage as `Insert printed · SKU`.
+- Existing operational data is preserved and no reset is triggered.

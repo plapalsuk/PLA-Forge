@@ -20,7 +20,8 @@ function blankOperationalState(){
    consumables:{
      clear_boxes:{name:'Flat Clear Boxes',stock:0,reorder:25,unit:'boxes'},
      bottom_cards:{name:'Bottom Card Squares',stock:0,reorder:25,unit:'cards'},
-     stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'}
+     stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'},
+     card_210gsm:{name:'210gsm Card',stock:0,reorder:25,unit:'sheets'}
    },
    consumableHistory:[],
    packingJobs:{},
@@ -73,6 +74,8 @@ function state(){
     bottom_cards:{name:'Bottom Card Squares',stock:0,reorder:25,unit:'cards'},
     stickers:{name:'Stickers',stock:0,reorder:25,unit:'stickers'}
   };
+  s.consumables=s.consumables||{};
+  s.consumables.card_210gsm=s.consumables.card_210gsm||{name:'210gsm Card',stock:0,reorder:25,unit:'sheets'};
   s.consumableHistory=s.consumableHistory||[];
   s.packingJobs=s.packingJobs||{}; s.packingHistory=s.packingHistory||[];
   s.finishedStock=s.finishedStock||{boat:{},cornwall:{}}; s.transfers=s.transfers||[]; s.awaitingDispatch=s.awaitingDispatch||[];
@@ -934,6 +937,21 @@ async function insertProductionPage(){
    document.querySelectorAll('.markPrinted').forEach(btn=>btn.onclick=()=>{
      const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku), r=rec(sku);
      const qty=Math.max(1,Number(document.querySelector('#printed-'+sku)?.value||1));
+     const cardStock=Number(s.consumables?.card_210gsm?.stock||0);
+     if(cardStock<qty){
+       alert(`Not enough 210gsm Card. Need ${qty} sheet${qty===1?'':'s'}, but only ${cardStock} available.`);
+       return;
+     }
+     s.consumables.card_210gsm.stock=cardStock-qty;
+     s.consumableHistory=s.consumableHistory||[];
+     s.consumableHistory.push({
+       id:makeId(),
+       key:'card_210gsm',
+       name:'210gsm Card',
+       qty:-qty,
+       reason:`Insert printed · ${sku}`,
+       created_at:new Date().toISOString()
+     });
      r.awaiting_cut=Number(r.awaiting_cut||0)+qty;
      save(s);render();
    });
@@ -943,6 +961,7 @@ async function insertProductionPage(){
      const available=Number(r.awaiting_cut||0);
      const qty=Math.max(1,Math.min(available,Number(document.querySelector('#cut-'+sku)?.value||1)));
      if(available<=0)return;
+
      r.awaiting_cut=available-qty;
 
      let remaining=qty;
