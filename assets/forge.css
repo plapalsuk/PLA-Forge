@@ -1485,3 +1485,12 @@ body.forge-auth-ready .sidebar .forge-user-card{
 body.forge-page-parts .forge-cloud-sync{
   margin-bottom:8px;
 }
+
+/* v0.9.9.4 — Bench Cloud */
+body.forge-page-assembly .forge-cloud-sync{
+  margin-bottom:8px;
+}
+body.forge-page-assembly .assembleBtn:disabled{
+  opacity:.65;
+  cursor:wait;
+}

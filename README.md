@@ -1056,3 +1056,21 @@ Printed Parts Inventory now uses the same Cloudflare D1 operational state as Bui
 - Printed Parts now shows the Cloud Sync badge and Refresh Cloud control.
 
 No SQL or Worker change is required beyond the existing v0.9.9/v3f cloud production setup.
+
+
+### v0.9.9.4 — The Bench / Assembly Cloud
+
+The Bench is now connected to the shared Cloudflare D1 operational state.
+
+Assembly now:
+- reads Printed Parts and Assembled Inventory from D1
+- deducts every required grouped Printed Part for the selected quantity
+- adds the completed quantity to Assembled Inventory
+- records an Assembly History transaction
+- waits for the D1 save before treating the assembly as complete
+- rolls Printed Parts, Assembled Inventory and Assembly History back if the cloud save fails
+- live-syncs Bench quantities between open devices every 2 seconds
+- live-updates Ready, Awaiting and Assembled Inventory without a manual refresh
+- shows the same Cloud Sync status used by Build Plates and Printed Parts
+
+No SQL or Worker update is required beyond the existing v0.9.9 / Worker v3f production-cloud setup.

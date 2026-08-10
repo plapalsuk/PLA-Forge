@@ -148,7 +148,7 @@ window.addEventListener('beforeunload',()=>{
 });
 
 function installForgeCloudSyncBadge(){
- if(!['production.html','plates.html','parts.html'].includes(forgeCurrentPage()))return;
+ if(!['production.html','plates.html','parts.html','assembly.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
  const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
  const wrap=document.createElement('div');
@@ -1330,7 +1330,10 @@ async function settingsPage(){
 
 
 async function assemblyPage(){
- const s=state();
+ installForgeCloudSyncBadge();
+ if(!forgeProductionCloudReady)await hydrateProductionCloud();
+
+ let s=state();
  const ps=await load('products');
  const rs=await load('recipes');
  const pals=ps.filter(p=>p.type==='pal');
@@ -1416,18 +1419,15 @@ async function assemblyPage(){
      groups:groupStock(p)
    })).filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
 
-   // READY: physically possible to assemble, regardless of planner need.
    const ready=all
      .filter(x=>x.ready>0)
      .sort((a,b)=>b.remainingNeed-a.remainingNeed || b.ready-a.ready || a.p.name.localeCompare(b.p.name));
 
-   // AWAITING: only if planner still needs more AND no complete Pal can currently be assembled.
    const awaiting=all
      .filter(x=>x.remainingNeed>0 && x.ready<=0)
      .sort((a,b)=>b.remainingNeed-a.remainingNeed || a.p.name.localeCompare(b.p.name));
 
-   const totalReady=ready.reduce((a,x)=>a+x.ready,0);
-   kpiReady.textContent=totalReady;
+   kpiReady.textContent=ready.reduce((a,x)=>a+x.ready,0);
    kpiAssembled.textContent=Object.values(s.assembled||{}).reduce((a,b)=>a+Number(b||0),0);
    kpiWaiting.textContent=awaiting.reduce((a,x)=>a+x.remainingNeed,0);
    readySectionCount.textContent=`${ready.length} Ready`;
@@ -1454,7 +1454,7 @@ async function assemblyPage(){
      <td><strong>${x.qty}</strong></td>
    </tr>`).join(''):'<tr><td colspan="2">No assembled Pals currently in inventory.</td></tr>';
 
-   document.querySelectorAll('.assembleBtn').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.assembleBtn').forEach(btn=>btn.onclick=async()=>{
      const sku=btn.dataset.sku;
      const p=pals.find(x=>x.sku===sku);
      const available=readyQty(p);
@@ -1463,6 +1463,14 @@ async function assemblyPage(){
      const qty=Math.max(1,Math.min(maxQty,Number(document.querySelector('#assemble-'+sku)?.value||1)));
      if(!available||qty>available)return;
 
+     // Snapshot the fields changed by assembly so a failed cloud save can be rolled back safely.
+     const beforeParts=JSON.parse(JSON.stringify(s.parts||{}));
+     const beforeAssembled=JSON.parse(JSON.stringify(s.assembled||{}));
+     const beforeHistory=JSON.parse(JSON.stringify(s.assemblyHistory||[]));
+
+     btn.disabled=true;
+     btn.textContent='Saving…';
+
      recipeGroups(sku).forEach(r=>{
        const key=groupKey(r);
        s.parts[key]=Math.max(0,partQty(s,key)-qty);
@@ -1470,19 +1478,38 @@ async function assemblyPage(){
 
      s.assembled[sku]=Number(s.assembled[sku]||0)+qty;
      s.assemblyHistory.push({
-       id:makeId(),sku,name:p.name,qty,
+       id:makeId(),
+       sku,
+       name:p.name,
+       qty,
        production_need_before:stillNeeded,
        production_need_after:Math.max(0,stillNeeded-qty),
-       created_at:new Date().toISOString()
+       created_at:new Date().toISOString(),
+       cloud_user:currentForgeUser()?.email||''
      });
-     save(s);
-     render();
+
+     try{
+       await save(s);
+       render();
+     }catch(e){
+       s.parts=beforeParts;
+       s.assembled=beforeAssembled;
+       s.assemblyHistory=beforeHistory;
+       localStorage.setItem(STORE,JSON.stringify(s));
+       render();
+       alert('Assembly could not be saved to Cloudflare. Printed Parts and Assembled Inventory have been rolled back.');
+     }
    });
  }
 
  q.oninput=render;
  if(inventorySearch)inventorySearch.oninput=render;
  render();
+
+ await startForgeLiveSync(async fresh=>{
+   s=fresh;
+   render();
+ });
 }
 
 
@@ -3306,7 +3333,7 @@ async function employeeAdminPage(){
 })();
 
 document.addEventListener('visibilitychange',async()=>{
- if(!document.hidden && ['production.html','plates.html','parts.html'].includes(forgeCurrentPage())){
+ if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html'].includes(forgeCurrentPage())){
    const stamp=await forgeCloudStamp();
    if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
      // interval will pick this up immediately on its next tick
