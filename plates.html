@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Build Plate Planner | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0105"></head><body><div class="app"><aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Build Plate Planner | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0106"></head><body><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
   <div class="navgroup">Forge Control</div>
@@ -16,11 +16,11 @@
   <a href="data-health.html">! Data Health</a><a href="settings.html">⚙ Settings</a>
  </nav>
 </aside><main><div class="topbar"><div class="pageTitle"><h1>Build Plate Planner</h1><div class="small">Mix any Pals that use the same filament colour on one printable plate.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div>
-<div class="grid kpis four">
- <div class="card kpi"><div class="label">Open print demand</div><div class="value accent" id="demandKpi">0</div><div class="small">colour-group sets still required</div></div>
- <div class="card kpi"><div class="label">Draft plates</div><div class="value" id="plannedKpi">0</div><div class="small">planned, not started</div></div>
- <div class="card kpi"><div class="label">Printing</div><div class="value" id="printingKpi">0</div><div class="small">active plates</div></div>
- <div class="card kpi"><div class="label">Completed plates</div><div class="value" id="completedKpi">0</div><div class="small">print history</div></div>
+<div class="grid kpis four build-kpi-nav" aria-label="Build plate page shortcuts">
+ <button type="button" class="card kpi kpi-jump" data-jump-target="printDemandSection" aria-label="View open print demand"><div class="label">Open print demand</div><div class="value accent" id="demandKpi">0</div><div class="small">colour-group sets still required</div><div class="kpi-view">View ↓</div></button>
+ <button type="button" class="card kpi kpi-jump" data-jump-target="savedBuildPlatesSection" data-plate-status="draft" aria-label="View draft plates"><div class="label">Draft plates</div><div class="value" id="plannedKpi">0</div><div class="small">planned, not started</div><div class="kpi-view">View ↓</div></button>
+ <button type="button" class="card kpi kpi-jump" data-jump-target="savedBuildPlatesSection" data-plate-status="printing" aria-label="View printing plates"><div class="label">Printing</div><div class="value" id="printingKpi">0</div><div class="small">active plates</div><div class="kpi-view">View ↓</div></button>
+ <button type="button" class="card kpi kpi-jump" data-jump-target="savedBuildPlatesSection" data-plate-status="complete" aria-label="View completed plates"><div class="label">Completed plates</div><div class="value" id="completedKpi">0</div><div class="small">print history</div><div class="kpi-view">View ↓</div></button>
 </div>
 
 <div class="card colour-demand-section" style="margin-top:14px">
@@ -55,8 +55,27 @@
    <div class="plate-checklist-scroll desktop-build-checklist"><table><thead><tr><th>Pal</th><th>Colour Group</th><th>Weight</th><th>Demand</th><th>Printed</th><th>On Plates</th><th>Remaining</th><th>Qty</th><th></th><th>Extra</th><th>Exact Part</th></tr></thead><tbody id="plateChecklist"></tbody></table></div>
    <div id="plateChecklistMobile" class="mobile-build-checklist"></div>
   </div>
-  <div class="card" style="margin-top:14px"><div class="section-title"><h2>Saved build plates</h2><span class="small">Draft → Printing → Complete</span></div><div class="saved-plates" id="platesList"></div></div>
+  <div class="card" id="savedBuildPlatesSection" style="margin-top:14px"><div class="section-title"><h2>Saved build plates</h2><span class="small">Draft → Printing → Complete</span></div><div class="saved-plates" id="platesList"></div></div>
  </div>
 
 </div>
-<div class="footer-note">PLA Forge v0.10.5 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=0105"></script><script>buildPlatePlanner()</script><script>forgeRequireLogin()</script></body></html>
+<div class="footer-note">PLA Forge v0.10.6 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=0106"></script><script>buildPlatePlanner()</script><script>
+(function(){
+  function jumpToSection(button){
+    var id=button.getAttribute("data-jump-target");
+    var target=document.getElementById(id);
+    if(!target) return;
+    var status=button.getAttribute("data-plate-status");
+    if(status) target.setAttribute("data-kpi-focus",status);
+    target.scrollIntoView({behavior:"smooth",block:"start"});
+    target.classList.remove("kpi-jump-highlight");
+    void target.offsetWidth;
+    target.classList.add("kpi-jump-highlight");
+    window.setTimeout(function(){target.classList.remove("kpi-jump-highlight");},1200);
+  }
+  document.addEventListener("click",function(e){
+    var button=e.target.closest(".kpi-jump");
+    if(button) jumpToSection(button);
+  });
+})();
+</script><script>forgeRequireLogin()</script></body></html>

@@ -2134,3 +2134,52 @@ body.forge-page-assembly .assembleBtn:disabled{
     font-size:20px !important;
   }
 }
+
+/* v0.10.6 — Build Plate KPI jump navigation */
+.build-kpi-nav .kpi-jump{
+  appearance:none !important;
+  -webkit-appearance:none !important;
+  width:100%;
+  text-align:left;
+  color:inherit;
+  font:inherit;
+  cursor:pointer;
+  display:block;
+  min-height:0 !important;
+}
+.build-kpi-nav .kpi-jump:hover{
+  border-color:rgba(255,106,0,.55);
+  transform:translateY(-1px);
+}
+.build-kpi-nav .kpi-jump:focus-visible{
+  outline:2px solid var(--orange);
+  outline-offset:2px;
+}
+.kpi-view{
+  margin-top:8px;
+  color:var(--orange);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.02em;
+}
+#printDemandSection,
+#savedBuildPlatesSection{
+  scroll-margin-top:16px;
+}
+.kpi-jump-highlight{
+  animation:kpiJumpHighlight 1.2s ease-out;
+}
+@keyframes kpiJumpHighlight{
+  0%{border-color:var(--orange);box-shadow:0 0 0 2px rgba(255,106,0,.18)}
+  100%{box-shadow:none}
+}
+@media(max-width:780px){
+  .build-kpi-nav .kpi-jump{
+    padding:8px !important;
+    min-height:104px !important;
+  }
+  .build-kpi-nav .kpi-jump .kpi-view{
+    font-size:8px !important;
+    margin-top:5px !important;
+  }
+}

@@ -1199,3 +1199,15 @@ Top KPI/stat cards now preserve the desktop row layout on mobile instead of stac
 - Labels, values and supporting text are scaled down for phone widths.
 - Applies site-wide anywhere the shared `kpis` layout is used.
 - No Worker or D1 changes are required.
+
+
+### v0.10.6 — Build Plate KPI Navigation
+
+The four Build Plate KPI cards are now page-navigation buttons.
+
+- Open Print Demand → Colours You Need to Print.
+- Draft Plates → Saved Build Plates.
+- Printing → Saved Build Plates.
+- Completed Plates → Saved Build Plates.
+- Smooth scrolling and a brief destination highlight make long mobile pages easier to navigate.
+- No Worker or D1 changes are required.
