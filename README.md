@@ -507,3 +507,30 @@ Additional behaviour:
 - Production Planner shows Cornwall Insert shortages as `IN REPLENISHMENT` while supply is already moving through the workflow.
 - Cornwall spare Insert replenishment does not create Pal manufacturing demand.
 - Existing operational data is preserved and no reset is triggered.
+
+
+## v0.8.12 — Cornwall Insert Target Stock 2
+
+- Cornwall spare Pal Inserts now have an agreed target stock of 2 per On Sale Pal.
+- Replenishment restores stock back to 2 rather than simply creating one Insert when stock reaches zero.
+
+Examples:
+- Cornwall stock 0 → factory requirement 2
+- Cornwall stock 1 → factory requirement 1
+- Cornwall stock 2 → no requirement
+- Cornwall stock above 2 → no requirement
+
+The calculation also accounts for Inserts already:
+- in Insert Production
+- Awaiting Dispatch
+- in transit to Cornwall
+
+This prevents duplicate production while still ensuring the final Cornwall stock returns to 2.
+
+Example:
+Phoebe the Pig has 0 Cornwall spare Inserts.
+Forge creates a production requirement for 2 Phoebe Inserts.
+After both are Cut & Scored they move through Dispatch to Cornwall.
+When Cornwall confirms receipt, Phoebe's Cornwall Ready Insert stock becomes 2.
+
+Existing operational data is preserved and no reset is triggered.

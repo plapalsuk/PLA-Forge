@@ -186,12 +186,18 @@ async function production(){
    if(cornwallBoxStock(s)<1)low.push({item:'Flat Clear Boxes',detail:'Cornwall Rework Stock',qty:cornwallBoxStock(s)});
    salePals.forEach(p=>{
      const qty=cornwallInsertStock(s,p.sku);
-     if(qty<1){
+     if(qty<cornwallInsertTarget()){
        const pending=pendingCornwallInsertSupply(s,p.sku);
-       low.push({item:`${p.name} Insert`,detail:p.sku,qty,pending});
+       low.push({
+         item:`${p.name} Insert`,
+         detail:p.sku,
+         qty,
+         target:cornwallInsertTarget(),
+         pending
+       });
      }
    });
-   spare.innerHTML=low.length?low.map(x=>`<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${x.item==='Flat Clear Boxes'?badge('FACTORY SUPPLY','danger'):x.pending>0?badge('IN REPLENISHMENT','info'):badge('INSERT PRODUCTION','danger')}</span><strong>Stock ${x.qty}${x.pending!=null?` · Pending ${x.pending}`:''}</strong></div>`).join(''):'<div class="bench-empty">Cornwall spare stock is healthy.</div>';
+   spare.innerHTML=low.length?low.map(x=>`<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${x.item==='Flat Clear Boxes'?badge('FACTORY SUPPLY','danger'):x.pending>0?badge('IN REPLENISHMENT','info'):badge('INSERT PRODUCTION','danger')}</span><strong>Stock ${x.qty}${x.target!=null?` / ${x.target}`:''}${x.pending!=null?` · Pending ${x.pending}`:''}</strong></div>`).join(''):'<div class="bench-empty">Cornwall spare stock is healthy.</div>';
  }
 }
 async function dataHealth(){
@@ -798,9 +804,14 @@ function ensureCornwallInsertReplenishment(s,products){
  (products||[]).filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).forEach(p=>{
    const have=cornwallInsertStock(s,p.sku);
    const pending=pendingCornwallInsertSupply(s,p.sku);
-   if(have<1&&pending<1){
-     s.cornwallInsertReplenishment[p.sku]=Number(s.cornwallInsertReplenishment[p.sku]||0)+1;
-   }
+   const target=cornwallInsertTarget();
+   const required=Math.max(0,target-have-pending);
+
+   // Keep the factory replenishment quantity aligned to the amount still
+   // required to restore Cornwall spare Insert stock back to Target 2.
+   const currentlyPlanned=Number(s.cornwallInsertReplenishment[p.sku]||0);
+   const downstreamPending=Math.max(0,pending-currentlyPlanned);
+   s.cornwallInsertReplenishment[p.sku]=Math.max(0,target-have-downstreamPending);
  });
 }
 
@@ -1397,6 +1408,7 @@ function forgeInsertReady(s,sku){return Number(s.inserts?.[sku]?.ready||0)}
 function forgeConsumableStock(s,key){return Number(s.consumables?.[key]?.stock||0)}
 function cornwallBoxStock(s){return Number(s.cornwallReworkStock?.clear_boxes||0)}
 function cornwallInsertStock(s,sku){return Number(s.cornwallReworkStock?.inserts?.[sku]||0)}
+function cornwallInsertTarget(){return 2}
 function damageReworkReady(s,job){
  const r=damageReworkRequirements(job);
  if(r.route==='cornwall'){
@@ -1979,7 +1991,7 @@ async function reworkPage(){
    if(cornwallBoxStock(s)<1)rows.push({label:'Flat Clear Boxes',qty:cornwallBoxStock(s)});
    onSale.forEach(p=>{
      const qty=cornwallInsertStock(s,p.sku);
-     if(qty<1)rows.push({label:`${p.name} Insert`,sku:p.sku,qty});
+     if(qty<cornwallInsertTarget())rows.push({label:`${p.name} Insert`,sku:p.sku,qty,target:cornwallInsertTarget()});
    });
    return rows;
  }
@@ -1988,13 +2000,13 @@ async function reworkPage(){
    localBox.textContent=boxQty;
    localBox.closest('.cornwall-current-stock')?.classList.toggle('low-stock',boxQty<1);
    localInsertInventory.innerHTML=onSale.map(p=>{
-     const qty=cornwallInsertStock(s,p.sku),low=qty<1;
-     return `<tr class="${low?'low-spare-row':''}"><td><strong>${esc(p.name)}</strong><br><span class="sku">${p.sku}</span></td><td><strong>${qty}</strong>${low?` ${badge('FACTORY REQUIRED','danger')}`:''}</td></tr>`;
+     const qty=cornwallInsertStock(s,p.sku),low=qty<cornwallInsertTarget();
+     return `<tr class="${low?'low-spare-row':''}"><td><strong>${esc(p.name)}</strong><br><span class="sku">${p.sku}</span></td><td><strong>${qty}</strong>${low?` ${badge(`NEED ${Math.max(0,cornwallInsertTarget()-qty)}`,'danger')}`:''}</td></tr>`;
    }).join('')||'<tr><td colspan="2">No On Sale Pals.</td></tr>';
 
    const low=lowCornwallStock();
    if(factoryAlert){
-     factoryAlert.innerHTML=low.length?`<div class="factory-alert-head"><div><strong>Factory Replenishment Required</strong><div class="small">${low.length} Cornwall spare stock item${low.length===1?' is':'s are'} below 1.</div></div>${badge(`${low.length} LOW`,'danger')}</div><div class="factory-alert-items">${low.map(x=>`<div><span>${esc(x.label)}</span><strong>${x.qty}</strong></div>`).join('')}</div>`:`<div class="factory-alert-ok">${badge('STOCK OK','ok')}<span>All Cornwall spare stock is at 1 or above.</span></div>`;
+     factoryAlert.innerHTML=low.length?`<div class="factory-alert-head"><div><strong>Factory Replenishment Required</strong><div class="small">${low.length} Cornwall spare stock item${low.length===1?' is':'s are'} below target.</div></div>${badge(`${low.length} LOW`,'danger')}</div><div class="factory-alert-items">${low.map(x=>`<div><span>${esc(x.label)}</span><strong>${x.qty}</strong></div>`).join('')}</div>`:`<div class="factory-alert-ok">${badge('STOCK OK','ok')}<span>All Cornwall spare stock is at 1 or above.</span></div>`;
    }
  }
  function draw(){

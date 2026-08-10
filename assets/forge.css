@@ -485,3 +485,6 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 /* v0.8.11 Cornwall insert replenishment flow */
 .factory-spare-row .badge.info{white-space:nowrap}
 .rework-dispatch-card .dispatch-ready-total span{white-space:nowrap}
+
+/* v0.8.12 Cornwall insert target stock */
+.low-spare-row td:nth-child(2) strong{color:#ff858a}
