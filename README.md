@@ -837,3 +837,16 @@ Settings now has an Employee Accounts section for Admin users:
 7. Open `login.html` and sign in with the new employee account.
 
 No stock or operational data is reset.
+
+
+## v0.9.6 — PLA Forge Roles
+
+Employee permissions now use the agreed PLA Forge roles:
+
+- **Admin** — unrestricted access to Forge, Settings, employee management and all actions.
+- **Packing** — Packing Station only. The API grants only the supporting read access required for packing and packing workflow permissions.
+- **Retail Staff** — Awaiting Cornwall Delivery and Cornwall Rework only. Retail Staff can receive Cornwall deliveries and work with Cornwall-held replacement Boxes and Inserts. Factory production, Pal manufacture, materials, settings and employee management are not available.
+
+Both the frontend page guard and Cloudflare Worker role map use these role names. The Worker remains the security boundary; hiding navigation is only an additional UI convenience.
+
+Existing Admin accounts remain Admin. If any test employee was previously assigned Factory, Cornwall or View Only, change/recreate that employee with Packing or Retail Staff after deploying v0.9.6.

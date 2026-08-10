@@ -299,9 +299,8 @@ function cloudModeBadge(){
 
 const FORGE_ROLE_PAGES={
  admin:['*'],
- factory:['index.html','pals.html','keyrings.html','stickers.html','production.html','plates.html','assembly.html','rework.html','packaging.html','packing-station.html','deliveries.html','filament.html','recipes.html','parts.html','consumables.html','data-health.html','settings.html','new-pal.html'],
- cornwall:['index.html','pals.html','keyrings.html','stickers.html','rework.html','deliveries.html','recipes.html','consumables.html','data-health.html'],
- viewer:['index.html','pals.html','keyrings.html','stickers.html','recipes.html','filament.html','consumables.html','deliveries.html','rework.html','data-health.html']
+ packing:['packing-station.html'],
+ retail_staff:['deliveries.html','rework.html']
 };
 function forgeCurrentPage(){return location.pathname.split('/').pop()||'index.html'}
 function roleCanOpen(role,page){
@@ -328,6 +327,7 @@ async function forgeRequireLogin(){
      return;
    }
    applyRoleNavigation(user);
+   setTimeout(()=>applyRolePageRestrictions(user),0);
  }catch(e){
    setCloudToken('');setForgeUser(null);
    const returnTo=encodeURIComponent(location.href);
@@ -348,6 +348,23 @@ function applyRoleNavigation(user){
    card.querySelector('#forgeQuickLogout').onclick=forgeLogout;
  }
 }
+
+function applyRolePageRestrictions(user){
+ if(!user)return;
+ if(user.role==='retail_staff'&&forgeCurrentPage()==='rework.html'){
+   // Retail staff may work only with Cornwall-held Box and Insert rework.
+   const allowed=/box|insert/i;
+   document.querySelectorAll('tr').forEach(row=>{
+     const text=row.textContent||'';
+     if(/pal damaged|pal broken|full pal|complete pal|factory|filament|print/i.test(text)&&!allowed.test(text)) row.style.display='none';
+   });
+   document.querySelectorAll('button,[role="button"]').forEach(btn=>{
+     const text=(btn.textContent||'')+' '+(btn.title||'');
+     if(/factory|produce pal|print pal|dispatch pal|complete pal/i.test(text)) btn.style.display='none';
+   });
+ }
+}
+
 function forgeLogout(){
  setCloudToken('');setForgeUser(null);
  location.replace('login.html');
@@ -2857,13 +2874,12 @@ async function employeeAdminPage(){
    host.innerHTML=`<div class="section-title"><div><h2>Employee Accounts</h2><div class="small">Create employees and control which parts of Forge they can access.</div></div><button class="btn" id="addEmployee">+ Add Employee</button></div>
    <div class="employee-role-help">
     <div><strong>Admin</strong><span>Everything, including employees and product availability.</span></div>
-    <div><strong>Factory</strong><span>Production, materials, packing and dispatch.</span></div>
-    <div><strong>Cornwall</strong><span>Cornwall stock, delivery and rework workflows.</span></div>
-    <div><strong>View Only</strong><span>Read-only operational visibility.</span></div>
+    <div><strong>Packing</strong><span>Packing Station only.</span></div>
+    <div><strong>Retail Staff</strong><span>Awaiting Cornwall Delivery plus Cornwall Box and Insert rework.</span></div>
    </div>
    <div class="employee-list">${rows.map(x=>`<div class="employee-row">
       <div><strong>${esc(x.name||x.email)}</strong><div class="small">${esc(x.email)}</div></div>
-      <select class="empRole" data-id="${x.id}"><option value="admin" ${x.role==='admin'?'selected':''}>Admin</option><option value="factory" ${x.role==='factory'?'selected':''}>Factory</option><option value="cornwall" ${x.role==='cornwall'?'selected':''}>Cornwall</option><option value="viewer" ${x.role==='viewer'?'selected':''}>View Only</option></select>
+      <select class="empRole" data-id="${x.id}"><option value="admin" ${x.role==='admin'?'selected':''}>Admin</option><option value="packing" ${x.role==='packing'?'selected':''}>Packing</option><option value="retail_staff" ${x.role==='retail_staff'?'selected':''}>Retail Staff</option></select>
       <label class="empActive"><input type="checkbox" data-id="${x.id}" ${Number(x.active)===1?'checked':''}> Active</label>
       <button class="btn ghost resetEmpPassword" data-id="${x.id}">Reset Password</button>
    </div>`).join('')}</div>`;
@@ -2876,7 +2892,7 @@ async function employeeAdminPage(){
    const name=prompt('Employee name:');if(name===null)return;
    const email=prompt('Employee email:');if(!email)return;
    const password=prompt('Temporary password (minimum 8 characters):');if(!password)return;
-   const role=prompt('Role: admin, factory, cornwall or viewer','factory');if(!role)return;
+   const role=prompt('Role: admin, packing or retail_staff','packing');if(!role)return;
    cloudFetch('/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password,role})})
      .then(loadUsers).catch(e=>alert(e.message));
  }
