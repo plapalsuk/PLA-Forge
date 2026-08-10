@@ -1587,3 +1587,207 @@ body.forge-page-assembly .assembleBtn:disabled{
     padding-top:calc(10px + env(safe-area-inset-top, 0px)) !important;
   }
 }
+
+/* =========================================================
+   v0.10.2 — Page-specific mobile layout: Build Plates + Pals
+   ========================================================= */
+@media (max-width: 780px){
+
+  /* BUILD PLATES — checklist cards */
+  body.forge-page-plates #checklist,
+  body.forge-page-plates #checklist tbody{
+    display:block !important;
+    width:100% !important;
+  }
+
+  body.forge-page-plates #checklist .build-check-card{
+    display:grid !important;
+    grid-template-columns:1fr 1fr !important;
+    gap:0 !important;
+    padding:0 !important;
+    margin:0 0 14px !important;
+    border:1px solid var(--line) !important;
+    border-radius:14px !important;
+    overflow:hidden;
+    background:#151b22 !important;
+  }
+
+  body.forge-page-plates #checklist .build-check-card td{
+    display:block !important;
+    width:auto !important;
+    border:0 !important;
+    border-bottom:1px solid var(--line) !important;
+    padding:11px 12px !important;
+    min-width:0;
+  }
+
+  body.forge-page-plates #checklist .build-check-card td::before{
+    content:attr(data-label);
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    margin-bottom:4px;
+  }
+
+  body.forge-page-plates #checklist .build-pal,
+  body.forge-page-plates #checklist .build-group{
+    grid-column:1 / -1;
+  }
+
+  body.forge-page-plates #checklist .build-pal{
+    padding:14px !important;
+    background:#11171d;
+  }
+
+  body.forge-page-plates #checklist .build-pal strong{
+    font-size:18px;
+  }
+
+  body.forge-page-plates #checklist .build-group{
+    font-weight:700;
+  }
+
+  body.forge-page-plates #checklist .build-remaining strong{
+    color:var(--accent);
+    font-size:20px;
+  }
+
+  body.forge-page-plates #checklist .build-qty{
+    grid-column:1 / -1;
+  }
+
+  body.forge-page-plates #checklist .build-qty input{
+    width:100% !important;
+    max-width:none !important;
+  }
+
+  body.forge-page-plates #checklist .build-action{
+    grid-column:1 / -1;
+    padding:7px 12px !important;
+    border-bottom:0 !important;
+  }
+
+  body.forge-page-plates #checklist .build-action .btn{
+    width:100% !important;
+    min-height:48px !important;
+  }
+
+  body.forge-page-plates #checklist .build-action-add .btn{
+    background:var(--accent) !important;
+    color:#fff !important;
+  }
+
+  body.forge-page-plates #checklist .exact-row{
+    display:none;
+    width:100% !important;
+    margin:-8px 0 14px !important;
+    border:1px solid rgba(255,105,0,.42) !important;
+    border-radius:14px !important;
+    background:#1a1512 !important;
+  }
+
+  body.forge-page-plates #checklist .exact-row td{
+    display:block !important;
+    width:100% !important;
+    padding:12px !important;
+  }
+
+  body.forge-page-plates .exact-part-panel{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:10px !important;
+  }
+
+  body.forge-page-plates .exact-part-panel select,
+  body.forge-page-plates .exact-part-panel input,
+  body.forge-page-plates .exact-part-panel .btn{
+    width:100% !important;
+    max-width:none !important;
+  }
+
+  /* Keep Current Plate after checklist; don't let it squeeze beside it. */
+  body.forge-page-plates .buildplate-grid,
+  body.forge-page-plates .grid{
+    grid-template-columns:1fr !important;
+  }
+
+  /* PALS — preserve desktop meaning with explicit stock labels */
+  body.forge-page-pals #rows,
+  body.forge-page-pals #rows tbody{
+    display:block !important;
+    width:100% !important;
+  }
+
+  body.forge-page-pals #rows .pal-inventory-card{
+    display:grid !important;
+    grid-template-columns:1fr 1fr !important;
+    gap:0 !important;
+    margin-bottom:14px !important;
+    border:1px solid var(--line) !important;
+    border-radius:14px !important;
+    overflow:hidden;
+    background:#171d24 !important;
+  }
+
+  body.forge-page-pals #rows .pal-inventory-card td{
+    display:block !important;
+    width:auto !important;
+    padding:11px 12px !important;
+    border:0 !important;
+    border-bottom:1px solid var(--line) !important;
+    min-width:0;
+  }
+
+  body.forge-page-pals #rows .pal-inventory-card td::before{
+    content:attr(data-label);
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    margin-bottom:5px;
+  }
+
+  body.forge-page-pals #rows .pal-product{
+    grid-column:1 / -1;
+    padding:15px !important;
+    background:#11171d;
+  }
+
+  body.forge-page-pals #rows .pal-product .product-name{
+    font-size:19px;
+    font-weight:800;
+  }
+
+  body.forge-page-pals #rows .stock-cell strong,
+  body.forge-page-pals #rows .need-cell strong{
+    font-size:22px;
+  }
+
+  body.forge-page-pals #rows .need-cell{
+    grid-column:1 / -1;
+  }
+
+  body.forge-page-pals #rows .target-cell input{
+    width:100% !important;
+    max-width:none !important;
+  }
+
+  body.forge-page-pals .forge-cloud-sync{
+    margin:0 0 10px !important;
+  }
+}
+
+@media (max-width: 430px){
+  body.forge-page-plates #checklist .build-check-card,
+  body.forge-page-pals #rows .pal-inventory-card{
+    grid-template-columns:1fr 1fr !important;
+  }
+
+  body.forge-page-pals #rows .pal-inventory-card td,
+  body.forge-page-plates #checklist .build-check-card td{
+    padding:10px !important;
+  }
+}

@@ -1130,3 +1130,27 @@ A Pal appears in Ready whenever all required printed colour-groups are available
 - Production Need / Already Assembled / Still Needed remain visible as context only.
 - Awaiting continues to show Pals that are required by Production Planning but cannot yet be assembled.
 - Cloudflare D1 remains the sole source of truth for migrated production data.
+
+
+### v0.10.2 — Mobile Build Plates + Pals Inventory
+
+Build Plates mobile:
+- each checklist item is now a dedicated mobile card
+- Pal and SKU are clearly identified
+- Colour Group, Weight, Demand, Printed, On Plates and Remaining all have labels
+- quantity is full width
+- Required print uses a prominent `Add Required` button
+- Extra print uses `+ Extra Set`
+- Exact Part is a separate optional action and opens a clear full-width panel
+- Current Plate and Saved Build Plates remain single-column on phones
+
+Pals mobile:
+- each Pal is a labelled inventory card
+- Boat Stock and Boat Target are explicitly shown
+- Cornwall Stock and Cornwall Target are explicitly shown
+- Need is explicitly shown
+- On Sale and Recipe status remain visible
+- targets save directly to D1
+- Pals stock/targets are hydrated from live D1 state and live-sync while open
+
+The deployment ZIP remains frontend-only with no SQL or Worker files.

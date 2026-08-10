@@ -163,7 +163,7 @@ window.addEventListener('beforeunload',()=>{
 });
 
 function installForgeCloudSyncBadge(){
- if(!['production.html','plates.html','parts.html','assembly.html'].includes(forgeCurrentPage()))return;
+ if(!['production.html','plates.html','parts.html','assembly.html','pals.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
  const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
  const wrap=document.createElement('div');
@@ -608,27 +608,75 @@ function isOnSale(s,sku){return s.productAvailability?.[sku]?.on_sale===true}
 function releaseDateFor(s,sku){return s.productAvailability?.[sku]?.release_date||''}
 
 async function inventory(type){
- await syncCloudCoreState();
- const s=state(), ps=await load('products'); let items=ps.filter(x=>type==='sticker'?x.type==='sticker':x.type==='pal'&&(type==='pal'||x.keyring));
- const tbody=document.querySelector('#rows'), q=document.querySelector('#q');
- function draw(){const text=(q.value||'').toLowerCase(),shown=items.filter(x=>`${x.sku} ${x.name}`.toLowerCase().includes(text)).sort((a,b)=>Number(isOnSale(s,b.sku))-Number(isOnSale(s,a.sku))||a.name.localeCompare(b.name));
- tbody.innerHTML=shown.map(x=>{const b=stock(s,x.sku,'boat'),c=stock(s,x.sku,'cornwall'),bt=getTarget(s,x.sku,'boat'),ct=getTarget(s,x.sku,'cornwall'),need=needed(s,x.sku,'boat')+needed(s,x.sku,'cornwall'),sale=isOnSale(s,x.sku);
- return `<tr class="${sale?'on-sale-row':''}"><td><div class="product-name">${esc(x.name)}</div><span class="sku">${x.sku}</span></td><td>${sale?badge('ON SALE','ok'):badge('NOT ON SALE','')}</td><td>${x.recipe_ready?badge('Recipe ready','ok'):badge('No recipe','warning')}</td><td>${b}</td><td><input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}"></td><td>${c}</td><td><input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}"></td><td><strong>${need}</strong></td></tr>`}).join('');
- document.querySelectorAll('.t').forEach(el=>el.onchange=async()=>{
-   const sku=el.dataset.sku,loc=el.dataset.loc,qty=Number(el.value||0);
-   s.targets[targetKey(sku,loc)]=qty;save(s);draw();
-   if(cloudToken()){
+ installForgeCloudSyncBadge();
+ // Inventory pages now use live D1 state; never browser operational cache.
+ if(!forgeProductionCloudReady){
+   try{await hydrateProductionCloud()}
+   catch(e){showCloudRequiredError(e.message);return}
+ }
+ let s=cloudOperationalState();
+ const ps=await load('products');
+ let items=ps.filter(x=>type==='sticker'?x.type==='sticker':x.type==='pal'&&(type==='pal'||x.keyring));
+ const tbody=document.querySelector('#rows');
+ const q=document.querySelector('#q');
+
+ function draw(){
+   const text=(q.value||'').toLowerCase();
+   const shown=items
+     .filter(x=>`${x.sku} ${x.name}`.toLowerCase().includes(text))
+     .sort((a,b)=>Number(isOnSale(s,b.sku))-Number(isOnSale(s,a.sku))||a.name.localeCompare(b.name));
+
+   tbody.innerHTML=shown.map(x=>{
+     const b=stock(s,x.sku,'boat');
+     const c=stock(s,x.sku,'cornwall');
+     const bt=getTarget(s,x.sku,'boat');
+     const ct=getTarget(s,x.sku,'cornwall');
+     const need=needed(s,x.sku,'boat')+needed(s,x.sku,'cornwall');
+     const sale=isOnSale(s,x.sku);
+
+     return `<tr class="pal-inventory-card ${sale?'on-sale-row':''}">
+       <td class="pal-product" data-label="Pal"><div class="product-name">${esc(x.name)}</div><span class="sku">${x.sku}</span></td>
+       <td data-label="On Sale">${sale?badge('ON SALE','ok'):badge('NOT ON SALE','')}</td>
+       <td data-label="Recipe">${x.recipe_ready?badge('Recipe ready','ok'):badge('No recipe','warning')}</td>
+       <td class="stock-cell" data-label="Boat Stock"><strong>${b}</strong></td>
+       <td class="target-cell" data-label="Boat Target"><input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}"></td>
+       <td class="stock-cell" data-label="Cornwall Stock"><strong>${c}</strong></td>
+       <td class="target-cell" data-label="Cornwall Target"><input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}"></td>
+       <td class="need-cell" data-label="Need"><strong>${need}</strong></td>
+     </tr>`;
+   }).join('');
+
+   document.querySelectorAll('.t').forEach(el=>el.onchange=async()=>{
+     const sku=el.dataset.sku;
+     const loc=el.dataset.loc;
+     const qty=Math.max(0,Number(el.value||0));
+     const previous=getTarget(s,sku,loc);
+
+     el.disabled=true;
      try{
        await cloudFetch(`/targets/${encodeURIComponent(sku)}/${encodeURIComponent(loc)}`,{
-         method:'PUT',headers:{'Content-Type':'application/json'},
+         method:'PUT',
+         headers:{'Content-Type':'application/json'},
          body:JSON.stringify({target_qty:qty})
        });
+       s.targets[targetKey(sku,loc)]=qty;
+       draw();
      }catch(e){
-       alert(`Target saved locally, but cloud update failed: ${e.message}`);
+       s.targets[targetKey(sku,loc)]=previous;
+       alert(`Cloud target update failed: ${e.message}`);
+       draw();
      }
-   }
- })}
- q.oninput=draw;draw()
+   });
+ }
+
+ q.oninput=draw;
+ draw();
+
+ // Keep stock and targets live while the page is open.
+ await startForgeLiveSync(async fresh=>{
+   s=fresh;
+   draw();
+ });
 }
 async function recipes(){
  await syncCloudCoreState();
@@ -860,15 +908,18 @@ async function buildPlatePlanner(){
  function drawChecklist(){
    const searchText=(checklistSearch?.value||'').trim().toLowerCase();
    const rows=rowData().filter(x=>!searchText||`${x.p.name} ${x.r.sku} ${x.r.parts} ${x.r.filament}`.toLowerCase().includes(searchText));
-   checklist.innerHTML=rows.length?rows.map((x,idx)=>`<tr class="${x.remain===0?'dimrow':''}">
-     <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.r.sku}</span></td>
-     <td>${esc(x.r.parts)}</td>
-     <td>${Number(x.r.weight_g||0).toFixed(2).replace(/\.00$/,'')}g</td>
-     <td>${x.demand}</td><td>${x.inv}</td><td>${x.allocated}</td><td><strong>${x.remain}</strong></td>
-     <td><input class="number addqty" id="qty-${idx}" min="1" type="number" value="${Math.max(1,Math.min(x.remain||1,5))}"></td>
-     <td><button class="btn secondary addgroup" data-row="${idx}">Add</button></td>
-     <td><button class="btn ghost addextra" data-row="${idx}">+ Extra</button></td>
-     <td>${x.recoveryFiles.length?`<button class="btn ghost exactpart" data-row="${idx}">Exact Part</button>`:'<span class="small muted">—</span>'}</td>
+   checklist.innerHTML=rows.length?rows.map((x,idx)=>`<tr class="build-check-card ${x.remain===0?'dimrow':''}">
+     <td class="build-pal" data-label="Pal"><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.r.sku}</span></td>
+     <td class="build-group" data-label="Colour Group">${esc(x.r.parts)}</td>
+     <td data-label="Weight">${Number(x.r.weight_g||0).toFixed(2).replace(/\.00$/,'')}g</td>
+     <td data-label="Demand">${x.demand}</td>
+     <td data-label="Printed">${x.inv}</td>
+     <td data-label="On Plates">${x.allocated}</td>
+     <td class="build-remaining" data-label="Remaining"><strong>${x.remain}</strong></td>
+     <td class="build-qty" data-label="Qty"><input class="number addqty" id="qty-${idx}" min="1" type="number" value="${Math.max(1,Math.min(x.remain||1,5))}"></td>
+     <td class="build-action build-action-add"><button class="btn secondary addgroup" data-row="${idx}">Add Required</button></td>
+     <td class="build-action"><button class="btn ghost addextra" data-row="${idx}">+ Extra Set</button></td>
+     <td class="build-action">${x.recoveryFiles.length?`<button class="btn ghost exactpart" data-row="${idx}">Exact Part</button>`:'<span class="small muted">No exact parts</span>'}</td>
    </tr>${x.recoveryFiles.length?`<tr class="exact-row" id="exact-${idx}" style="display:none"><td colspan="11"><div class="exact-part-panel">
        <div><strong>${esc(x.p.name)} — exact part</strong><div class="small">${esc(String(x.r.filament||'').trim())}</div></div>
        <select id="exact-file-${idx}" class="select">${x.recoveryFiles.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select>
@@ -886,7 +937,7 @@ async function buildPlatePlanner(){
    });
    document.querySelectorAll('.exactpart').forEach(btn=>btn.onclick=()=>{
      const row=document.querySelector('#exact-'+btn.dataset.row);
-     if(row) row.style.display=row.style.display==='none'?'table-row':'none';
+     if(row) row.style.display=row.style.display==='none'?'block':'none';
    });
    document.querySelectorAll('.addexact').forEach(btn=>btn.onclick=()=>{
      const idx=Number(btn.dataset.row),x=rows[idx];
@@ -3309,7 +3360,7 @@ async function employeeAdminPage(){
 })();
 
 document.addEventListener('visibilitychange',async()=>{
- if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html'].includes(forgeCurrentPage())){
+ if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html'].includes(forgeCurrentPage())){
    const stamp=await forgeCloudStamp();
    if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
      // interval will pick this up immediately on its next tick
