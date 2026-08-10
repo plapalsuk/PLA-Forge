@@ -1,7 +1,7 @@
 
 const STORE='plaForgeV02';
 
-const RESET_RELEASE='0.8.0';
+const RESET_RELEASE='0.9.8';
 function blankOperationalState(){
  return {
    stock:{},
@@ -49,13 +49,19 @@ function blankOperationalState(){
 function ensureCleanResetRelease(){
  try{
    const raw=localStorage.getItem(STORE);
-   const current=raw?JSON.parse(raw):null;
-   if(!current || current.resetRelease!==RESET_RELEASE){
+   if(!raw){
      localStorage.setItem(STORE,JSON.stringify(blankOperationalState()));
      localStorage.setItem('plaForgeLastReset',new Date().toISOString());
+   }else{
+     const current=JSON.parse(raw);
+     if(current && current.resetRelease!==RESET_RELEASE){
+       current.resetRelease=RESET_RELEASE;
+       localStorage.setItem(STORE,JSON.stringify(current));
+     }
    }
  }catch(e){
-   localStorage.setItem(STORE,JSON.stringify(blankOperationalState()));
+   // Do not automatically wipe an existing browser store because of a version change.
+   console.error('Forge local state could not be read safely:',e);
  }
 }
 ensureCleanResetRelease();
@@ -2386,11 +2392,33 @@ async function deliveriesPage(){
 }
 
 function resetForgeData(){
- if(!confirm('Reset ALL PLA Forge operational data to zero? This cannot be undone.'))return;
- if(!confirm('This will clear stock, targets, print data, assembly, inserts, consumables, packing and dispatch. Continue?'))return;
- localStorage.setItem(STORE,JSON.stringify(blankOperationalState()));
+ if(!confirm('Reset Forge operational data to zero? Your cloud catalogue, recipes, employee accounts, permissions and master configuration will be kept.'))return;
+ if(!confirm('This will permanently clear LOCAL production queues, build plates, print history, parts, assembly, inserts, packing, dispatch, rework, stock counts and consumable quantities on this browser. Continue?'))return;
+
+ const current=state();
+ const clean=blankOperationalState();
+
+ // Preserve local master/configuration data. Cloudflare D1 itself is never deleted by this reset.
+ clean.targets=current.targets||{};
+ clean.printers=current.printers||[];
+ clean.printerRoles=current.printerRoles||{};
+ clean.siteSettings=current.siteSettings||clean.siteSettings;
+ clean.productAvailability=current.productAvailability||{};
+ clean.customData=current.customData||clean.customData;
+ clean.shopifyProducts=current.shopifyProducts||{};
+ clean.cloudCore=current.cloudCore||current.cloudCore;
+
+ // Preserve consumable definitions/reorder levels, but zero physical stock.
+ if(current.consumables){
+   clean.consumables={};
+   Object.entries(current.consumables).forEach(([key,item])=>{
+     clean.consumables[key]={...item,stock:0};
+   });
+ }
+
+ localStorage.setItem(STORE,JSON.stringify(clean));
  localStorage.setItem('plaForgeLastReset',new Date().toISOString());
- alert('PLA Forge has been reset to a clean zero state.');
+ alert('Operational browser data has been reset to zero. Cloudflare D1, employee accounts, permissions and master data were not deleted.');
  window.location.href='index.html';
 }
 

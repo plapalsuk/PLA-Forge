@@ -949,3 +949,36 @@ Now:
 - Packing users never briefly see other Forge tabs
 - Admin navigation appears normally after authentication
 - no Worker, SQL, database or permission changes are required
+
+
+### v0.9.8 — Safe Operational Reset
+
+`Reset Everything to Zero` is now a controlled browser operational reset.
+
+Cleared locally:
+- stock quantities
+- printed parts
+- saved/current build plates
+- print history and failed parts
+- assembled inventory/history
+- box/insert production and history
+- consumable physical stock quantities
+- packing jobs/history
+- finished Boat/Cornwall inventory
+- dispatch queues/transfers
+- damage/rework jobs/history
+- production planner/production quantities
+
+Preserved:
+- Cloudflare D1 data
+- employee accounts and permissions
+- cloud catalogue and recipes
+- production targets
+- printers and printer roles
+- site/API/Shopify settings
+- product availability configuration
+- locally cached/custom master catalogue data
+- Shopify product mappings
+- consumable names/reorder levels
+
+Also removed the old behaviour where changing Forge's reset-release version could automatically replace the entire local state.
