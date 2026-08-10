@@ -1,0 +1,56 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rework | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=087"></head><body><div class="app"><aside class="sidebar">
+ <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
+ <nav class="nav">
+  <div class="navgroup">Forge Control</div>
+  <a href="index.html">⌂ Dashboard</a>
+  <div class="navgroup">Inventory</div>
+  <a href="pals.html">◆ Pals</a><a href="keyrings.html">◇ Keyrings</a><a href="stickers.html">▣ Sticker Sheets</a>
+  <div class="navgroup">The Workshop</div>
+  <a href="production.html">⚙ Production Planner</a><a href="recipes.html">⌘ Recipes</a><a href="plates.html">▱ Build Plates</a><a href="parts.html">◫ Printed Parts</a><a href="assembly.html">⌁ The Bench</a><a href="rework.html">↻ Rework</a>
+  <div class="navgroup">Packing & Dispatch</div>
+  <a href="packaging.html">□ Insert Production</a><a href="packing-station.html">▣ Packing Station</a><a href="deliveries.html">⇢ Dispatch</a>
+  <div class="navgroup">Materials</div>
+  <a href="filament.html">≋ Filament</a><a href="consumables.html">▤ Consumables</a>
+  <div class="navgroup">Administration</div>
+  <a href="data-health.html">! Data Health</a><a href="settings.html">⚙ Settings</a>
+ </nav>
+</aside><main class="bench-main">
+<div class="topbar">
+ <div class="pageTitle"><h1>Rework</h1><div class="small">Manage damage, repairs and replacement work from Cornwall delivery checks.</div></div>
+ <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Find the fault. Replace only what is needed.</div></div></div>
+</div>
+
+<div class="grid kpis four">
+ <div class="card kpi"><div class="label">Active Rework</div><div class="value accent" id="reworkActiveKpi">0</div><div class="small">open damage jobs</div></div>
+ <div class="card kpi"><div class="label">Ready</div><div class="value" id="reworkReadyKpi">0</div><div class="small">all required components available</div></div>
+ <div class="card kpi"><div class="label">Waiting</div><div class="value" id="reworkWaitingKpi">0</div><div class="small">waiting for production or materials</div></div>
+ <div class="card kpi"><div class="label">Completed</div><div class="value" id="reworkCompleteKpi">0</div><div class="small">rework history</div></div>
+</div>
+
+<div class="toolbar bench-toolbar" style="margin-top:14px">
+ <input id="q" class="search" placeholder="Search Pal, SKU or issue">
+</div>
+
+<div class="card">
+ <div class="section-title">
+  <div><h2>Active Rework</h2><div class="small">Every damaged physical item is tracked as one job with its exact replacement requirements.</div></div>
+  <span class="badge warning">Live Queue</span>
+ </div>
+ <div id="activeRework" class="rework-list"></div>
+</div>
+
+<div class="card" style="margin-top:14px">
+ <div class="section-title">
+  <div><h2>Rework History</h2><div class="small">Completed repairs and replacements returned to usable Cornwall inventory.</div></div>
+  <span class="badge ok">Complete</span>
+ </div>
+ <div style="overflow:auto">
+  <table>
+   <thead><tr><th>Date</th><th>Pal</th><th>Rework</th><th>Qty</th></tr></thead>
+   <tbody id="reworkHistory"></tbody>
+  </table>
+ </div>
+</div>
+
+<div class="footer-note">PLA Forge v0.8.7 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=087"></script><script>reworkPage()</script></body></html>

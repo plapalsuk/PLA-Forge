@@ -393,3 +393,28 @@ Production Planner and Packing Station Damage Rework have been updated to unders
 
 Older v0.8.4 / v0.8.5 damage jobs remain supported.
 Existing operational data is preserved and no reset is triggered.
+
+
+## v0.8.7 — Dedicated Rework Centre
+
+- Added a dedicated `Rework` page to the PLA Forge sidebar.
+- Rework is now a first-class workflow instead of being managed only inside Packing Station.
+- Active Rework shows:
+  - Pal / SKU
+  - Damaged item number
+  - Reported fault(s)
+  - Exact rework route
+  - Required components and current availability
+  - Ready / Waiting state
+- Rework KPIs show:
+  - Active jobs
+  - Ready jobs
+  - Waiting jobs
+  - Completed jobs
+- Rework can be completed directly from the new page once all required replacement stock is available.
+- Completing Rework:
+  - consumes only the replacement components actually required
+  - returns the repaired/replaced Pal into Cornwall usable inventory
+  - records the completion in Rework History
+- Packing Station keeps its quick Damage Rework view and now links to the full Rework page.
+- Existing v0.8.x data is preserved; no reset is triggered.

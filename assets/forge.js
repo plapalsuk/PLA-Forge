@@ -30,6 +30,7 @@ function blankOperationalState(){
    transfers:[],
    damageHistory:[],
    damageReworkJobs:[],
+   reworkHistory:[],
    damageInsertDemand:{},
    production:{},
    productionPlan:{},
@@ -1167,16 +1168,9 @@ async function packingStationPage(){
    }).join(''):'<div class="bench-empty">No damaged Cornwall stock is awaiting rework.</div>';
 
    document.querySelectorAll('.completeDamageRework').forEach(btn=>btn.onclick=()=>{
-     const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);if(!job||!reworkReady(job))return;
-     const r=reworkRequirements(job);
-     if(r.clear_boxes)s.consumables.clear_boxes.stock=Math.max(0,cs('clear_boxes')-r.clear_boxes);
-     if(r.bottom_cards)s.consumables.bottom_cards.stock=Math.max(0,cs('bottom_cards')-r.bottom_cards);
-     if(r.stickers)s.consumables.stickers.stock=Math.max(0,cs('stickers')-r.stickers);
-     if(r.inserts)s.inserts[job.sku].ready=Math.max(0,ins(job.sku)-r.inserts);
-     if(r.pals)setAssembled(job.sku,assembled(job.sku)-r.pals);
-     addForgeInventory(s,job.sku,'cornwall',job.qty);
-     job.status='complete';job.completed_at=new Date().toISOString();
-     save(s);render();
+     const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);if(!job)return;
+     if(!completeDamageReworkJob(s,job))return;
+     render();
    });
  }
 
@@ -1272,6 +1266,74 @@ function addForgeInventory(s,sku,loc,qty){
  s.finishedStock=s.finishedStock||{boat:{},cornwall:{}};
  s.finishedStock[loc]=s.finishedStock[loc]||{};
  s.finishedStock[loc][sku]=Number(s.finishedStock[loc][sku]||0)+qty;
+}
+
+
+function damageReworkRequirements(job){
+ if(job.type==='item'){
+   const q=Number(job.qty||1),req=job.requirements||{};
+   return {
+     clear_boxes:req.box?q:0,
+     inserts:req.insert?q:0,
+     pals:req.pal?q:0,
+     bottom_cards:req.writeoff?q:0,
+     stickers:req.writeoff?q:0,
+     label:req.writeoff?'Complete replacement':[
+       req.box?'Replace box':'',
+       req.insert?'Replace insert':'',
+       req.pal?'Replace Pal':''
+     ].filter(Boolean).join(' + ')
+   };
+ }
+ if(job.type==='box')return {clear_boxes:job.qty,inserts:0,pals:0,bottom_cards:0,stickers:0,label:'Replace damaged box'};
+ if(job.type==='insert')return {clear_boxes:0,inserts:job.qty,pals:0,bottom_cards:0,stickers:0,label:'Replace damaged insert'};
+ if(job.type==='pal')return {clear_boxes:0,inserts:0,pals:job.qty,bottom_cards:0,stickers:0,label:'Replace broken Pal'};
+ return {clear_boxes:job.qty,inserts:job.qty,pals:job.qty,bottom_cards:job.qty,stickers:job.qty,label:'Complete replacement'};
+}
+function forgeAssembledQty(s,sku){
+ if(s.assembled&&s.assembled[sku]!=null)return Number(s.assembled[sku]||0);
+ if(s.assemblyStock&&s.assemblyStock[sku]!=null)return Number(s.assemblyStock[sku]||0);
+ if(s.benchStock&&s.benchStock[sku]!=null)return Number(s.benchStock[sku]||0);
+ return 0;
+}
+function setForgeAssembledQty(s,sku,v){
+ v=Math.max(0,Number(v||0));
+ if(s.assembled&&s.assembled[sku]!=null)s.assembled[sku]=v;
+ else if(s.assemblyStock&&s.assemblyStock[sku]!=null)s.assemblyStock[sku]=v;
+ else if(s.benchStock&&s.benchStock[sku]!=null)s.benchStock[sku]=v;
+ else{s.assembled=s.assembled||{};s.assembled[sku]=v}
+}
+function forgeInsertReady(s,sku){return Number(s.inserts?.[sku]?.ready||0)}
+function forgeConsumableStock(s,key){return Number(s.consumables?.[key]?.stock||0)}
+function damageReworkReady(s,job){
+ const r=damageReworkRequirements(job);
+ return forgeConsumableStock(s,'clear_boxes')>=r.clear_boxes &&
+        forgeConsumableStock(s,'bottom_cards')>=r.bottom_cards &&
+        forgeConsumableStock(s,'stickers')>=r.stickers &&
+        forgeInsertReady(s,job.sku)>=r.inserts &&
+        forgeAssembledQty(s,job.sku)>=r.pals;
+}
+function completeDamageReworkJob(s,job){
+ if(!job||job.status!=='awaiting_rework'||!damageReworkReady(s,job))return false;
+ const r=damageReworkRequirements(job);
+ if(r.clear_boxes)s.consumables.clear_boxes.stock=Math.max(0,forgeConsumableStock(s,'clear_boxes')-r.clear_boxes);
+ if(r.bottom_cards)s.consumables.bottom_cards.stock=Math.max(0,forgeConsumableStock(s,'bottom_cards')-r.bottom_cards);
+ if(r.stickers)s.consumables.stickers.stock=Math.max(0,forgeConsumableStock(s,'stickers')-r.stickers);
+ if(r.inserts){
+   s.inserts[job.sku]=s.inserts[job.sku]||{awaiting_cut:0,ready:0};
+   s.inserts[job.sku].ready=Math.max(0,forgeInsertReady(s,job.sku)-r.inserts);
+ }
+ if(r.pals)setForgeAssembledQty(s,job.sku,forgeAssembledQty(s,job.sku)-r.pals);
+ addForgeInventory(s,job.sku,'cornwall',Number(job.qty||1));
+ job.status='complete';
+ job.completed_at=new Date().toISOString();
+ s.reworkHistory=s.reworkHistory||[];
+ s.reworkHistory.push({
+   id:makeId(),job_id:job.id,sku:job.sku,name:job.name,qty:Number(job.qty||1),
+   label:r.label,created_at:job.completed_at
+ });
+ save(s);
+ return true;
 }
 
 function recoverAwaitingDispatch(s){
@@ -1630,4 +1692,98 @@ function resetForgeData(){
  localStorage.setItem('plaForgeLastReset',new Date().toISOString());
  alert('PLA Forge has been reset to a clean zero state.');
  window.location.href='index.html';
+}
+
+
+async function reworkPage(){
+ const s=state();
+ const q=document.querySelector('#q');
+ const activeList=document.querySelector('#activeRework');
+ const historyList=document.querySelector('#reworkHistory');
+ const activeKpi=document.querySelector('#reworkActiveKpi');
+ const readyKpi=document.querySelector('#reworkReadyKpi');
+ const waitKpi=document.querySelector('#reworkWaitingKpi');
+ const completeKpi=document.querySelector('#reworkCompleteKpi');
+
+ function issueSummary(job){
+   if(job.type!=='item'){
+     const m={box:'Box Damaged',insert:'Insert Damaged',pal:'Pal Broken',writeoff:'Complete Write Off'};
+     return m[job.type]||job.type;
+   }
+   const r=job.requirements||{};
+   if(r.writeoff)return 'Complete Write Off';
+   return [r.box?'Box Damaged':'',r.insert?'Insert Damaged':'',r.pal?'Pal Broken':''].filter(Boolean).join(' + ');
+ }
+ function requirementPills(job){
+   const r=damageReworkRequirements(job);
+   const pills=[];
+   if(r.clear_boxes)pills.push({label:`Clear Box ${forgeConsumableStock(s,'clear_boxes')} / ${r.clear_boxes}`,ok:forgeConsumableStock(s,'clear_boxes')>=r.clear_boxes});
+   if(r.inserts)pills.push({label:`Ready Insert ${forgeInsertReady(s,job.sku)} / ${r.inserts}`,ok:forgeInsertReady(s,job.sku)>=r.inserts});
+   if(r.pals)pills.push({label:`Assembled Pal ${forgeAssembledQty(s,job.sku)} / ${r.pals}`,ok:forgeAssembledQty(s,job.sku)>=r.pals});
+   if(r.bottom_cards)pills.push({label:`Bottom Card ${forgeConsumableStock(s,'bottom_cards')} / ${r.bottom_cards}`,ok:forgeConsumableStock(s,'bottom_cards')>=r.bottom_cards});
+   if(r.stickers)pills.push({label:`Sticker ${forgeConsumableStock(s,'stickers')} / ${r.stickers}`,ok:forgeConsumableStock(s,'stickers')>=r.stickers});
+   return pills.map(x=>`<span class="${x.ok?'stock-good':'stock-bad'}">${esc(x.label)}</span>`).join('');
+ }
+ function waitingReason(job){
+   const r=damageReworkRequirements(job),miss=[];
+   if(r.clear_boxes&&forgeConsumableStock(s,'clear_boxes')<r.clear_boxes)miss.push('clear box');
+   if(r.inserts&&forgeInsertReady(s,job.sku)<r.inserts)miss.push('ready insert');
+   if(r.pals&&forgeAssembledQty(s,job.sku)<r.pals)miss.push('assembled Pal');
+   if(r.bottom_cards&&forgeConsumableStock(s,'bottom_cards')<r.bottom_cards)miss.push('bottom card');
+   if(r.stickers&&forgeConsumableStock(s,'stickers')<r.stickers)miss.push('sticker');
+   return miss.length?`Waiting for ${miss.join(', ')}`:'Ready to rework';
+ }
+ function draw(){
+   const text=(q.value||'').toLowerCase();
+   const active=(s.damageReworkJobs||[])
+     .filter(x=>x.status==='awaiting_rework')
+     .filter(x=>`${x.name} ${x.sku} ${issueSummary(x)} ${damageReworkRequirements(x).label}`.toLowerCase().includes(text))
+     .sort((a,b)=>Number(damageReworkReady(s,b))-Number(damageReworkReady(s,a))||(a.created_at||'').localeCompare(b.created_at||''));
+
+   const ready=active.filter(x=>damageReworkReady(s,x));
+   const waiting=active.filter(x=>!damageReworkReady(s,x));
+   const hist=(s.reworkHistory||[]).slice().reverse();
+
+   activeKpi.textContent=active.length;
+   readyKpi.textContent=ready.length;
+   waitKpi.textContent=waiting.length;
+   completeKpi.textContent=hist.length;
+
+   activeList.innerHTML=active.length?active.map(job=>{
+     const r=damageReworkRequirements(job),ready=damageReworkReady(s,job);
+     return `<div class="rework-card ${ready?'ready':'waiting'}">
+       <div class="rework-card-head">
+         <div>
+           <strong>${esc(job.name)}</strong>
+           <div class="sku">${job.sku}${job.damaged_item_index?` · Damaged Item ${job.damaged_item_index}`:''}</div>
+           <div class="small">Created ${fmtDate(job.created_at)}</div>
+         </div>
+         ${ready?badge('READY','ok'):badge('WAITING','warning')}
+       </div>
+       <div class="rework-issue"><span>Reported Issue</span><strong>${esc(issueSummary(job))}</strong></div>
+       <div class="rework-route"><span>Rework Route</span><strong>${esc(r.label||'Rework')}</strong></div>
+       <div class="packing-checks">${requirementPills(job)||'<span class="stock-good">No replacement stock required</span>'}</div>
+       <div class="rework-footer">
+         <div class="small">${esc(waitingReason(job))}</div>
+         <button class="btn completeStandaloneRework" data-id="${job.id}" ${ready?'':'disabled'}>Complete Rework</button>
+       </div>
+     </div>`;
+   }).join(''):'<div class="bench-empty">No active rework jobs.</div>';
+
+   historyList.innerHTML=hist.length?hist.slice(0,40).map(h=>`<tr>
+     <td>${fmtDate(h.created_at)}</td>
+     <td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td>
+     <td>${esc(h.label||'Rework')}</td>
+     <td>${h.qty}</td>
+   </tr>`).join(''):'<tr><td colspan="4">No completed rework yet.</td></tr>';
+
+   document.querySelectorAll('.completeStandaloneRework').forEach(btn=>btn.onclick=()=>{
+     const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);
+     if(!job)return;
+     if(!completeDamageReworkJob(s,job)){alert('This rework is not ready yet.');return}
+     draw();
+   });
+ }
+ q.oninput=draw;
+ draw();
 }

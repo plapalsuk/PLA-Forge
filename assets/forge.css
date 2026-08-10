@@ -436,3 +436,16 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .damage-toggle:has(input:disabled){opacity:.45;cursor:not-allowed}
 @media(max-width:950px){.damage-toggle-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.damage-toggle-grid{grid-template-columns:1fr}}
+
+/* v0.8.7 Rework Centre */
+.rework-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.rework-card{background:#11161c;border:1px solid var(--line);border-radius:11px;padding:13px}
+.rework-card.ready{border-color:rgba(67,193,122,.3)}
+.rework-card.waiting{border-color:rgba(244,185,66,.25)}
+.rework-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.rework-issue,.rework-route{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid #252c34;margin-top:9px;font-size:10px}
+.rework-issue span,.rework-route span{color:var(--muted)}
+.rework-issue strong,.rework-route strong{text-align:right}
+.rework-route strong{color:var(--orange)}
+.rework-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid #252c34;margin-top:10px;padding-top:10px}
+@media(max-width:900px){.rework-list{grid-template-columns:1fr}}
