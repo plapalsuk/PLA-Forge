@@ -1154,3 +1154,25 @@ Pals mobile:
 - Pals stock/targets are hydrated from live D1 state and live-sync while open
 
 The deployment ZIP remains frontend-only with no SQL or Worker files.
+
+
+### v0.10.3 — Dedicated Mobile Grouped Build Plate Checklist
+
+The Build Plate page no longer attempts to reshape the desktop table into mobile cards.
+
+On mobile, every recipe colour group now has a dedicated card showing:
+- Pal + SKU
+- grouped recipe/colour-group description
+- filament and weight per grouped set
+- Demand
+- Printed
+- On Plates
+- Remaining
+- grouped-set quantity
+- Add Grouped Set(s)
+- + Extra Grouped Set
+- Choose Exact Part (secondary/optional)
+
+Exact Part is collapsed by default and explicitly described as the individual-STL option. Grouped printing is now the primary mobile action, matching the desktop workflow.
+
+Desktop Build Plates retain the existing table layout.

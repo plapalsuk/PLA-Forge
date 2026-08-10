@@ -1791,3 +1791,156 @@ body.forge-page-assembly .assembleBtn:disabled{
     padding:10px !important;
   }
 }
+
+/* =========================================================
+   v0.10.3 — Dedicated mobile grouped Build Plate checklist
+   ========================================================= */
+.mobile-build-checklist{display:none}
+
+@media(max-width:780px){
+  body.forge-page-plates .desktop-build-checklist{
+    display:none !important;
+  }
+
+  body.forge-page-plates .mobile-build-checklist{
+    display:block !important;
+    margin-top:14px;
+  }
+
+  body.forge-page-plates .mobile-recipe-card{
+    background:#11171d;
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+    margin-bottom:14px;
+  }
+
+  body.forge-page-plates .mobile-recipe-head{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    align-items:flex-start;
+    padding:14px;
+    border-bottom:1px solid var(--line);
+  }
+
+  body.forge-page-plates .mobile-recipe-head strong{
+    font-size:19px;
+    line-height:1.15;
+  }
+
+  body.forge-page-plates .mobile-recipe-group{
+    display:grid;
+    gap:4px;
+    padding:14px;
+    border-bottom:1px solid var(--line);
+  }
+
+  body.forge-page-plates .mobile-recipe-group > strong{
+    font-size:17px;
+    line-height:1.3;
+  }
+
+  body.forge-page-plates .mobile-label{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    margin-bottom:5px;
+  }
+
+  body.forge-page-plates .mobile-recipe-stats{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    border-bottom:1px solid var(--line);
+  }
+
+  body.forge-page-plates .mobile-recipe-stats > div{
+    padding:12px 14px;
+    border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+  }
+
+  body.forge-page-plates .mobile-recipe-stats > div:nth-child(2n){
+    border-right:0;
+  }
+
+  body.forge-page-plates .mobile-recipe-stats > div:nth-last-child(-n+2){
+    border-bottom:0;
+  }
+
+  body.forge-page-plates .mobile-recipe-stats span{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+    margin-bottom:3px;
+  }
+
+  body.forge-page-plates .mobile-recipe-stats strong{
+    font-size:22px;
+  }
+
+  body.forge-page-plates .mobile-required-action{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+    padding:14px;
+    background:rgba(255,105,0,.045);
+    border-bottom:1px solid var(--line);
+  }
+
+  body.forge-page-plates .mobile-required-action input{
+    width:100% !important;
+    max-width:none !important;
+  }
+
+  body.forge-page-plates .mobile-required-action .btn{
+    width:100% !important;
+    min-height:52px !important;
+    background:var(--accent) !important;
+    color:#fff !important;
+    font-weight:800;
+  }
+
+  body.forge-page-plates .mobile-secondary-actions{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+    padding:12px 14px;
+  }
+
+  body.forge-page-plates .mobile-secondary-actions .btn{
+    width:100% !important;
+  }
+
+  body.forge-page-plates .mobile-exact-panel{
+    margin:0 14px 14px;
+    padding:14px;
+    display:grid;
+    gap:10px;
+    border:1px solid rgba(255,105,0,.42);
+    border-radius:12px;
+    background:#1a1512;
+  }
+
+  body.forge-page-plates .mobile-exact-panel[hidden]{
+    display:none !important;
+  }
+
+  body.forge-page-plates .mobile-exact-title{
+    display:grid;
+    gap:4px;
+  }
+
+  body.forge-page-plates .mobile-exact-panel select,
+  body.forge-page-plates .mobile-exact-panel input,
+  body.forge-page-plates .mobile-exact-panel .btn{
+    width:100% !important;
+    max-width:none !important;
+  }
+
+  body.forge-page-plates .mobile-recipe-card.dimrow{
+    opacity:.58;
+  }
+}

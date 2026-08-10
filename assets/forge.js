@@ -818,6 +818,7 @@ async function buildPlatePlanner(){
  const printerEl=document.querySelector('#platePrinter');
  const nameEl=document.querySelector('#plateName');
  const checklist=document.querySelector('#plateChecklist');
+ const checklistMobile=document.querySelector('#plateChecklistMobile');
  const current=document.querySelector('#currentPlateItems');
  const platesList=document.querySelector('#platesList');
  const currentTotal=document.querySelector('#currentPlateTotal');
@@ -908,41 +909,110 @@ async function buildPlatePlanner(){
  function drawChecklist(){
    const searchText=(checklistSearch?.value||'').trim().toLowerCase();
    const rows=rowData().filter(x=>!searchText||`${x.p.name} ${x.r.sku} ${x.r.parts} ${x.r.filament}`.toLowerCase().includes(searchText));
-   checklist.innerHTML=rows.length?rows.map((x,idx)=>`<tr class="build-check-card ${x.remain===0?'dimrow':''}">
-     <td class="build-pal" data-label="Pal"><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.r.sku}</span></td>
-     <td class="build-group" data-label="Colour Group">${esc(x.r.parts)}</td>
-     <td data-label="Weight">${Number(x.r.weight_g||0).toFixed(2).replace(/\.00$/,'')}g</td>
-     <td data-label="Demand">${x.demand}</td>
-     <td data-label="Printed">${x.inv}</td>
-     <td data-label="On Plates">${x.allocated}</td>
-     <td class="build-remaining" data-label="Remaining"><strong>${x.remain}</strong></td>
-     <td class="build-qty" data-label="Qty"><input class="number addqty" id="qty-${idx}" min="1" type="number" value="${Math.max(1,Math.min(x.remain||1,5))}"></td>
-     <td class="build-action build-action-add"><button class="btn secondary addgroup" data-row="${idx}">Add Required</button></td>
-     <td class="build-action"><button class="btn ghost addextra" data-row="${idx}">+ Extra Set</button></td>
-     <td class="build-action">${x.recoveryFiles.length?`<button class="btn ghost exactpart" data-row="${idx}">Exact Part</button>`:'<span class="small muted">No exact parts</span>'}</td>
-   </tr>${x.recoveryFiles.length?`<tr class="exact-row" id="exact-${idx}" style="display:none"><td colspan="11"><div class="exact-part-panel">
-       <div><strong>${esc(x.p.name)} — exact part</strong><div class="small">${esc(String(x.r.filament||'').trim())}</div></div>
-       <select id="exact-file-${idx}" class="select">${x.recoveryFiles.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select>
-       <label class="small">Qty <input id="exact-qty-${idx}" class="number" type="number" min="1" value="1"></label>
-       <button class="btn addexact" data-row="${idx}">Add Exact Part</button>
-     </div></td></tr>`:''}`).join(''):`<tr><td colspan=\"11\" class=\"muted\" style=\"padding:24px\">${searchText?'No checklist rows match your search.':`No recipe rows found for ${esc(plateDraft.colour)}.`}</td></tr>`;
 
-   document.querySelectorAll('.addgroup').forEach(btn=>btn.onclick=()=>{
+   // Desktop keeps the compact spreadsheet/table view.
+   checklist.innerHTML=rows.length?rows.map((x,idx)=>`<tr class="${x.remain===0?'dimrow':''}">
+     <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.r.sku}</span></td>
+     <td>${esc(x.r.parts)}</td>
+     <td>${Number(x.r.weight_g||0).toFixed(2).replace(/\.00$/,'')}g</td>
+     <td>${x.demand}</td><td>${x.inv}</td><td>${x.allocated}</td><td><strong>${x.remain}</strong></td>
+     <td><input class="number addqty desktop-addqty" id="desktop-qty-${idx}" min="1" type="number" value="${Math.max(1,Math.min(x.remain||1,5))}"></td>
+     <td><button class="btn secondary desktop-addgroup" data-row="${idx}">Add Required</button></td>
+     <td><button class="btn ghost desktop-addextra" data-row="${idx}">+ Extra</button></td>
+     <td>${x.recoveryFiles.length?`<button class="btn ghost desktop-exactpart" data-row="${idx}">Exact Part</button>`:'<span class="small muted">—</span>'}</td>
+   </tr>${x.recoveryFiles.length?`<tr class="exact-row desktop-exact-row" id="desktop-exact-${idx}" style="display:none"><td colspan="11"><div class="exact-part-panel">
+       <div><strong>${esc(x.p.name)} — exact part</strong><div class="small">${esc(String(x.r.filament||'').trim())}</div></div>
+       <select id="desktop-exact-file-${idx}" class="select">${x.recoveryFiles.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select>
+       <label class="small">Qty <input id="desktop-exact-qty-${idx}" class="number" type="number" min="1" value="1"></label>
+       <button class="btn desktop-addexact" data-row="${idx}">Add Exact Part</button>
+     </div></td></tr>`:''}`).join(''):`<tr><td colspan="11" class="muted" style="padding:24px">${searchText?'No checklist rows match your search.':`No recipe rows found for ${esc(plateDraft.colour)}.`}</td></tr>`;
+
+   // Mobile gets its own grouped-recipe cards instead of trying to reshape table rows.
+   if(checklistMobile){
+     checklistMobile.innerHTML=rows.length?rows.map((x,idx)=>`
+       <article class="mobile-recipe-card ${x.remain===0?'dimrow':''}">
+         <div class="mobile-recipe-head">
+           <div>
+             <strong>${esc(x.p.name)}</strong>
+             <div class="sku">${x.r.sku}</div>
+           </div>
+           ${x.remain>0?badge(`${x.remain} Remaining`,'warning'):badge('Covered','ok')}
+         </div>
+
+         <div class="mobile-recipe-group">
+           <span class="mobile-label">Colour Group</span>
+           <strong>${esc(x.r.parts)}</strong>
+           <span class="small">${esc(String(x.r.filament||'').trim())} · ${Number(x.r.weight_g||0).toFixed(2).replace(/\.00$/,'')}g per set</span>
+         </div>
+
+         <div class="mobile-recipe-stats">
+           <div><span>Demand</span><strong>${x.demand}</strong></div>
+           <div><span>Printed</span><strong>${x.inv}</strong></div>
+           <div><span>On Plates</span><strong>${x.allocated}</strong></div>
+           <div><span>Remaining</span><strong>${x.remain}</strong></div>
+         </div>
+
+         <div class="mobile-required-action">
+           <label>
+             <span class="mobile-label">Grouped Sets Qty</span>
+             <input class="number mobile-addqty" id="mobile-qty-${idx}" min="1" type="number" value="${Math.max(1,Math.min(x.remain||1,5))}">
+           </label>
+           <button class="btn mobile-addgroup" data-row="${idx}">Add Grouped Set${x.remain===1?'':'s'}</button>
+         </div>
+
+         <div class="mobile-secondary-actions">
+           <button class="btn ghost mobile-addextra" data-row="${idx}">+ Extra Grouped Set</button>
+           ${x.recoveryFiles.length?`<button class="btn ghost mobile-exactpart" data-row="${idx}">Choose Exact Part</button>`:''}
+         </div>
+
+         ${x.recoveryFiles.length?`<div class="mobile-exact-panel" id="mobile-exact-${idx}" hidden>
+           <div class="mobile-exact-title"><strong>Exact Part</strong><span class="small">Use only when you need an individual STL rather than the full grouped set.</span></div>
+           <select id="mobile-exact-file-${idx}" class="select">${x.recoveryFiles.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select>
+           <label><span class="mobile-label">Qty</span><input id="mobile-exact-qty-${idx}" class="number" type="number" min="1" value="1"></label>
+           <button class="btn mobile-addexact" data-row="${idx}">Add Exact Part</button>
+         </div>`:''}
+       </article>`).join('')
+       :`<div class="empty-state">${searchText?'No checklist rows match your search.':`No recipe rows found for ${esc(plateDraft.colour)}.`}</div>`;
+   }
+
+   document.querySelectorAll('.desktop-addgroup').forEach(btn=>btn.onclick=()=>{
      const idx=Number(btn.dataset.row),x=rows[idx];
-     const qty=Math.max(1,Number(document.querySelector('#qty-'+idx)?.value||1));
+     const qty=Math.max(1,Number(document.querySelector('#desktop-qty-'+idx)?.value||1));
      addGrouped(x,qty,'group'); drawAll();
    });
-   document.querySelectorAll('.addextra').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.desktop-addextra').forEach(btn=>btn.onclick=()=>{
      const x=rows[Number(btn.dataset.row)]; addGrouped(x,1,'extra'); drawAll();
    });
-   document.querySelectorAll('.exactpart').forEach(btn=>btn.onclick=()=>{
-     const row=document.querySelector('#exact-'+btn.dataset.row);
-     if(row) row.style.display=row.style.display==='none'?'block':'none';
+   document.querySelectorAll('.desktop-exactpart').forEach(btn=>btn.onclick=()=>{
+     const row=document.querySelector('#desktop-exact-'+btn.dataset.row);
+     if(row)row.style.display=row.style.display==='none'?'table-row':'none';
    });
-   document.querySelectorAll('.addexact').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.desktop-addexact').forEach(btn=>btn.onclick=()=>{
      const idx=Number(btn.dataset.row),x=rows[idx];
-     const file=document.querySelector('#exact-file-'+idx)?.value;
-     const qty=Math.max(1,Number(document.querySelector('#exact-qty-'+idx)?.value||1));
+     const file=document.querySelector('#desktop-exact-file-'+idx)?.value;
+     const qty=Math.max(1,Number(document.querySelector('#desktop-exact-qty-'+idx)?.value||1));
+     if(!file)return;
+     plateDraft.items.push({id:makeId(),kind:'recovery',sku:x.r.sku,product_name:x.p.name,
+       filament:String(x.r.filament||'').trim(),label:file,file,inventory_key:recoveryKey(x.r.sku,file),qty,weight_each:0,exact_part:true});
+     drawAll();
+   });
+
+   document.querySelectorAll('.mobile-addgroup').forEach(btn=>btn.onclick=()=>{
+     const idx=Number(btn.dataset.row),x=rows[idx];
+     const qty=Math.max(1,Number(document.querySelector('#mobile-qty-'+idx)?.value||1));
+     addGrouped(x,qty,'group'); drawAll();
+   });
+   document.querySelectorAll('.mobile-addextra').forEach(btn=>btn.onclick=()=>{
+     const x=rows[Number(btn.dataset.row)]; addGrouped(x,1,'extra'); drawAll();
+   });
+   document.querySelectorAll('.mobile-exactpart').forEach(btn=>btn.onclick=()=>{
+     const panel=document.querySelector('#mobile-exact-'+btn.dataset.row);
+     if(panel)panel.hidden=!panel.hidden;
+   });
+   document.querySelectorAll('.mobile-addexact').forEach(btn=>btn.onclick=()=>{
+     const idx=Number(btn.dataset.row),x=rows[idx];
+     const file=document.querySelector('#mobile-exact-file-'+idx)?.value;
+     const qty=Math.max(1,Number(document.querySelector('#mobile-exact-qty-'+idx)?.value||1));
      if(!file)return;
      plateDraft.items.push({id:makeId(),kind:'recovery',sku:x.r.sku,product_name:x.p.name,
        filament:String(x.r.filament||'').trim(),label:file,file,inventory_key:recoveryKey(x.r.sku,file),qty,weight_each:0,exact_part:true});
