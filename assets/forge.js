@@ -2947,3 +2947,9 @@ async function employeeAdminPage(){
  }
  await loadUsers();
 }
+
+
+(function(){
+ const page=(location.pathname.split('/').pop()||'index.html').replace('.html','').replace(/[^a-z0-9_-]/gi,'-');
+ document.body.classList.add('forge-page-'+page);
+})();

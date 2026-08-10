@@ -880,3 +880,44 @@ Retail Staff no longer see factory dispatch controls on the Deliveries page. The
 - Rework controls stack vertically for easier one-handed use.
 - Login screen has improved mobile sizing and spacing.
 - No Worker, SQL, stock or permission changes are required.
+
+
+## v0.9.7 — Site-wide Mobile Responsive Pass
+
+The full Forge interface is now responsive, not just Retail Staff pages.
+
+Mobile improvements apply to:
+- Dashboard
+- Pals
+- Keyrings
+- Sticker Sheets
+- Production Planner
+- Recipes
+- Build Plates
+- Printed Parts
+- The Bench
+- Rework
+- Insert Production
+- Packing Station
+- Dispatch / Cornwall Delivery
+- Filament
+- Consumables
+- Settings
+- Data Health
+- New Pal Setup
+- Login
+
+Changes include:
+- sidebar collapses into compact mobile navigation
+- all major grids collapse to one column
+- tables become stacked card-style rows
+- 46px+ touch targets
+- mobile-friendly search/filter toolbars
+- responsive forms and modals
+- no forced horizontal scrolling
+- Build Plate and Packing controls stack cleanly
+- Dispatch/Rework allocations use single-column layouts
+- New Pal recipe/dimension forms collapse safely
+- mobile-specific page classes added for future tuning
+
+No Worker, SQL, stock, permissions or database changes are required.
