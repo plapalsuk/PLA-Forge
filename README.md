@@ -1242,3 +1242,18 @@ Insert Production is now cloud-only and live-synced.
 - Insert Production live-syncs across open devices without manual refresh.
 - Packing Station therefore sees newly ready inserts automatically.
 - No additional Worker or SQL migration is required.
+
+
+### v0.10.9 — On Sale Cloud Sync
+
+Product availability is now fully cloud-backed.
+
+- `On Sale` is read directly from the D1 `products` table during cloud hydration.
+- Pals Inventory now has a clickable `ON SALE / NOT ON SALE` control.
+- Toggling availability calls the existing Worker endpoint:
+  `PUT /products/:sku/availability`
+- Only Admin users can change availability, matching the Worker permission rule.
+- On Sale changes are included in Forge's live-sync signature, so open production pages detect changes automatically.
+- Product availability is never taken from browser localStorage.
+- Insert Production and Packing Station therefore immediately use the same D1 On Sale status.
+- No Worker or D1 migration is required because Worker v3f already supports the availability endpoint and the products table already stores `on_sale`.

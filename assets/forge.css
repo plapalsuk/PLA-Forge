@@ -2203,3 +2203,62 @@ body.forge-page-packaging .completeCut:disabled{
   opacity:.65;
   cursor:wait;
 }
+
+/* =========================================================
+   v0.10.9 — D1 On Sale availability control
+   ========================================================= */
+.availability-toggle{
+  appearance:none !important;
+  -webkit-appearance:none !important;
+  border:1px solid var(--line) !important;
+  background:#151b22 !important;
+  color:var(--muted) !important;
+  min-height:34px !important;
+  padding:7px 9px !important;
+  border-radius:999px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  font-size:10px !important;
+  font-weight:800 !important;
+  letter-spacing:.03em !important;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.availability-toggle .availability-dot{
+  width:8px;
+  height:8px;
+  min-width:8px;
+  border-radius:50%;
+  background:#6f7883;
+}
+.availability-toggle.is-on-sale{
+  border-color:rgba(67,193,122,.40) !important;
+  background:rgba(67,193,122,.10) !important;
+  color:#64db94 !important;
+}
+.availability-toggle.is-on-sale .availability-dot{
+  background:#64db94;
+}
+.availability-toggle.is-off-sale{
+  border-color:#343c46 !important;
+  color:#a8b0ba !important;
+}
+.availability-toggle.saving,
+.availability-toggle:disabled{
+  opacity:.65;
+  cursor:wait;
+}
+
+@media(max-width:780px){
+  body.forge-page-pals .availability-cell{
+    display:flex !important;
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  body.forge-page-pals .availability-toggle{
+    width:100% !important;
+    min-height:42px !important;
+  }
+}
