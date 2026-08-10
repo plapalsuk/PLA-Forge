@@ -148,7 +148,7 @@ window.addEventListener('beforeunload',()=>{
 });
 
 function installForgeCloudSyncBadge(){
- if(!['production.html','plates.html'].includes(forgeCurrentPage()))return;
+ if(!['production.html','plates.html','parts.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
  const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
  const wrap=document.createElement('div');
@@ -1161,12 +1161,105 @@ async function buildPlatePlanner(){
 }
 
 async function printedParts(){
- const s=state(),ps=await load('products'),rs=await load('recipes'),pals=Object.fromEntries(ps.filter(p=>p.type==='pal').map(p=>[p.sku,p])),q=document.querySelector('#q'),body=document.querySelector('#partsRows'),failures=document.querySelector('#failedRows');
- function draw(){const text=(q.value||'').toLowerCase(),rows=[];rs.forEach(r=>{const qty=partQty(s,groupKey(r));if(qty>0)rows.push({kind:'Grouped set',sku:r.sku,name:(pals[r.sku]||{}).name||r.name||r.animal,filament:r.filament,label:r.parts,qty,key:groupKey(r)})});
- Object.entries(s.parts).filter(([k,v])=>k.startsWith('recovery|')&&Number(v)>0).forEach(([k,v])=>{const bits=k.split('|'),sku=bits[1],file=bits.slice(2).join('|'),r=rs.find(x=>x.sku===sku&&(x.separate_stls||'').includes(file));rows.push({kind:'Recovery part',sku,name:(pals[sku]||{}).name||sku,filament:r?.filament||'',label:file,qty:Number(v),key:k})});
- const shown=rows.filter(x=>`${x.name} ${x.sku} ${x.filament} ${x.label}`.toLowerCase().includes(text));body.innerHTML=shown.length?shown.map(x=>`<tr><td><strong>${esc(x.name)}</strong><br><span class="sku">${x.sku}</span></td><td>${badge(x.kind,x.kind==='Grouped set'?'ok':'info')}</td><td>${esc(x.filament)}</td><td>${esc(x.label)}</td><td><strong>${x.qty}</strong></td><td><button class="iconbtn adjust" data-key="${esc(x.key)}" data-d="-1">−</button> <button class="iconbtn adjust" data-key="${esc(x.key)}" data-d="1">+</button></td></tr>`).join(''):`<tr><td colspan="6">No printed-part inventory yet. Complete a build plate to add stock.</td></tr>`;
- document.querySelectorAll('.adjust').forEach(b=>b.onclick=()=>{s.parts[b.dataset.key]=Math.max(0,partQty(s,b.dataset.key)+Number(b.dataset.d));save(s);draw()});failures.innerHTML=s.failedParts.slice().reverse().slice(0,20).map(x=>`<tr><td>${esc(x.plate_code)}</td><td>${esc(x.product_name)}</td><td>${esc(x.filament)}</td><td>${esc(x.label)}</td><td>${x.qty}</td><td>${fmtDate(x.created_at)}</td></tr>`).join('')||'<tr><td colspan="6">No failed parts recorded.</td></tr>'}
- q.oninput=draw;draw()
+ installForgeCloudSyncBadge();
+ if(!forgeProductionCloudReady)await hydrateProductionCloud();
+
+ const ps=await load('products');
+ const rs=await load('recipes');
+ const pals=Object.fromEntries(ps.filter(p=>p.type==='pal').map(p=>[p.sku,p]));
+ const q=document.querySelector('#q');
+ const body=document.querySelector('#partsRows');
+ const failures=document.querySelector('#failedRows');
+ let s=state();
+
+ function draw(){
+   const text=(q.value||'').toLowerCase();
+   const rows=[];
+
+   rs.forEach(r=>{
+     const qty=partQty(s,groupKey(r));
+     if(qty>0){
+       rows.push({
+         kind:'Grouped set',
+         sku:r.sku,
+         name:(pals[r.sku]||{}).name||r.name||r.animal,
+         filament:r.filament,
+         label:r.parts,
+         qty,
+         key:groupKey(r)
+       });
+     }
+   });
+
+   Object.entries(s.parts)
+     .filter(([k,v])=>k.startsWith('recovery|')&&Number(v)>0)
+     .forEach(([k,v])=>{
+       const bits=k.split('|');
+       const sku=bits[1];
+       const file=bits.slice(2).join('|');
+       const r=rs.find(x=>x.sku===sku&&(x.separate_stls||'').includes(file));
+       rows.push({
+         kind:'Recovery part',
+         sku,
+         name:(pals[sku]||{}).name||sku,
+         filament:r?.filament||'',
+         label:file,
+         qty:Number(v),
+         key:k
+       });
+     });
+
+   const shown=rows.filter(x=>
+     `${x.name} ${x.sku} ${x.filament} ${x.label}`.toLowerCase().includes(text)
+   );
+
+   body.innerHTML=shown.length
+     ? shown.map(x=>`<tr>
+       <td><strong>${esc(x.name)}</strong><br><span class="sku">${x.sku}</span></td>
+       <td>${badge(x.kind,x.kind==='Grouped set'?'ok':'info')}</td>
+       <td>${esc(x.filament)}</td>
+       <td>${esc(x.label)}</td>
+       <td><strong>${x.qty}</strong></td>
+       <td>
+         <button class="iconbtn adjust" data-key="${esc(x.key)}" data-d="-1">−</button>
+         <button class="iconbtn adjust" data-key="${esc(x.key)}" data-d="1">+</button>
+       </td>
+     </tr>`).join('')
+     : '<tr><td colspan="6">No printed-part inventory yet. Complete a build plate to add stock.</td></tr>';
+
+   document.querySelectorAll('.adjust').forEach(b=>b.onclick=async()=>{
+     const key=b.dataset.key;
+     const before=partQty(s,key);
+     s.parts[key]=Math.max(0,before+Number(b.dataset.d));
+
+     try{
+       await save(s);
+       draw();
+     }catch(e){
+       s.parts[key]=before;
+       localStorage.setItem(STORE,JSON.stringify(s));
+       draw();
+       alert('Printed Parts could not be updated in Cloudflare. The change has been rolled back.');
+     }
+   });
+
+   failures.innerHTML=s.failedParts.slice().reverse().slice(0,20).map(x=>`<tr>
+     <td>${esc(x.plate_code)}</td>
+     <td>${esc(x.product_name)}</td>
+     <td>${esc(x.filament)}</td>
+     <td>${esc(x.label)}</td>
+     <td>${x.qty}</td>
+     <td>${fmtDate(x.created_at)}</td>
+   </tr>`).join('')||'<tr><td colspan="6">No failed parts recorded.</td></tr>';
+ }
+
+ q.oninput=draw;
+ draw();
+
+ await startForgeLiveSync(async fresh=>{
+   s=fresh;
+   draw();
+ });
 }
 
 
@@ -3213,7 +3306,7 @@ async function employeeAdminPage(){
 })();
 
 document.addEventListener('visibilitychange',async()=>{
- if(!document.hidden && ['production.html','plates.html'].includes(forgeCurrentPage())){
+ if(!document.hidden && ['production.html','plates.html','parts.html'].includes(forgeCurrentPage())){
    const stamp=await forgeCloudStamp();
    if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
      // interval will pick this up immediately on its next tick

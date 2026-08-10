@@ -1480,3 +1480,8 @@ body.forge-auth-ready .sidebar .forge-user-card{
   margin-right:6px;
   vertical-align:1px;
 }
+
+/* v0.9.9.3 — Printed Parts Cloud */
+body.forge-page-parts .forge-cloud-sync{
+  margin-bottom:8px;
+}

@@ -1041,3 +1041,18 @@ Production Planner and Build Plates now update automatically while open.
 - Local changes update the cloud stamp so Forge does not unnecessarily refresh its own writes.
 
 No additional SQL or Worker update is required beyond Worker v3f.
+
+
+### v0.9.9.3 — Printed Parts Cloud
+
+Printed Parts Inventory now uses the same Cloudflare D1 operational state as Build Plates.
+
+- Completing a Build Plate updates Printed Parts automatically.
+- Printed Parts live-sync between devices every 2 seconds.
+- Grouped sets and exact recovery parts are shared across devices.
+- Failed part records are shared across devices.
+- Manual + / − inventory corrections wait for Cloudflare confirmation.
+- If a manual correction fails to save, Forge rolls the local change back instead of leaving devices out of sync.
+- Printed Parts now shows the Cloud Sync badge and Refresh Cloud control.
+
+No SQL or Worker change is required beyond the existing v0.9.9/v3f cloud production setup.
