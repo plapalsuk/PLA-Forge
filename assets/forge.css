@@ -2053,3 +2053,84 @@ body.forge-page-assembly .assembleBtn:disabled{
     font-size:9px !important;
   }
 }
+
+/* =========================================================
+   v0.10.5 — Compact desktop-style KPI rows on mobile
+   ========================================================= */
+@media (max-width: 780px){
+  /* KPI strips should preserve the desktop idea: one horizontal row. */
+  .grid.kpis,
+  .kpis,
+  .kpis.four,
+  .grid.kpis.four,
+  .kpis.three,
+  .grid.kpis.three{
+    display:grid !important;
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+    gap:6px !important;
+    width:100% !important;
+  }
+
+  /* Three-card KPI sections still get a compact row without empty-width bloat. */
+  .kpis.three,
+  .grid.kpis.three{
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  }
+
+  .kpis > .kpi,
+  .grid.kpis > .kpi,
+  .kpis.four > .kpi,
+  .grid.kpis.four > .kpi,
+  .kpis.three > .kpi,
+  .grid.kpis.three > .kpi{
+    min-width:0 !important;
+    min-height:92px !important;
+    padding:9px !important;
+    border-radius:10px !important;
+    overflow:hidden !important;
+  }
+
+  .kpis .kpi .label,
+  .grid.kpis .kpi .label{
+    font-size:8px !important;
+    line-height:1.1 !important;
+    letter-spacing:.055em !important;
+    white-space:normal !important;
+    overflow-wrap:anywhere !important;
+  }
+
+  .kpis .kpi .value,
+  .grid.kpis .kpi .value{
+    font-size:22px !important;
+    line-height:1 !important;
+    margin:7px 0 5px !important;
+  }
+
+  .kpis .kpi .small,
+  .grid.kpis .kpi .small{
+    font-size:8px !important;
+    line-height:1.15 !important;
+    white-space:normal !important;
+    overflow-wrap:anywhere !important;
+  }
+}
+
+@media (max-width: 390px){
+  .grid.kpis,
+  .kpis,
+  .kpis.four,
+  .grid.kpis.four{
+    gap:4px !important;
+  }
+
+  .kpis > .kpi,
+  .grid.kpis > .kpi{
+    padding:7px !important;
+    min-height:88px !important;
+  }
+
+  .kpis .kpi .value,
+  .grid.kpis .kpi .value{
+    font-size:20px !important;
+  }
+}

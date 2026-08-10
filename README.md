@@ -1188,3 +1188,14 @@ Desktop Build Plates retain the existing table layout.
 - Mobile colour buttons are substantially smaller while still showing colour name, required grams and a short queue summary.
 - The Kitsu Print Queue badge is hidden on mobile to reclaim space.
 - No Worker or D1 changes are required.
+
+
+### v0.10.5 — Mobile KPI Row
+
+Top KPI/stat cards now preserve the desktop row layout on mobile instead of stacking vertically.
+
+- Four-card KPI sections render four across.
+- Three-card KPI sections render three across.
+- Labels, values and supporting text are scaled down for phone widths.
+- Applies site-wide anywhere the shared `kpis` layout is used.
+- No Worker or D1 changes are required.
