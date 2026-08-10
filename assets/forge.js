@@ -356,6 +356,37 @@ function applyRoleNavigation(user){
 
 function applyRolePageRestrictions(user){
  if(!user)return;
+ document.body.classList.add('forge-role-'+String(user.role||'').replace(/_/g,'-'));
+ if(user.role==='retail_staff'&&forgeCurrentPage()==='deliveries.html'){
+   // Retail staff only need the Cornwall receiving workflow, not factory dispatch allocation.
+   const hideHeadings=[
+     'Ready to Dispatch',
+     'Boat Inventory',
+     'Cornwall Inventory'
+   ];
+   document.querySelectorAll('h1,h2,h3,h4,.stat,.card,.panel,section').forEach(el=>{
+     const text=(el.textContent||'').trim();
+     if(hideHeadings.some(h=>text.startsWith(h))){
+       // Prefer hiding the containing card/section rather than a heading alone.
+       const card=el.closest('section,.card,.panel,[class*="card"],[class*="panel"]')||el;
+       card.style.display='none';
+     }
+   });
+   // Hide top summary cards by their labels, including Ready to Dispatch/Boat/Cornwall Inventory.
+   document.querySelectorAll('body *').forEach(el=>{
+     if(el.children.length>8)return;
+     const text=(el.textContent||'').trim();
+     if(/^(READY TO DISPATCH|BOAT INVENTORY|CORNWALL INVENTORY)\b/i.test(text)){
+       const card=el.closest('.stat-card,.metric-card,.card,[class*="stat"],[class*="metric"]')||el;
+       card.style.display='none';
+     }
+   });
+   // Keep Awaiting Cornwall Delivery visible.
+   document.querySelectorAll('button').forEach(btn=>{
+     const text=(btn.textContent||'').trim();
+     if(/split allocation|confirm dispatch|dispatch to/i.test(text))btn.style.display='none';
+   });
+ }
  if(user.role==='retail_staff'&&forgeCurrentPage()==='rework.html'){
    // Retail staff may work only with Cornwall-held Box and Insert rework.
    const allowed=/box|insert/i;

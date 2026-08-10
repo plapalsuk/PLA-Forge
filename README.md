@@ -861,3 +861,8 @@ Existing Admin accounts remain Admin. If any test employee was previously assign
 - If a restricted user manually opens a page they cannot access, Forge now redirects them to their own permitted home page instead of Dashboard.
 - Login return URLs are checked against the employee role before navigation.
 - No database or stock data is changed.
+
+
+### v0.9.6b — Retail Delivery View
+
+Retail Staff no longer see factory dispatch controls on the Deliveries page. The Retail Staff view is restricted to the Cornwall receiving workflow, centred on Awaiting Cornwall Delivery. Admin retains the complete Dispatch page.
