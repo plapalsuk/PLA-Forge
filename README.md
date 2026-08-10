@@ -471,3 +471,17 @@ Existing operational data is preserved and no reset is triggered.
 - Pal-specific Insert stock can only be changed by selecting the Pal, entering a quantity and pressing `Add Inserts`.
 - Add handlers now defensively initialise Cornwall spare-stock data before saving.
 - Existing operational data is preserved; no reset is triggered.
+
+
+## v0.8.10 — Rework Layout & Cornwall Spare Alerts
+
+- Removed Rework History from the Rework page.
+- Active Rework is now shown before Cornwall Rework Stock.
+- Cornwall Rework Stock has moved below Active Rework.
+- Rework KPI cards now show Active, Ready and Waiting only.
+- Cornwall spare stock has a minimum threshold of 1.
+- Any Cornwall spare stock below 1 is flagged as Factory Replenishment Required.
+- Alerts cover Flat Clear Boxes and every On Sale Pal's Cornwall Ready Insert stock.
+- Production Planner now includes a Cornwall Spare Replenishment panel for the factory.
+- Spare-stock replenishment is a supply alert only and does not create false Pal manufacturing demand.
+- Existing operational data is preserved; no reset is triggered.

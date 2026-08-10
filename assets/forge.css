@@ -467,3 +467,17 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .cornwall-current-stock{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#171d24;border:1px solid #292f37;border-radius:9px;padding:10px}
 .cornwall-current-stock span{font-size:9px;text-transform:uppercase;color:var(--muted)}
 .cornwall-current-stock strong{font-size:22px;color:#fff}
+
+/* v0.8.10 Rework layout + Cornwall factory alerts */
+.grid.kpis.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cornwall-factory-alert{margin:12px 0;background:#11161c;border:1px solid #2b333d;border-radius:10px;padding:11px}
+.factory-alert-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.factory-alert-items{display:flex;flex-direction:column;gap:6px;margin-top:9px}
+.factory-alert-items>div{display:flex;justify-content:space-between;gap:12px;background:rgba(240,92,99,.06);border:1px solid rgba(240,92,99,.18);border-radius:7px;padding:7px 9px}
+.factory-alert-items strong{color:#ff858a}
+.factory-alert-ok{display:flex;align-items:center;gap:9px}
+.cornwall-current-stock.low-stock{border-color:rgba(240,92,99,.45);background:rgba(240,92,99,.06)}
+.cornwall-current-stock.low-stock strong{color:#ff858a}
+.low-spare-row td{background:rgba(240,92,99,.025)}
+.factory-spare-row{border-color:rgba(240,92,99,.25)}
+@media(max-width:900px){.grid.kpis.three{grid-template-columns:1fr}}

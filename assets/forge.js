@@ -178,6 +178,14 @@ async function production(){
    }
    damage.innerHTML=jobs.length?jobs.map(j=>`<div class="damage-production-row"><div><strong>${esc(j.name)}</strong><div class="sku">${j.sku}${j.damaged_item_index?` · Damaged Item ${j.damaged_item_index}`:''}</div></div><span>${esc(damageJobLabel(j))}</span><strong>× ${j.qty}</strong></div>`).join(''):'<div class="bench-empty">No damage rework currently required.</div>';
  }
+ const spare=document.querySelector('#cornwallSpareDemand');
+ if(spare){
+   const salePals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).sort((a,b)=>a.name.localeCompare(b.name));
+   const low=[];
+   if(cornwallBoxStock(s)<1)low.push({item:'Flat Clear Boxes',detail:'Cornwall Rework Stock',qty:cornwallBoxStock(s)});
+   salePals.forEach(p=>{const qty=cornwallInsertStock(s,p.sku);if(qty<1)low.push({item:`${p.name} Insert`,detail:p.sku,qty})});
+   spare.innerHTML=low.length?low.map(x=>`<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${badge('REPLENISH CORNWALL','danger')}</span><strong>Stock ${x.qty}</strong></div>`).join(''):'<div class="bench-empty">Cornwall spare stock is healthy.</div>';
+ }
 }
 async function dataHealth(){
  const ps=await load('products'),mm=await load('mismatches'),body=document.querySelector('#health'),missing=ps.filter(p=>p.type==='pal'&&!p.recipe_ready);
@@ -1784,15 +1792,14 @@ async function reworkPage(){
  const onSale=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).sort((a,b)=>a.name.localeCompare(b.name));
  const q=document.querySelector('#q');
  const activeList=document.querySelector('#activeRework');
- const historyList=document.querySelector('#reworkHistory');
  const activeKpi=document.querySelector('#reworkActiveKpi');
  const readyKpi=document.querySelector('#reworkReadyKpi');
  const waitKpi=document.querySelector('#reworkWaitingKpi');
- const completeKpi=document.querySelector('#reworkCompleteKpi');
  const localBox=document.querySelector('#cornwallBoxStockDisplay');
  const localInsertSku=document.querySelector('#cornwallInsertSku');
  const localInsertQty=document.querySelector('#cornwallInsertQty');
  const localInsertInventory=document.querySelector('#cornwallInsertInventory');
+ const factoryAlert=document.querySelector('#cornwallFactoryAlert');
 
  localInsertSku.innerHTML=onSale.map(p=>`<option value="${p.sku}">${esc(p.name)} · ${p.sku}</option>`).join('');
 
@@ -1833,9 +1840,28 @@ async function reworkPage(){
    }
    return miss.length?`Waiting for ${miss.join(', ')}`:r.route==='cornwall'?'Ready for Cornwall repair':'Ready to send through Dispatch';
  }
+ function lowCornwallStock(){
+   const rows=[];
+   if(cornwallBoxStock(s)<1)rows.push({label:'Flat Clear Boxes',qty:cornwallBoxStock(s)});
+   onSale.forEach(p=>{
+     const qty=cornwallInsertStock(s,p.sku);
+     if(qty<1)rows.push({label:`${p.name} Insert`,sku:p.sku,qty});
+   });
+   return rows;
+ }
  function drawLocalStock(){
-   localBox.textContent=cornwallBoxStock(s);
-   localInsertInventory.innerHTML=onSale.map(p=>`<tr><td><strong>${esc(p.name)}</strong><br><span class="sku">${p.sku}</span></td><td><strong>${cornwallInsertStock(s,p.sku)}</strong></td></tr>`).join('')||'<tr><td colspan="2">No On Sale Pals.</td></tr>';
+   const boxQty=cornwallBoxStock(s);
+   localBox.textContent=boxQty;
+   localBox.closest('.cornwall-current-stock')?.classList.toggle('low-stock',boxQty<1);
+   localInsertInventory.innerHTML=onSale.map(p=>{
+     const qty=cornwallInsertStock(s,p.sku),low=qty<1;
+     return `<tr class="${low?'low-spare-row':''}"><td><strong>${esc(p.name)}</strong><br><span class="sku">${p.sku}</span></td><td><strong>${qty}</strong>${low?` ${badge('FACTORY REQUIRED','danger')}`:''}</td></tr>`;
+   }).join('')||'<tr><td colspan="2">No On Sale Pals.</td></tr>';
+
+   const low=lowCornwallStock();
+   if(factoryAlert){
+     factoryAlert.innerHTML=low.length?`<div class="factory-alert-head"><div><strong>Factory Replenishment Required</strong><div class="small">${low.length} Cornwall spare stock item${low.length===1?' is':'s are'} below 1.</div></div>${badge(`${low.length} LOW`,'danger')}</div><div class="factory-alert-items">${low.map(x=>`<div><span>${esc(x.label)}</span><strong>${x.qty}</strong></div>`).join('')}</div>`:`<div class="factory-alert-ok">${badge('STOCK OK','ok')}<span>All Cornwall spare stock is at 1 or above.</span></div>`;
+   }
  }
  function draw(){
    drawLocalStock();
@@ -1848,12 +1874,10 @@ async function reworkPage(){
    const open=active.filter(x=>x.status==='awaiting_rework');
    const ready=open.filter(x=>damageReworkReady(s,x));
    const waiting=open.filter(x=>!damageReworkReady(s,x));
-   const hist=(s.reworkHistory||[]).slice().reverse();
 
    activeKpi.textContent=open.length;
    readyKpi.textContent=ready.length;
    waitKpi.textContent=waiting.length;
-   completeKpi.textContent=hist.length;
 
    activeList.innerHTML=active.length?active.map(job=>{
      const r=damageReworkRequirements(job),ready=damageReworkReady(s,job),inDispatch=job.status==='awaiting_dispatch';
@@ -1874,8 +1898,6 @@ async function reworkPage(){
        </div>
      </div>`;
    }).join(''):'<div class="bench-empty">No active rework jobs.</div>';
-
-   historyList.innerHTML=hist.length?hist.slice(0,40).map(h=>`<tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>${esc(h.label||'Rework')}</td><td>${esc(h.route||'Cornwall')}</td><td>${h.qty}</td></tr>`).join(''):'<tr><td colspan="5">No completed rework yet.</td></tr>';
 
    document.querySelectorAll('.completeLocalRework').forEach(btn=>btn.onclick=()=>{
      const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);
