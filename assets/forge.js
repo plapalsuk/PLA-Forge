@@ -163,7 +163,7 @@ window.addEventListener('beforeunload',()=>{
 });
 
 function installForgeCloudSyncBadge(){
- if(!['production.html','plates.html','parts.html','assembly.html','pals.html'].includes(forgeCurrentPage()))return;
+ if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
  const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
  const wrap=document.createElement('div');
@@ -2054,9 +2054,16 @@ function printPalBarcode(sku,name){
  setTimeout(()=>w.print(),250);
 }
 async function packingStationPage(){
- // v0.8.2: all Packing Station production-demand checks must be pipeline-aware.
+ installForgeCloudSyncBadge();
+ if(!forgeProductionCloudReady){
+   try{await hydrateProductionCloud()}
+   catch(e){showCloudRequiredError(e.message);return}
+ }
 
- const s=state(),ps=await load('products'),pals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku));
+ // Packing Station is cloud-only: all inventory and workflow state comes from D1.
+ let s=cloudOperationalState();
+ const ps=await load('products');
+ let pals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku));
  const readyList=document.querySelector('#packingReadyList'),awaitingList=document.querySelector('#packingAwaitingList'),q=document.querySelector('#q');
  const readyCount=document.querySelector('#packingReadyCount'),awaitingCount=document.querySelector('#packingAwaitingCount');
  const damageReworkList=document.querySelector('#damageReworkList');
@@ -2129,10 +2136,18 @@ async function packingStationPage(){
      </div>`;
    }).join(''):'<div class="bench-empty">No damaged Cornwall stock is awaiting rework.</div>';
 
-   document.querySelectorAll('.completeDamageRework').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.completeDamageRework').forEach(btn=>btn.onclick=async()=>{
      const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);if(!job)return;
+     const before=JSON.parse(JSON.stringify(s));
      if(!completeDamageReworkJob(s,job))return;
-     render();
+     try{
+       await save(s);
+       render();
+     }catch(e){
+       s=before;
+       render();
+       alert('Damage rework could not be saved to Cloudflare. The change has been rolled back.');
+     }
    });
  }
 
@@ -2176,18 +2191,80 @@ async function packingStationPage(){
     return `<div class="packing-card awaiting-pack-card"><div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge(`PRODUCTION NEED ${manufacturingNeed(s,p.sku)}`,'warning')}</div>${stockStrip(p)}<div class="packing-blockers">${packagingBlockers.map(x=>`<span>! ${esc(x)}</span>`).join('')}</div></div>`;
   }).join('')||'<div class="bench-empty">Nothing in the Production Planner is currently waiting for packaging materials or inserts.</div>';
 
-  document.querySelectorAll('.batchQty').forEach(el=>el.onchange=()=>{const sku=el.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};j.qty=Math.min(maxBatch(p),Math.max(1,Number(el.value||1)));save(s);render()});
-  document.querySelectorAll('.batchMinus,.batchPlus').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};j.qty=Math.min(maxBatch(p),Math.max(1,Number(j.qty||1)+(b.classList.contains('batchPlus')?1:-1)));save(s);render()});
-  document.querySelectorAll('.nextPackStep').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};if(j.step<8){j.step++;save(s);render()}else{for(let n=0;n<j.qty;n++)printPalBarcode(sku,p.name)}});
-  document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=()=>{const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku];if(!j||j.step!==8)return;const qty=Math.min(j.qty,maxBatch(p));setAssembled(sku,assembled(sku)-qty);s.inserts[sku].ready=Math.max(0,ins(sku)-qty);['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-qty));s.awaitingDispatch=s.awaitingDispatch||[];
-const packedAt=new Date().toISOString(),historyId=makeId();
-s.packingHistory.push({id:historyId,sku,name:p.name,qty,created_at:packedAt,status:'complete'});
-s.awaitingDispatch.push({id:makeId(),source_history_id:historyId,sku:sku,name:p.name,qty:Number(qty),status:'awaiting_dispatch',packed_at:packedAt,destination:null});
-delete s.packingJobs[sku];
-save(s);render()});
-  save(s);
+  document.querySelectorAll('.batchQty').forEach(el=>el.onchange=async()=>{
+    const sku=el.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};
+    const before=Number(j.qty||1);
+    j.qty=Math.min(maxBatch(p),Math.max(1,Number(el.value||1)));
+    s.packingJobs[sku]=j;
+    try{await save(s);render()}catch(e){j.qty=before;render();alert('Packing quantity could not be saved to Cloudflare.')}
+  });
+
+  document.querySelectorAll('.batchMinus,.batchPlus').forEach(b=>b.onclick=async()=>{
+    const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};
+    const before=Number(j.qty||1);
+    j.qty=Math.min(maxBatch(p),Math.max(1,before+(b.classList.contains('batchPlus')?1:-1)));
+    s.packingJobs[sku]=j;
+    try{await save(s);render()}catch(e){j.qty=before;render();alert('Packing quantity could not be saved to Cloudflare.')}
+  });
+
+  document.querySelectorAll('.nextPackStep').forEach(b=>b.onclick=async()=>{
+    const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku]||{step:1,qty:1};
+    if(j.step<8){
+      const before=Number(j.step||1);
+      j.step++;
+      s.packingJobs[sku]=j;
+      try{await save(s);render()}catch(e){j.step=before;render();alert('Packing step could not be saved to Cloudflare.')}
+    }else{
+      for(let n=0;n<j.qty;n++)printPalBarcode(sku,p.name);
+    }
+  });
+
+  document.querySelectorAll('.barcodeApplied').forEach(b=>b.onclick=async()=>{
+    const sku=b.dataset.sku,p=pals.find(x=>x.sku===sku),j=s.packingJobs[sku];
+    if(!j||j.step!==8)return;
+    const qty=Math.min(j.qty,maxBatch(p));
+    if(qty<=0)return;
+
+    const before=JSON.parse(JSON.stringify(s));
+
+    setAssembled(sku,assembled(sku)-qty);
+    s.inserts[sku].ready=Math.max(0,ins(sku)-qty);
+    ['clear_boxes','bottom_cards','stickers'].forEach(k=>s.consumables[k].stock=Math.max(0,cs(k)-qty));
+    s.awaitingDispatch=s.awaitingDispatch||[];
+
+    const packedAt=new Date().toISOString(),historyId=makeId();
+    s.packingHistory.push({
+      id:historyId,sku,name:p.name,qty,
+      created_at:packedAt,status:'complete',
+      packed_by:currentForgeUser()?.email||''
+    });
+    s.awaitingDispatch.push({
+      id:makeId(),source_history_id:historyId,sku:sku,name:p.name,qty:Number(qty),
+      status:'awaiting_dispatch',packed_at:packedAt,destination:null
+    });
+    delete s.packingJobs[sku];
+
+    b.disabled=true;
+    b.textContent='Saving to Cloud…';
+    try{
+      await save(s);
+      render();
+    }catch(e){
+      s=before;
+      render();
+      alert('Packed batch could not be saved to Cloudflare. No stock has been consumed.');
+    }
+  });
  }
- q.oninput=render;render();
+
+ q.oninput=render;
+ render();
+
+ await startForgeLiveSync(async fresh=>{
+   s=JSON.parse(JSON.stringify(fresh));
+   pals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku));
+   render();
+ });
 }
 
 function barcodePrinterSettings(){
@@ -3430,7 +3507,7 @@ async function employeeAdminPage(){
 })();
 
 document.addEventListener('visibilitychange',async()=>{
- if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html'].includes(forgeCurrentPage())){
+ if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html'].includes(forgeCurrentPage())){
    const stamp=await forgeCloudStamp();
    if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
      // interval will pick this up immediately on its next tick

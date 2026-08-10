@@ -2183,3 +2183,13 @@ body.forge-page-assembly .assembleBtn:disabled{
     margin-top:5px !important;
   }
 }
+
+/* v0.10.7 — Packing Station Cloud */
+body.forge-page-packing-station .forge-cloud-sync{
+  margin-bottom:10px;
+}
+body.forge-page-packing-station .barcodeApplied:disabled,
+body.forge-page-packing-station .nextPackStep:disabled{
+  opacity:.65;
+  cursor:wait;
+}

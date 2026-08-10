@@ -1211,3 +1211,18 @@ The four Build Plate KPI cards are now page-navigation buttons.
 - Completed Plates → Saved Build Plates.
 - Smooth scrolling and a brief destination highlight make long mobile pages easier to navigate.
 - No Worker or D1 changes are required.
+
+
+### v0.10.7 — Packing Station Cloud
+
+Packing Station is now part of the cloud-only production pipeline.
+
+- Packing Station hydrates assembled stock, inserts, consumables, packing jobs, packing history and awaiting-dispatch stock from D1.
+- No operational Packing Station data is read from browser localStorage.
+- Batch quantity and step progress are saved to D1.
+- Completing a packed batch waits for Cloudflare confirmation before Forge treats it as complete.
+- A completed batch deducts assembled Pals, ready inserts, clear boxes, bottom cards and stickers.
+- Packed stock is added to Awaiting Dispatch and Packing History in the same cloud transaction payload.
+- Critical completion actions roll back in memory if Cloudflare rejects the save.
+- Packing Station live-syncs while open so another device sees packing progress and completed batches without refreshing.
+- No additional Worker or SQL migration is required because these fields already exist in the shared operational D1 state.
