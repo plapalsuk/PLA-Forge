@@ -358,6 +358,11 @@ function applyRolePageRestrictions(user){
  if(!user)return;
  document.body.classList.add('forge-role-'+String(user.role||'').replace(/_/g,'-'));
  if(user.role==='retail_staff'&&forgeCurrentPage()==='deliveries.html'){
+   const pageTitle=document.querySelector('.pageTitle h1');
+   if(pageTitle)pageTitle.textContent='Cornwall Deliveries';
+   const subtitle=document.querySelector('.pageTitle .small');
+   if(subtitle)subtitle.textContent='Receive stock and complete the Cornwall quality check.';
+
    // Retail staff only need the Cornwall receiving workflow, not factory dispatch allocation.
    const hideHeadings=[
      'Ready to Dispatch',

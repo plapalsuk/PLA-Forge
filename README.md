@@ -866,3 +866,17 @@ Existing Admin accounts remain Admin. If any test employee was previously assign
 ### v0.9.6b — Retail Delivery View
 
 Retail Staff no longer see factory dispatch controls on the Deliveries page. The Retail Staff view is restricted to the Cornwall receiving workflow, centred on Awaiting Cornwall Delivery. Admin retains the complete Dispatch page.
+
+
+### v0.9.6c — Mobile-first UI
+
+- Mobile layout now uses a single-column structure.
+- Sidebar becomes a compact touch-friendly navigation strip.
+- Larger 48px minimum touch targets for buttons and form fields.
+- Tables collapse into mobile cards rather than forcing horizontal scrolling.
+- Kitsu/header area is reduced on smaller screens.
+- Retail Staff delivery page is focused specifically on Cornwall receiving.
+- Retail Staff mobile view hides the Kitsu panel to prioritise the delivery workflow.
+- Rework controls stack vertically for easier one-handed use.
+- Login screen has improved mobile sizing and spacing.
+- No Worker, SQL, stock or permission changes are required.

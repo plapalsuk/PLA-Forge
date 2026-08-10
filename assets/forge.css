@@ -576,3 +576,332 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .employee-row{display:grid;grid-template-columns:minmax(200px,1fr) 150px 100px 140px;gap:8px;align-items:center;background:#11161c;border:1px solid var(--line);border-radius:9px;padding:9px}
 .employee-row select{width:100%}
 @media(max-width:800px){.employee-role-help{grid-template-columns:1fr 1fr}.employee-row{grid-template-columns:1fr}.forge-user-card{display:none}}
+
+/* v0.9.6c — Mobile-first Forge improvements */
+@media (max-width: 780px){
+
+  html,body{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+
+  .app{
+    display:block;
+    width:100%;
+    min-height:100vh;
+  }
+
+  .sidebar{
+    position:static !important;
+    width:100% !important;
+    min-height:auto !important;
+    height:auto !important;
+    border-right:0 !important;
+    border-bottom:1px solid var(--line);
+    padding:10px 12px !important;
+    display:flex !important;
+    flex-wrap:wrap;
+    gap:6px;
+    align-items:center;
+  }
+
+  .sidebar .brand{
+    width:100%;
+    margin-bottom:4px;
+  }
+
+  .sidebar .navgroup{
+    display:none !important;
+  }
+
+  .sidebar a{
+    width:auto !important;
+    padding:9px 11px !important;
+    margin:0 !important;
+    border:1px solid var(--line);
+    border-radius:9px;
+    background:#11161c;
+    font-size:12px;
+  }
+
+  .forge-user-card{
+    display:flex !important;
+    width:100%;
+    margin:5px 0 0 !important;
+    order:99;
+  }
+
+  main,
+  .bench-main{
+    margin-left:0 !important;
+    width:100% !important;
+    max-width:100% !important;
+    padding:14px !important;
+    box-sizing:border-box;
+  }
+
+  .topbar{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:12px !important;
+    align-items:start !important;
+    margin-bottom:14px !important;
+  }
+
+  .pageTitle h1,
+  h1{
+    font-size:34px !important;
+    line-height:1.05 !important;
+    margin:0 0 4px !important;
+  }
+
+  .pageTitle .small{
+    font-size:14px !important;
+    line-height:1.4 !important;
+  }
+
+  .kitsu{
+    width:100% !important;
+    min-width:0 !important;
+    box-sizing:border-box;
+    justify-content:flex-start !important;
+    padding:12px 14px !important;
+    border-radius:14px !important;
+  }
+
+  .kitsu strong{
+    font-size:18px !important;
+  }
+
+  .kitsu .small{
+    font-size:13px !important;
+    line-height:1.35 !important;
+  }
+
+  .grid,
+  .kpis,
+  .kpis.four,
+  .newpal-grid,
+  .cloud-core-grid,
+  .cloud-count-grid,
+  .cloud-result-grid{
+    grid-template-columns:1fr !important;
+  }
+
+  .card{
+    border-radius:14px !important;
+    padding:16px !important;
+  }
+
+  .kpi{
+    min-height:auto !important;
+  }
+
+  .kpi .value{
+    font-size:32px !important;
+  }
+
+  .section-title{
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:flex-start !important;
+    gap:10px !important;
+  }
+
+  .section-title .badge,
+  .section-title .btn{
+    align-self:flex-start;
+  }
+
+  .dispatch-pal-list,
+  .availability-list,
+  .employee-list{
+    width:100%;
+  }
+
+  .dispatch-pal-card,
+  .damage-card,
+  .rework-card,
+  .packing-card,
+  .availability-row,
+  .employee-row,
+  .damage-production-row{
+    grid-template-columns:1fr !important;
+    width:100% !important;
+    box-sizing:border-box;
+  }
+
+  input,
+  select,
+  textarea,
+  .number{
+    min-height:48px !important;
+    font-size:16px !important;
+  }
+
+  button,
+  .btn,
+  .iconbtn{
+    min-height:48px;
+    font-size:15px !important;
+    touch-action:manipulation;
+  }
+
+  .btn{
+    padding:11px 14px !important;
+  }
+
+  .cloud-actions,
+  .newpal-create-footer{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+  }
+
+  .cloud-actions .btn,
+  .newpal-create-footer .btn{
+    width:100% !important;
+  }
+
+  table{
+    width:100%;
+    min-width:0 !important;
+  }
+
+  table thead{
+    display:none;
+  }
+
+  table,
+  tbody,
+  tr,
+  td{
+    display:block;
+    width:100%;
+    box-sizing:border-box;
+  }
+
+  tr{
+    border:1px solid var(--line);
+    border-radius:12px;
+    margin-bottom:10px;
+    overflow:hidden;
+    background:#171d24;
+  }
+
+  td{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    padding:10px 12px !important;
+    border-bottom:1px solid var(--line);
+  }
+
+  td:last-child{
+    border-bottom:0;
+  }
+
+  td input,
+  td select{
+    max-width:150px;
+  }
+
+  .small{
+    font-size:12px !important;
+  }
+
+  .sku{
+    font-size:11px !important;
+  }
+
+  .footer-note{
+    text-align:center;
+    padding-bottom:28px;
+  }
+
+  /* Retail Staff: focus screen on receipt check */
+  body.forge-role-retail-staff .pageTitle h1{
+    font-size:30px !important;
+  }
+
+  body.forge-role-retail-staff .kitsu{
+    display:none !important;
+  }
+
+  body.forge-role-retail-staff .kpis{
+    grid-template-columns:1fr !important;
+  }
+
+  body.forge-role-retail-staff #awaitingDeliveryKpi{
+    font-size:38px !important;
+  }
+
+  body.forge-role-retail-staff .card{
+    padding:15px !important;
+  }
+
+  body.forge-role-retail-staff .delivery-item,
+  body.forge-role-retail-staff .delivery-check-card,
+  body.forge-role-retail-staff .damage-item-card{
+    border-radius:14px !important;
+  }
+
+  /* Rework mobile */
+  body.forge-role-retail-staff .rework-card,
+  body.forge-role-retail-staff .damage-card{
+    padding:14px !important;
+  }
+
+  body.forge-role-retail-staff .rework-card .btn,
+  body.forge-role-retail-staff .damage-card .btn{
+    width:100% !important;
+  }
+
+  /* Login refinement */
+  .forge-login-shell{
+    width:calc(100% - 24px) !important;
+    max-width:440px;
+  }
+
+  .forge-login-card{
+    padding:18px !important;
+  }
+
+  .forge-login-card h2{
+    font-size:34px !important;
+  }
+
+  .forge-login-brand{
+    transform:scale(.92);
+  }
+}
+
+@media (max-width: 430px){
+  main,
+  .bench-main{
+    padding:10px !important;
+  }
+
+  .card{
+    padding:13px !important;
+  }
+
+  .sidebar{
+    padding:8px !important;
+  }
+
+  .sidebar a{
+    font-size:11px !important;
+    padding:8px 9px !important;
+  }
+
+  .pageTitle h1,
+  h1{
+    font-size:30px !important;
+  }
+
+  .kpi .label{
+    font-size:10px !important;
+  }
+}
