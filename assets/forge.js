@@ -97,6 +97,56 @@ function setForgeCloudSync(state,message){
  el.textContent=state==='synced'?'Cloud Synced':state==='error'?'Sync Error':state==='syncing'?'Syncing…':'Cloud Ready';
  el.title=forgeCloudSyncMessage;
 }
+
+let forgeLiveSyncTimer=null;
+let forgeLastCloudStamp=null;
+let forgeLiveSyncBusy=false;
+
+async function forgeCloudStamp(){
+ try{
+   const d=await cloudFetch('/production/sync-status');
+   return JSON.stringify({
+     production:d?.production?.updated_at||null,
+     build_count:Number(d?.build_plates?.count||0),
+     build_updated:d?.build_plates?.updated_at||null
+   });
+ }catch(e){
+   setForgeCloudSync('error',e.message||'Live sync check failed');
+   return null;
+ }
+}
+
+async function startForgeLiveSync(onChange){
+ if(forgeLiveSyncTimer)clearInterval(forgeLiveSyncTimer);
+
+ forgeLastCloudStamp=await forgeCloudStamp();
+
+ forgeLiveSyncTimer=setInterval(async()=>{
+   if(document.hidden || forgeLiveSyncBusy || forgeProductionCloudSaving)return;
+   forgeLiveSyncBusy=true;
+   try{
+     const stamp=await forgeCloudStamp();
+     if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
+       setForgeCloudSync('syncing','Another device changed Forge data · refreshing');
+       const ok=await hydrateProductionCloud(true);
+       if(ok){
+         forgeLastCloudStamp=await forgeCloudStamp()||stamp;
+         if(typeof onChange==='function')await onChange(state());
+         setForgeCloudSync('synced','Live cloud update received');
+       }
+     }else if(stamp && !forgeLastCloudStamp){
+       forgeLastCloudStamp=stamp;
+     }
+   }finally{
+     forgeLiveSyncBusy=false;
+   }
+ },2000);
+}
+
+window.addEventListener('beforeunload',()=>{
+ if(forgeLiveSyncTimer)clearInterval(forgeLiveSyncTimer);
+});
+
 function installForgeCloudSyncBadge(){
  if(!['production.html','plates.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
@@ -169,6 +219,7 @@ function saveProductionCloud(s){
          body:JSON.stringify({plate:p})
        });
      }
+     forgeLastCloudStamp=await forgeCloudStamp()||forgeLastCloudStamp;
      setForgeCloudSync('synced',`Saved to D1 · ${(snapshot.plates||[]).length} active build plate(s)`);
      return true;
    }catch(e){
@@ -615,7 +666,10 @@ async function recipes(){
 async function production(){
  installForgeCloudSyncBadge();
  if(!forgeProductionCloudReady)await hydrateProductionCloud();
- const s=state(),ps=await load('products'),rs=await load('recipes'),body=document.querySelector('#prod'),rows=[];
+ const ps=await load('products'),rs=await load('recipes'),body=document.querySelector('#prod');
+ let s=state();
+ function drawProduction(){
+   const rows=[];
  ps.filter(p=>p.type==='pal').forEach(p=>{const n=manufacturingNeed(s,p.sku);if(n>0)rows.push({p,n,groups:rs.filter(r=>r.sku===p.sku)})});rows.sort((a,b)=>b.n-a.n);
  body.innerHTML=rows.map(x=>`<tr><td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td><td>${x.n}</td><td>${x.groups.length}</td><td>${(x.groups.reduce((a,r)=>a+r.weight_g,0)*x.n).toFixed(1)}g</td><td>${x.groups.map(r=>esc(r.filament)).join(', ')}</td></tr>`).join('')||'<tr><td colspan="5">No Pal manufacturing currently required.</td></tr>';
  const damage=document.querySelector('#damageProduction');
@@ -650,6 +704,13 @@ async function production(){
    });
    spare.innerHTML=low.length?low.map(x=>`<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${x.item==='Flat Clear Boxes'?badge('FACTORY SUPPLY','danger'):x.pending>0?badge('IN REPLENISHMENT','info'):badge('INSERT PRODUCTION','danger')}</span><strong>Stock ${x.qty}${x.target!=null?` / ${x.target}`:''}${x.pending!=null?` · Pending ${x.pending}`:''}</strong></div>`).join(''):'<div class="bench-empty">Cornwall spare stock is healthy.</div>';
  }
+ }
+ drawProduction();
+ await startForgeLiveSync(async fresh=>{
+   s=fresh;
+   drawProduction();
+ });
+
 }
 async function dataHealth(){
  const ps=await load('products'),mm=await load('mismatches'),body=document.querySelector('#health'),missing=ps.filter(p=>p.type==='pal'&&!p.recipe_ready);
@@ -1090,6 +1151,13 @@ async function buildPlatePlanner(){
  document.querySelector('#savePlate').onclick=async()=>await saveDraft(false);
  document.querySelector('#startPlate').onclick=async()=>await saveDraft(true);
  drawAll();
+
+ await startForgeLiveSync(async fresh=>{
+   // Keep the unsaved in-memory plate draft, but refresh all shared cloud state.
+   Object.keys(s).forEach(k=>delete s[k]);
+   Object.assign(s,fresh);
+   drawAll();
+ });
 }
 
 async function printedParts(){
@@ -3143,3 +3211,13 @@ async function employeeAdminPage(){
  const page=(location.pathname.split('/').pop()||'index.html').replace('.html','').replace(/[^a-z0-9_-]/gi,'-');
  document.body.classList.add('forge-page-'+page);
 })();
+
+document.addEventListener('visibilitychange',async()=>{
+ if(!document.hidden && ['production.html','plates.html'].includes(forgeCurrentPage())){
+   const stamp=await forgeCloudStamp();
+   if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
+     // interval will pick this up immediately on its next tick
+     forgeLastCloudStamp=null;
+   }
+ }
+});

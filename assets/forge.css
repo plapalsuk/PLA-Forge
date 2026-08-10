@@ -1465,3 +1465,18 @@ body.forge-auth-ready .sidebar .forge-user-card{
     width:auto !important;
   }
 }
+
+/* v0.9.9.2 — Live sync */
+#forgeCloudSyncBadge{
+  position:relative;
+}
+#forgeCloudSyncBadge.ok::before{
+  content:"";
+  display:inline-block;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:currentColor;
+  margin-right:6px;
+  vertical-align:1px;
+}

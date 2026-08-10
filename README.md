@@ -1025,3 +1025,19 @@ Fixes:
 - Added `/production/sync-status` diagnostic endpoint.
 
 No additional SQL migration is required if the v0.9.9 Cloud Production SQL has already been run.
+
+
+### v0.9.9.2 — Live Multi-Device Sync
+
+Production Planner and Build Plates now update automatically while open.
+
+- Forge checks Cloudflare D1 every 2 seconds.
+- If another device changes production state or a Build Plate, the current page hydrates the latest D1 state automatically.
+- No manual browser refresh is required.
+- Unsaved Current Plate work remains in memory while shared Build Plate data refreshes.
+- Tabs pause polling while hidden to reduce unnecessary Worker requests.
+- Returning to the tab triggers a fresh cloud comparison.
+- Cloud Sync badge reports live updates.
+- Local changes update the cloud stamp so Forge does not unnecessarily refresh its own writes.
+
+No additional SQL or Worker update is required beyond Worker v3f.
