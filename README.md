@@ -921,3 +921,16 @@ Changes include:
 - mobile-specific page classes added for future tuning
 
 No Worker, SQL, stock, permissions or database changes are required.
+
+
+### v0.9.7a — Role-aware Navigation
+
+The Forge sidebar/mobile navigation now shows only tabs permitted for the signed-in employee.
+
+- **Admin** — all Forge tabs.
+- **Packing** — Packing Station only.
+- **Retail Staff** — Cornwall Deliveries and Rework only.
+- Empty navigation section headings are hidden automatically.
+- The current permitted tab is highlighted.
+- Manual URL protection remains in place, so hidden pages are still inaccessible even if the URL is entered directly.
+- No Worker, SQL, stock or database changes are required.

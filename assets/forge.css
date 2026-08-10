@@ -1397,3 +1397,35 @@ img,svg,canvas,video{
     transform-origin:center;
   }
 }
+
+/* v0.9.7a — Role-aware navigation */
+.sidebar a[aria-hidden="true"]{
+  display:none !important;
+}
+.sidebar .navgroup{
+  transition:none;
+}
+.sidebar a.role-active-tab{
+  border-color:rgba(255,105,0,.65) !important;
+  background:rgba(255,105,0,.10) !important;
+  color:#fff !important;
+}
+@media(max-width:980px){
+  .sidebar{
+    align-content:flex-start;
+  }
+  .sidebar .brand{
+    flex:1 0 100%;
+  }
+  .sidebar a[aria-hidden="false"]{
+    display:inline-flex !important;
+  }
+  .sidebar .forge-user-card{
+    flex:1 0 100%;
+  }
+  body.forge-role-packing .sidebar a,
+  body.forge-role-retail-staff .sidebar a{
+    flex:1 1 auto;
+    justify-content:center;
+  }
+}

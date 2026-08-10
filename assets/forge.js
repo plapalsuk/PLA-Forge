@@ -340,15 +340,46 @@ async function forgeRequireLogin(){
  }
 }
 function applyRoleNavigation(user){
+ const role=user?.role||'';
+ const current=forgeCurrentPage();
+
+ // Hide every navigation link the role cannot open.
  document.querySelectorAll('.sidebar a').forEach(a=>{
-   const href=(a.getAttribute('href')||'').split('?')[0];
-   if(href&&href.endsWith('.html')&&!roleCanOpen(user.role,href))a.style.display='none';
+   const href=(a.getAttribute('href')||'').split('?')[0].split('#')[0];
+   if(!href)return;
+   const page=href.split('/').pop();
+   if(page&&page.endsWith('.html')){
+     const allowed=roleCanOpen(role,page);
+     a.style.display=allowed?'inline-flex':'none';
+     a.setAttribute('aria-hidden',allowed?'false':'true');
+   }
  });
+
+ // Hide empty section headings/groups after their links have been filtered.
+ document.querySelectorAll('.sidebar .navgroup').forEach(group=>{
+   const scope=group.parentElement||document;
+   let next=group.nextElementSibling;
+   let hasVisible=false;
+   while(next && !next.classList.contains('navgroup')){
+     if(next.matches?.('a') && next.style.display!=='none')hasVisible=true;
+     next=next.nextElementSibling;
+   }
+   group.style.display=hasVisible?'block':'none';
+ });
+
+ // On mobile, only keep role-relevant tabs visible and mark active tab.
+ document.querySelectorAll('.sidebar a').forEach(a=>{
+   const href=(a.getAttribute('href')||'').split('?')[0].split('#')[0];
+   const page=href.split('/').pop();
+   a.classList.toggle('role-active-tab',page===current);
+ });
+
+ // Signed-in user card.
  const side=document.querySelector('.sidebar');
  if(side&&!side.querySelector('.forge-user-card')){
    const card=document.createElement('div');
    card.className='forge-user-card';
-   card.innerHTML=`<div><strong>${esc(user.name||user.email||'Forge User')}</strong><div class="small">${esc(user.role||'')}</div></div><button class="iconbtn" id="forgeQuickLogout" title="Log out">↪</button>`;
+   card.innerHTML=`<div><strong>${esc(user.name||user.email||'Forge User')}</strong><div class="small">${esc(role==='retail_staff'?'Retail Staff':role==='packing'?'Packing':'Admin')}</div></div><button class="iconbtn" id="forgeQuickLogout" title="Log out">↪</button>`;
    side.appendChild(card);
    card.querySelector('#forgeQuickLogout').onclick=forgeLogout;
  }
