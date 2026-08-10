@@ -496,3 +496,8 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .plate-checklist-scroll table{margin:0;min-width:1050px}
 .plate-checklist-scroll thead th{position:sticky;top:0;z-index:2;background:#171d24}
 .plate-checklist-scroll tbody>tr:not(.exact-row){height:56px}
+
+/* v0.8.16 Bench assembled inventory */
+.assembled-inventory-search{margin:10px 0 12px}
+.assembled-inventory-search .search{width:100%}
+#assembledInventory td:nth-child(2){font-size:16px;text-align:center}

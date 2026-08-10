@@ -590,3 +590,14 @@ Recipes and Printed Parts have been moved from The Workshop into Materials on ev
 - Completed Plates KPI now reads from Print History.
 - Legacy completed/cancelled plates are hidden from Saved Build Plates.
 - Existing operational data is preserved and no reset is triggered.
+
+
+## v0.8.16 — Bench Assembled Inventory
+
+- Removed Assembly History from The Bench page.
+- Added a live Assembled Inventory section beneath the Ready and Awaiting queues.
+- Assembled Inventory shows only Pals with assembled stock currently available for Packing.
+- Added a dedicated search box for Assembled Inventory.
+- Search supports Pal name and SKU.
+- Inventory updates immediately whenever Pals are assembled or consumed downstream.
+- Existing operational data is preserved and no reset is triggered.

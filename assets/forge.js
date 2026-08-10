@@ -656,7 +656,8 @@ async function assemblyPage(){
  const q=document.querySelector('#q');
  const readyBox=document.querySelector('#assemblyReady');
  const awaitingBox=document.querySelector('#assemblyAwaiting');
- const history=document.querySelector('#assemblyHistory');
+ const inventorySearch=document.querySelector('#assembledInventorySearch');
+ const inventoryBody=document.querySelector('#assembledInventory');
  const kpiReady=document.querySelector('#assemblyReadyKpi');
  const kpiAssembled=document.querySelector('#assembledKpi');
  const kpiWaiting=document.querySelector('#assemblyWaitingKpi');
@@ -758,6 +759,19 @@ async function assemblyPage(){
      ?awaiting.map(awaitingCard).join('')
      :'<div class="bench-empty">Nothing is currently awaiting assembly.</div>';
 
+   const inventoryText=(inventorySearch?.value||'').toLowerCase();
+   const assembledRows=pals.map(p=>({
+     p,
+     qty:assembledQty(p.sku)
+   })).filter(x=>x.qty>0)
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(inventoryText))
+     .sort((a,b)=>b.qty-a.qty||a.p.name.localeCompare(b.p.name));
+
+   inventoryBody.innerHTML=assembledRows.length?assembledRows.map(x=>`<tr>
+     <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
+     <td><strong>${x.qty}</strong></td>
+   </tr>`).join(''):'<tr><td colspan="2">No assembled Pals currently in inventory.</td></tr>';
+
    document.querySelectorAll('.assembleBtn').forEach(btn=>btn.onclick=()=>{
      const sku=btn.dataset.sku;
      const p=pals.find(x=>x.sku===sku);
@@ -782,16 +796,10 @@ async function assemblyPage(){
      save(s);
      render();
    });
-
-   history.innerHTML=(s.assemblyHistory||[]).slice().reverse().slice(0,30).map(h=>`
-     <tr>
-       <td>${fmtDate(h.created_at)}</td>
-       <td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td>
-       <td>${h.qty}</td>
-     </tr>`).join('')||'<tr><td colspan="3">No Pals assembled yet.</td></tr>';
  }
 
  q.oninput=render;
+ if(inventorySearch)inventorySearch.oninput=render;
  render();
 }
 
