@@ -558,3 +558,22 @@ New behaviour:
 So 5 Todd Pals and 2 Todd spare Inserts can now be dispatched independently.
 
 Existing operational data is preserved and no reset is triggered.
+
+
+## v0.8.14 — Side Menu Organisation
+
+Updated the Forge side navigation:
+
+**The Workshop**
+- Production Planner
+- Build Plates
+- The Bench
+- Rework
+
+**Materials**
+- Filament
+- Recipes
+- Printed Parts
+- Consumables
+
+Recipes and Printed Parts have been moved from The Workshop into Materials on every Forge page. No operational data or workflow logic has been changed.
