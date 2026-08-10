@@ -353,3 +353,43 @@ This release preserves existing v0.8.x operational data and does not trigger a r
   - `damageInsertDemand`
 - Added defensive initialisation inside the Cornwall delivery confirmation handler as a second safeguard.
 - No clean reset is required and existing operational data is preserved.
+
+
+## v0.8.6 — Per-Item Multi-Fault Damage Reporting
+
+Cornwall damage reporting now works per physical damaged item instead of by issue quantity.
+
+Example:
+A shipment of 5 arrives with 1 damaged Pal.
+That single damaged item can be marked with:
+- Box Damaged
+- Insert Damaged
+
+It still counts as only 1 damaged physical Pal.
+
+Each damaged item can independently have:
+- Box Damaged
+- Insert Damaged
+- Pal Broken
+- Complete Write Off
+
+Rules:
+- Multiple faults can be selected on the same damaged item.
+- Complete Write Off overrides the individual fault toggles and creates a full replacement.
+- Each damaged physical Pal creates one Damage Rework job with a set of requirements.
+- Box + Insert damage on one Pal therefore creates one rework job requiring:
+  - 1 clear box
+  - 1 ready insert
+  - no replacement Pal
+- Box + Pal Broken creates one job requiring:
+  - 1 clear box
+  - 1 replacement assembled Pal
+- Insert + Pal Broken creates one job requiring:
+  - 1 ready insert
+  - 1 replacement assembled Pal
+- Complete Write Off requires a new Pal, insert, box, bottom card and sticker.
+
+Production Planner and Packing Station Damage Rework have been updated to understand these combined requirements.
+
+Older v0.8.4 / v0.8.5 damage jobs remain supported.
+Existing operational data is preserved and no reset is triggered.
