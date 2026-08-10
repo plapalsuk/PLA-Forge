@@ -32,6 +32,7 @@ function blankOperationalState(){
    damageReworkJobs:[],
    reworkHistory:[],
    cornwallReworkStock:{clear_boxes:0,inserts:{}},
+   cornwallInsertReplenishment:{},
    damageInsertDemand:{},
    production:{},
    productionPlan:{},
@@ -183,8 +184,14 @@ async function production(){
    const salePals=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).sort((a,b)=>a.name.localeCompare(b.name));
    const low=[];
    if(cornwallBoxStock(s)<1)low.push({item:'Flat Clear Boxes',detail:'Cornwall Rework Stock',qty:cornwallBoxStock(s)});
-   salePals.forEach(p=>{const qty=cornwallInsertStock(s,p.sku);if(qty<1)low.push({item:`${p.name} Insert`,detail:p.sku,qty})});
-   spare.innerHTML=low.length?low.map(x=>`<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${badge('REPLENISH CORNWALL','danger')}</span><strong>Stock ${x.qty}</strong></div>`).join(''):'<div class="bench-empty">Cornwall spare stock is healthy.</div>';
+   salePals.forEach(p=>{
+     const qty=cornwallInsertStock(s,p.sku);
+     if(qty<1){
+       const pending=pendingCornwallInsertSupply(s,p.sku);
+       low.push({item:`${p.name} Insert`,detail:p.sku,qty,pending});
+     }
+   });
+   spare.innerHTML=low.length?low.map(x=>`<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${x.item==='Flat Clear Boxes'?badge('FACTORY SUPPLY','danger'):x.pending>0?badge('IN REPLENISHMENT','info'):badge('INSERT PRODUCTION','danger')}</span><strong>Stock ${x.qty}${x.pending!=null?` · Pending ${x.pending}`:''}</strong></div>`).join(''):'<div class="bench-empty">Cornwall spare stock is healthy.</div>';
  }
 }
 async function dataHealth(){
@@ -775,9 +782,32 @@ async function assemblyPage(){
 }
 
 
+
+function pendingCornwallInsertSupply(s,sku){
+ const planned=Number(s.cornwallInsertReplenishment?.[sku]||0);
+ const dispatch=(s.awaitingDispatch||[])
+   .filter(x=>x.item_type==='cornwall_insert_spare'&&x.sku===sku&&x.status==='awaiting_dispatch')
+   .reduce((a,x)=>a+Number(x.qty||0),0);
+ const transit=(s.transfers||[])
+   .filter(x=>x.transfer_type==='cornwall_insert_spare'&&x.sku===sku&&x.status==='awaiting_delivery')
+   .reduce((a,x)=>a+Number(x.qty||0),0);
+ return planned+dispatch+transit;
+}
+function ensureCornwallInsertReplenishment(s,products){
+ s.cornwallInsertReplenishment=s.cornwallInsertReplenishment||{};
+ (products||[]).filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).forEach(p=>{
+   const have=cornwallInsertStock(s,p.sku);
+   const pending=pendingCornwallInsertSupply(s,p.sku);
+   if(have<1&&pending<1){
+     s.cornwallInsertReplenishment[p.sku]=Number(s.cornwallInsertReplenishment[p.sku]||0)+1;
+   }
+ });
+}
+
 async function insertProductionPage(){
  const s=state(), ps=await load('products'), files=await load('insert_files');
  const pals=ps.filter(p=>p.type==='pal' && isOnSale(s,p.sku));
+ ensureCornwallInsertReplenishment(s,ps);
  const q=document.querySelector('#q');
  const printCards=document.querySelector('#insertPrintCards');
  const cutCards=document.querySelector('#insertCutCards');
@@ -797,13 +827,14 @@ async function insertProductionPage(){
  function needPrint(sku){
    const r=rec(sku);
    const damageNeed=Number(s.damageInsertDemand?.[sku]||0);
-   return Math.max(0,target()+damageNeed-Number(r.ready||0)-Number(r.awaiting_cut||0));
+   const cornwallNeed=Number(s.cornwallInsertReplenishment?.[sku]||0);
+   return Math.max(0,target()+damageNeed+cornwallNeed-Number(r.ready||0)-Number(r.awaiting_cut||0));
  }
  function renderPrintCard(x){
    return `<div class="insert-job-card print-job">
      <div class="assembly-card-head">
        <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${x.r.ready<4?badge('URGENT','danger'):badge(`PRINT ${x.need}`,'warning')}
+       ${Number(s.cornwallInsertReplenishment?.[x.p.sku]||0)>0?badge(`CORNWALL +${Number(s.cornwallInsertReplenishment[x.p.sku]||0)}`,'info'):x.r.ready<4?badge('URGENT','danger'):badge(`PRINT ${x.need}`,'warning')}
      </div>
      <div class="insert-job-stats">
        <div><span>Ready</span><strong>${Number(x.r.ready||0)}</strong></div>
@@ -881,10 +912,45 @@ async function insertProductionPage(){
      const qty=Math.max(1,Math.min(available,Number(document.querySelector('#cut-'+sku)?.value||1)));
      if(available<=0)return;
      r.awaiting_cut=available-qty;
-     r.ready=Number(r.ready||0)+qty;
-     if(Number(s.damageInsertDemand?.[sku]||0)>0){
-       s.damageInsertDemand[sku]=Math.max(0,Number(s.damageInsertDemand[sku]||0)-qty);
+
+     let remaining=qty;
+
+     // First satisfy full-factory damage replacement insert demand.
+     const damageNeed=Number(s.damageInsertDemand?.[sku]||0);
+     const damageUsed=Math.min(remaining,damageNeed);
+     if(damageUsed>0){
+       r.ready=Number(r.ready||0)+damageUsed;
+       s.damageInsertDemand[sku]=Math.max(0,damageNeed-damageUsed);
+       remaining-=damageUsed;
      }
+
+     // Then route Cornwall spare replenishment directly into Dispatch.
+     const cornwallNeed=Number(s.cornwallInsertReplenishment?.[sku]||0);
+     const cornwallUsed=Math.min(remaining,cornwallNeed);
+     if(cornwallUsed>0){
+       const p=pals.find(x=>x.sku===sku);
+       const now=new Date().toISOString();
+       s.awaitingDispatch=s.awaitingDispatch||[];
+       s.awaitingDispatch.push({
+         id:makeId(),
+         item_type:'cornwall_insert_spare',
+         sku,
+         name:p?.name||sku,
+         qty:cornwallUsed,
+         status:'awaiting_dispatch',
+         packed_at:now,
+         locked_destination:'cornwall',
+         supply_label:'Cornwall Spare Insert'
+       });
+       s.cornwallInsertReplenishment[sku]=Math.max(0,cornwallNeed-cornwallUsed);
+       remaining-=cornwallUsed;
+     }
+
+     // Any normal insert production becomes factory Ready Insert stock.
+     if(remaining>0){
+       r.ready=Number(r.ready||0)+remaining;
+     }
+
      save(s);render();
    });
  }
@@ -1418,8 +1484,19 @@ async function deliveriesPage(){
      const identity=x.source_history_id?`history:${x.source_history_id}`:`record:${x.id}`;
      if(seenDispatch.has(identity))return;
      seenDispatch.add(identity);
-     const groupKey=x.rework_return?`${x.sku}|rework|${x.rework_job_id||x.id}`:`${x.sku}|normal`;
-     if(!map[groupKey])map[groupKey]={key:groupKey,sku:x.sku,name:x.name||x.sku,qty:0,records:[],oldest:x.packed_at||x.created_at||'',locked_destination:x.locked_destination||null,rework_return:!!x.rework_return,rework_job_id:x.rework_job_id||null,rework_label:x.rework_label||''};
+     const groupKey=x.item_type==='cornwall_insert_spare'
+       ?`${x.sku}|cornwall-insert|${x.id}`
+       :x.rework_return?`${x.sku}|rework|${x.rework_job_id||x.id}`:`${x.sku}|normal`;
+     if(!map[groupKey])map[groupKey]={
+       key:groupKey,sku:x.sku,name:x.name||x.sku,qty:0,records:[],
+       oldest:x.packed_at||x.created_at||'',
+       locked_destination:x.locked_destination||null,
+       rework_return:!!x.rework_return,
+       rework_job_id:x.rework_job_id||null,
+       rework_label:x.rework_label||'',
+       item_type:x.item_type||'pal',
+       supply_label:x.supply_label||''
+     };
      const g=map[groupKey];
      g.qty+=Number(x.qty||0);
      g.records.push(x);
@@ -1445,6 +1522,22 @@ async function deliveriesPage(){
    const boatStock=stock(s,g.sku,'boat'),cornStock=stock(s,g.sku,'cornwall');
    const boatTarget=getTarget(s,g.sku,'boat'),cornTarget=getTarget(s,g.sku,'cornwall');
    const boatNeed=needed(s,g.sku,'boat'),cornNeed=needed(s,g.sku,'cornwall');
+   if(g.item_type==='cornwall_insert_spare'){
+     return `<div class="dispatch-pal-card rework-dispatch-card">
+       <div class="dispatch-pal-head">
+         <div><strong>${esc(g.name)} Insert</strong><div class="sku">${g.sku}</div><div class="small">Cornwall spare-stock replenishment</div></div>
+         <div class="dispatch-ready-total"><span>Ready to Dispatch</span><strong>${g.qty}</strong></div>
+       </div>
+       <div class="dispatch-locked-route">
+         <div><span>Destination</span><strong>Kitsune Cornwall</strong></div>
+         <div><span>Stock Type</span><strong>Rework Spare Insert</strong></div>
+       </div>
+       <div class="dispatch-allocation-footer">
+         <div class="dispatch-allocation-summary">Factory-produced spare insert for Cornwall Rework Stock.</div>
+         <button class="btn dispatchCornwallInsertSpare" data-key="${esc(g.key)}">Dispatch to Cornwall</button>
+       </div>
+     </div>`;
+   }
    if(g.locked_destination==='cornwall'){
      return `<div class="dispatch-pal-card rework-dispatch-card">
        <div class="dispatch-pal-head">
@@ -1583,7 +1676,18 @@ async function deliveriesPage(){
    cornKpi.textContent=Object.values(s.finishedStock?.cornwall||{}).reduce((a,v)=>a+Number(v||0),0);
 
    unassigned.innerHTML=groups.length?groups.map(allocationCard).join(''):'<div class="bench-empty">No finished Pals are awaiting dispatch allocation.</div>';
-   awaiting.innerHTML=awaitingTransfers.length?awaitingTransfers.map(deliveryCard).join(''):'<div class="bench-empty">No stock is awaiting delivery to Cornwall.</div>';
+   awaiting.innerHTML=awaitingTransfers.length?awaitingTransfers.map(t=>{
+     if(t.transfer_type==='cornwall_insert_spare'){
+       return `<div class="delivery-card qc-delivery-card">
+         <div class="delivery-main"><strong>${esc(t.name)} Insert</strong><div class="sku">${t.sku}</div><div class="small">Cornwall spare-stock replenishment · Qty ${t.qty}</div></div>
+         <div class="delivery-qc-footer">
+           <div class="small">Confirm the spare insert has arrived at Cornwall.</div>
+           <button class="btn receiveCornwallInsertSpare" data-id="${t.id}">Confirm Received</button>
+         </div>
+       </div>`;
+     }
+     return deliveryCard(t);
+   }).join(''):'<div class="bench-empty">No stock is awaiting delivery to Cornwall.</div>';
 
    function updateSummary(sku){
      const g=groups.find(x=>x.sku===sku);if(!g)return;
@@ -1598,6 +1702,25 @@ async function deliveriesPage(){
 
    document.querySelectorAll('.dispatchBoatQty,.dispatchCornQty').forEach(el=>el.oninput=()=>updateSummary(el.dataset.sku));
    groups.forEach(g=>updateSummary(g.sku));
+
+   document.querySelectorAll('.dispatchCornwallInsertSpare').forEach(btn=>btn.onclick=()=>{
+     const g=groups.find(x=>x.key===btn.dataset.key);if(!g)return;
+     if(!consumeDispatchRecords(g,g.qty)){alert('Could not dispatch this Cornwall spare insert.');return}
+     const now=new Date().toISOString();
+     s.transfers.push({
+       id:makeId(),
+       transfer_type:'cornwall_insert_spare',
+       sku:g.sku,
+       name:g.name,
+       qty:g.qty,
+       destination:'cornwall',
+       status:'awaiting_delivery',
+       packed_at:g.oldest,
+       dispatched_at:now,
+       received_at:null
+     });
+     save(s);render();
+   });
 
    document.querySelectorAll('.dispatchReworkCornwall').forEach(btn=>btn.onclick=()=>{
      const g=groups.find(x=>x.key===btn.dataset.key);if(!g)return;
@@ -1654,6 +1777,16 @@ async function deliveriesPage(){
      }
    }
 
+   document.querySelectorAll('.receiveCornwallInsertSpare').forEach(btn=>btn.onclick=()=>{
+     const t=s.transfers.find(x=>x.id===btn.dataset.id);if(!t)return;
+     s.cornwallReworkStock=s.cornwallReworkStock||{clear_boxes:0,inserts:{}};
+     s.cornwallReworkStock.inserts=s.cornwallReworkStock.inserts||{};
+     s.cornwallReworkStock.inserts[t.sku]=cornwallInsertStock(s,t.sku)+Number(t.qty||0);
+     t.status='received';
+     t.received_at=new Date().toISOString();
+     save(s);render();
+   });
+
    document.querySelectorAll('.damagedQty').forEach(el=>el.onchange=()=>{
      const t=s.transfers.find(x=>x.id===el.dataset.id);if(!t)return;
      t.qcDraftDamaged=Math.max(0,Math.min(Number(t.qty||0),Math.floor(Number(el.value||0))));
@@ -1673,7 +1806,7 @@ async function deliveriesPage(){
      save(s);render();
    });
 
-   awaitingTransfers.forEach(updateQcSummary);
+   awaitingTransfers.filter(t=>t.transfer_type!=='cornwall_insert_spare').forEach(updateQcSummary);
 
    document.querySelectorAll('.confirmDeliveryQC').forEach(btn=>btn.onclick=()=>{
      const t=s.transfers.find(x=>x.id===btn.dataset.id);if(!t)return;
@@ -1790,6 +1923,7 @@ async function reworkPage(){
  const s=state();
  const ps=await load('products');
  const onSale=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).sort((a,b)=>a.name.localeCompare(b.name));
+ ensureCornwallInsertReplenishment(s,ps);
  const q=document.querySelector('#q');
  const activeList=document.querySelector('#activeRework');
  const activeKpi=document.querySelector('#reworkActiveKpi');
@@ -1915,6 +2049,7 @@ async function reworkPage(){
    const qty=Math.max(1,Math.floor(Number(document.querySelector('#cornwallBoxAddQty')?.value||1)));
    s.cornwallReworkStock=s.cornwallReworkStock||{clear_boxes:0,inserts:{}};
    s.cornwallReworkStock.inserts=s.cornwallReworkStock.inserts||{};
+  s.cornwallInsertReplenishment=s.cornwallInsertReplenishment||{};
    s.cornwallReworkStock.clear_boxes=cornwallBoxStock(s)+qty;
    save(s);draw();
  };

@@ -485,3 +485,25 @@ Existing operational data is preserved and no reset is triggered.
 - Production Planner now includes a Cornwall Spare Replenishment panel for the factory.
 - Spare-stock replenishment is a supply alert only and does not create false Pal manufacturing demand.
 - Existing operational data is preserved; no reset is triggered.
+
+
+## v0.8.11 — Cornwall Insert Replenishment Workflow
+
+Cornwall spare Insert low-stock alerts are now connected to real production and dispatch.
+
+Flow:
+1. Cornwall Ready Insert stock for an On Sale Pal falls below 1.
+2. Forge automatically creates a replenishment requirement of 1 spare Insert.
+3. The requirement appears in Insert Production Queue.
+4. Factory prints the Insert.
+5. Cut & Score completion routes the replenishment Insert into Dispatch instead of normal factory Ready Insert stock.
+6. Dispatch shows the item as `Cornwall Spare Insert`, locked to Kitsune Cornwall.
+7. Dispatching it creates an Awaiting Cornwall Delivery record.
+8. Cornwall confirms receipt.
+9. The received quantity is added to Cornwall Rework Stock for that Pal.
+
+Additional behaviour:
+- Forge will not repeatedly create duplicate replenishment demand while an Insert is already in production, Awaiting Dispatch or in transit.
+- Production Planner shows Cornwall Insert shortages as `IN REPLENISHMENT` while supply is already moving through the workflow.
+- Cornwall spare Insert replenishment does not create Pal manufacturing demand.
+- Existing operational data is preserved and no reset is triggered.

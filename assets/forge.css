@@ -481,3 +481,7 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .low-spare-row td{background:rgba(240,92,99,.025)}
 .factory-spare-row{border-color:rgba(240,92,99,.25)}
 @media(max-width:900px){.grid.kpis.three{grid-template-columns:1fr}}
+
+/* v0.8.11 Cornwall insert replenishment flow */
+.factory-spare-row .badge.info{white-space:nowrap}
+.rework-dispatch-card .dispatch-ready-total span{white-space:nowrap}
