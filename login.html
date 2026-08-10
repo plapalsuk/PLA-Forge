@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign In | PLA Forge</title>
+<link rel="stylesheet" href="assets/forge.css?v=095">
+</head>
+<body class="forge-login-body">
+<div class="forge-login-shell">
+  <div class="forge-login-brand">
+    <div class="forge-login-logo">🦊</div>
+    <div><h1>PLA <span>FORGE</span></h1><div>MANUFACTURING & INVENTORY</div></div>
+  </div>
+  <div class="forge-login-card">
+    <div class="kitsu login-kitsu"><div style="font-size:28px">🦊</div><div><strong>Kitsu</strong><div class="small">Welcome back to Forge.</div></div></div>
+    <h2>Sign in</h2>
+    <p>Use your PLA Forge employee account to continue.</p>
+    <label>Email address<input id="loginEmail" type="email" autocomplete="username" placeholder="name@plapals.co.uk"></label>
+    <label>Password<input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password"></label>
+    <div id="loginStatus"></div>
+    <button class="btn forge-login-btn" id="loginBtn">Sign In to Forge</button>
+  </div>
+  <div class="small forge-login-foot">PLA Forge v0.9.5 · Secure Cloud Access</div>
+</div>
+<script src="assets/forge.js?v=095"></script>
+<script>forgeLoginPage()</script>
+</body>
+</html>

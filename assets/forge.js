@@ -180,8 +180,8 @@ function fmtDate(v){if(!v)return '—';try{return new Date(v).toLocaleString('en
 function makeId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 
 
-function cloudToken(){return sessionStorage.getItem('plaForgeCloudToken')||''}
-function setCloudToken(v){if(v)sessionStorage.setItem('plaForgeCloudToken',v);else sessionStorage.removeItem('plaForgeCloudToken')}
+function cloudToken(){return localStorage.getItem('plaForgeCloudToken')||''}
+function setCloudToken(v){if(v)localStorage.setItem('plaForgeCloudToken',v);else localStorage.removeItem('plaForgeCloudToken')}
 function cloudApiBase(){return String(state().siteSettings?.forgeApiUrl||'https://pla-forge-api.plapalsuk.workers.dev').replace(/\/+$/,'')}
 async function cloudFetch(path,options={}){
  const headers={...(options.headers||{})};
@@ -294,6 +294,63 @@ async function cloudCoreRecipes(){
 }
 function cloudModeBadge(){
  return cloudToken()?badge('CLOUD CORE','ok'):badge('LOCAL FALLBACK','warning');
+}
+
+
+const FORGE_ROLE_PAGES={
+ admin:['*'],
+ factory:['index.html','pals.html','keyrings.html','stickers.html','production.html','plates.html','assembly.html','rework.html','packaging.html','packing-station.html','deliveries.html','filament.html','recipes.html','parts.html','consumables.html','data-health.html','settings.html','new-pal.html'],
+ cornwall:['index.html','pals.html','keyrings.html','stickers.html','rework.html','deliveries.html','recipes.html','consumables.html','data-health.html'],
+ viewer:['index.html','pals.html','keyrings.html','stickers.html','recipes.html','filament.html','consumables.html','deliveries.html','rework.html','data-health.html']
+};
+function forgeCurrentPage(){return location.pathname.split('/').pop()||'index.html'}
+function roleCanOpen(role,page){
+ const allowed=FORGE_ROLE_PAGES[role]||[];
+ return allowed.includes('*')||allowed.includes(page);
+}
+function currentForgeUser(){
+ try{return JSON.parse(localStorage.getItem('plaForgeUser')||'null')}catch{return null}
+}
+function setForgeUser(user){if(user)localStorage.setItem('plaForgeUser',JSON.stringify(user));else localStorage.removeItem('plaForgeUser')}
+async function forgeRequireLogin(){
+ if(forgeCurrentPage()==='login.html')return;
+ if(!cloudToken()){
+   const returnTo=encodeURIComponent(location.href);
+   location.replace(`login.html?return=${returnTo}`);
+   return;
+ }
+ try{
+   const me=await cloudFetch('/auth/me');
+   const user=me.user||me;
+   setForgeUser(user);
+   if(!roleCanOpen(user.role,forgeCurrentPage())){
+     location.replace('index.html?denied=1');
+     return;
+   }
+   applyRoleNavigation(user);
+ }catch(e){
+   setCloudToken('');setForgeUser(null);
+   const returnTo=encodeURIComponent(location.href);
+   location.replace(`login.html?return=${returnTo}`);
+ }
+}
+function applyRoleNavigation(user){
+ document.querySelectorAll('.sidebar a').forEach(a=>{
+   const href=(a.getAttribute('href')||'').split('?')[0];
+   if(href&&href.endsWith('.html')&&!roleCanOpen(user.role,href))a.style.display='none';
+ });
+ const side=document.querySelector('.sidebar');
+ if(side&&!side.querySelector('.forge-user-card')){
+   const card=document.createElement('div');
+   card.className='forge-user-card';
+   card.innerHTML=`<div><strong>${esc(user.name||user.email||'Forge User')}</strong><div class="small">${esc(user.role||'')}</div></div><button class="iconbtn" id="forgeQuickLogout" title="Log out">↪</button>`;
+   side.appendChild(card);
+   card.querySelector('#forgeQuickLogout').onclick=forgeLogout;
+ }
+}
+function forgeLogout(){
+ setCloudToken('');setForgeUser(null);
+ location.replace('login.html');
 }
 
 async function dashboard(){
@@ -2724,34 +2781,15 @@ async function cloudMigrationPanel(){
 
 
 async function cloudAuthPanel(){
+ const status=document.querySelector('#cloudAuthStatus');
  const pass=document.querySelector('#cloudPassword');
  const loginBtn=document.querySelector('#cloudLoginBtn');
  const logoutBtn=document.querySelector('#cloudLogoutBtn');
- const authStatus=document.querySelector('#cloudAuthStatus');
- if(!pass||!loginBtn)return;
- function draw(logged,label=''){
-   authStatus.innerHTML=logged?badge(label||'Authenticated','ok'):badge(label||'Not Logged In','warning');
-   logoutBtn.style.display=logged?'inline-flex':'none';
-   pass.disabled=logged; loginBtn.style.display=logged?'none':'inline-flex';
- }
- async function verify(){
-   if(!cloudToken()){draw(false);return false}
-   try{const me=await cloudFetch('/auth/me');draw(true,`Logged In · ${me.role||'admin'}`);return true}
-   catch{draw(false,'Session Expired');return false}
- }
- loginBtn.onclick=async()=>{
-   if(!pass.value){draw(false,'Enter Password');return}
-   loginBtn.disabled=true;authStatus.innerHTML=badge('Logging In…','warning');
-   try{
-     const res=await fetch(cloudApiBase()+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass.value})});
-     const data=await res.json().catch(()=>({}));
-     if(!res.ok||!data.success)throw new Error(data.error||'Login failed');
-     setCloudToken(data.token);pass.value='';draw(true,'Logged In · Admin');
-     document.querySelector('#verifyForgeCloud')?.click();
-   }catch(e){setCloudToken('');draw(false,e.message)}finally{loginBtn.disabled=false}
- };
- logoutBtn.onclick=()=>{setCloudToken('');pass.value='';draw(false,'Logged Out')};
- await verify();
+ const user=currentForgeUser();
+ if(pass)pass.closest('.form-field').style.display='none';
+ if(loginBtn)loginBtn.style.display='none';
+ if(logoutBtn){logoutBtn.style.display='inline-flex';logoutBtn.onclick=forgeLogout}
+ if(status)status.innerHTML=user?badge(`${user.name||user.email} · ${user.role}`,'ok'):badge('Authenticated','ok');
 }
 
 
@@ -2776,4 +2814,71 @@ async function cloudCoreStatusPanel(){
    badgeEl.innerHTML=badge('LOCAL FALLBACK','warning');
    msg.textContent='Cloud Core unavailable: '+e.message;
  }
+}
+
+
+async function forgeLoginPage(){
+ const email=document.querySelector('#loginEmail');
+ const pass=document.querySelector('#loginPassword');
+ const btn=document.querySelector('#loginBtn');
+ const status=document.querySelector('#loginStatus');
+ if(cloudToken()){
+   try{
+     const me=await cloudFetch('/auth/me');
+     setForgeUser(me.user||me);
+     const r=new URLSearchParams(location.search).get('return');
+     location.replace(r?decodeURIComponent(r):'index.html');
+     return;
+   }catch{setCloudToken('');setForgeUser(null)}
+ }
+ btn.onclick=async()=>{
+   const e=String(email.value||'').trim(),p=String(pass.value||'');
+   if(!e||!p){status.innerHTML=badge('Enter email and password','warning');return}
+   btn.disabled=true;status.innerHTML=badge('Signing in…','warning');
+   try{
+     const res=await fetch(cloudApiBase()+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});
+     const data=await res.json().catch(()=>({}));
+     if(!res.ok||!data.success)throw new Error(data.error||'Login failed');
+     setCloudToken(data.token);setForgeUser(data.user);
+     const r=new URLSearchParams(location.search).get('return');
+     location.replace(r?decodeURIComponent(r):'index.html');
+   }catch(err){status.innerHTML=badge(err.message,'danger');btn.disabled=false}
+ };
+ pass.addEventListener('keydown',e=>{if(e.key==='Enter')btn.click()});
+}
+async function employeeAdminPage(){
+ const user=currentForgeUser();
+ if(!user||user.role!=='admin')return;
+ const host=document.querySelector('#employeeAdmin');
+ if(!host)return;
+ async function loadUsers(){
+   const d=await cloudFetch('/users');
+   const rows=d.users||[];
+   host.innerHTML=`<div class="section-title"><div><h2>Employee Accounts</h2><div class="small">Create employees and control which parts of Forge they can access.</div></div><button class="btn" id="addEmployee">+ Add Employee</button></div>
+   <div class="employee-role-help">
+    <div><strong>Admin</strong><span>Everything, including employees and product availability.</span></div>
+    <div><strong>Factory</strong><span>Production, materials, packing and dispatch.</span></div>
+    <div><strong>Cornwall</strong><span>Cornwall stock, delivery and rework workflows.</span></div>
+    <div><strong>View Only</strong><span>Read-only operational visibility.</span></div>
+   </div>
+   <div class="employee-list">${rows.map(x=>`<div class="employee-row">
+      <div><strong>${esc(x.name||x.email)}</strong><div class="small">${esc(x.email)}</div></div>
+      <select class="empRole" data-id="${x.id}"><option value="admin" ${x.role==='admin'?'selected':''}>Admin</option><option value="factory" ${x.role==='factory'?'selected':''}>Factory</option><option value="cornwall" ${x.role==='cornwall'?'selected':''}>Cornwall</option><option value="viewer" ${x.role==='viewer'?'selected':''}>View Only</option></select>
+      <label class="empActive"><input type="checkbox" data-id="${x.id}" ${Number(x.active)===1?'checked':''}> Active</label>
+      <button class="btn ghost resetEmpPassword" data-id="${x.id}">Reset Password</button>
+   </div>`).join('')}</div>`;
+   host.querySelector('#addEmployee').onclick=()=>showCreate();
+   host.querySelectorAll('.empRole').forEach(el=>el.onchange=async()=>{await cloudFetch('/users/'+encodeURIComponent(el.dataset.id),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:el.value})});await loadUsers()});
+   host.querySelectorAll('.empActive input').forEach(el=>el.onchange=async()=>{await cloudFetch('/users/'+encodeURIComponent(el.dataset.id),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:el.checked})});await loadUsers()});
+   host.querySelectorAll('.resetEmpPassword').forEach(el=>el.onclick=async()=>{const pw=prompt('Enter a new password (minimum 8 characters):');if(!pw)return;await cloudFetch('/users/'+encodeURIComponent(el.dataset.id),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});alert('Password updated.')});
+ }
+ function showCreate(){
+   const name=prompt('Employee name:');if(name===null)return;
+   const email=prompt('Employee email:');if(!email)return;
+   const password=prompt('Temporary password (minimum 8 characters):');if(!password)return;
+   const role=prompt('Role: admin, factory, cornwall or viewer','factory');if(!role)return;
+   cloudFetch('/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password,role})})
+     .then(loadUsers).catch(e=>alert(e.message));
+ }
+ await loadUsers();
 }

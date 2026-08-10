@@ -785,3 +785,55 @@ When a valid Cloud Login session is present:
 A new Cloud Core status panel shows the live counts for Products, Recipes, Filaments and Targets.
 
 No operational reset is triggered.
+
+
+## v0.9.5 — Employee Login & Permissions
+
+Forge is now a login-first application.
+
+### Employee accounts
+Cloudflare D1 `users` records now support password authentication with:
+- per-user salt
+- PBKDF2-SHA256 password hashing
+- active / disabled state
+- last login timestamp
+- role
+
+Passwords are never stored in plaintext.
+
+### Roles
+Initial roles:
+- **Admin** — full Forge access, employee management and product availability.
+- **Factory** — manufacturing, materials, packing and dispatch.
+- **Cornwall** — Cornwall stock, delivery and rework workflows.
+- **View Only** — read-only operational pages.
+
+The Worker enforces API permissions. The frontend also hides menu items and redirects users away from pages their role cannot access.
+
+### Login
+- New `login.html` is the entry point.
+- Every Forge page checks for a valid Cloudflare employee session.
+- Unauthenticated visitors are redirected to Login before Forge is shown.
+- Login persists on that device using the signed session token.
+- The employee password is not stored in the browser.
+- Sidebar shows the signed-in employee and role with a quick logout control.
+
+### Employee Management
+Settings now has an Employee Accounts section for Admin users:
+- add employee
+- choose role
+- enable / disable employee
+- reset password
+
+### Required Cloudflare update
+1. Run `cloudflare-d1-schema-v2.sql` once in D1.
+2. Replace the Worker code with `pla-forge-api-v3.js`.
+3. Keep the existing Worker Secrets:
+   - `FORGE_ADMIN_PASSWORD`
+   - `FORGE_SESSION_SECRET`
+4. Temporarily upload `bootstrap.html`.
+5. Open `bootstrap.html`, enter the existing Forge Admin Password, and create the first employee Admin account.
+6. Delete `bootstrap.html` after the first administrator is created.
+7. Open `login.html` and sign in with the new employee account.
+
+No stock or operational data is reset.

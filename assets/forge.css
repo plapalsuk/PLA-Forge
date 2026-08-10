@@ -554,3 +554,25 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .cloud-core-grid span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:4px}
 .cloud-core-grid strong{font-size:20px}
 @media(max-width:800px){.cloud-core-grid{grid-template-columns:1fr 1fr}}
+
+/* v0.9.5 Login-first Forge */
+.forge-login-body{min-height:100vh;margin:0;background:#0b0f13;color:#f5f6f7;display:grid;place-items:center;font-family:inherit}
+.forge-login-shell{width:min(440px,calc(100% - 32px))}
+.forge-login-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:18px}
+.forge-login-brand h1{font-size:24px;margin:0;letter-spacing:-.5px}.forge-login-brand h1 span{color:#ff6900}
+.forge-login-brand>div:last-child>div{font-size:8px;letter-spacing:2px;color:var(--muted)}
+.forge-login-logo{font-size:34px;background:#17110d;border:1px solid #553019;border-radius:12px;padding:7px}
+.forge-login-card{background:linear-gradient(180deg,#1a2028,#14191f);border:1px solid #303844;border-radius:16px;padding:22px;box-shadow:0 20px 70px rgba(0,0,0,.32)}
+.forge-login-card h2{font-size:28px;margin:18px 0 4px}.forge-login-card p{color:var(--muted);margin:0 0 18px}
+.forge-login-card label{display:block;color:#aab2bd;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin:12px 0}
+.forge-login-card input{display:block;width:100%;margin-top:6px;padding:13px;background:#0e141a;border:1px solid #36404c;color:#fff;border-radius:9px;font-size:15px;box-sizing:border-box}
+.forge-login-btn{width:100%;margin-top:14px;padding:13px}.login-kitsu{width:auto;justify-content:flex-start}
+.forge-login-foot{text-align:center;margin-top:12px}.forge-user-card{margin:auto 12px 12px;padding:10px;border:1px solid var(--line);border-radius:9px;background:#11161c;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.forge-user-card strong{display:block;font-size:12px}.forge-user-card .small{text-transform:capitalize}
+.employee-role-help{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.employee-role-help>div{background:#11161c;border:1px solid var(--line);border-radius:9px;padding:10px}
+.employee-role-help strong,.employee-role-help span{display:block}.employee-role-help span{color:var(--muted);font-size:10px;margin-top:4px}
+.employee-list{display:flex;flex-direction:column;gap:7px}
+.employee-row{display:grid;grid-template-columns:minmax(200px,1fr) 150px 100px 140px;gap:8px;align-items:center;background:#11161c;border:1px solid var(--line);border-radius:9px;padding:9px}
+.employee-row select{width:100%}
+@media(max-width:800px){.employee-role-help{grid-template-columns:1fr 1fr}.employee-row{grid-template-columns:1fr}.forge-user-card{display:none}}
