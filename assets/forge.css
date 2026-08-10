@@ -546,3 +546,11 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .cloud-login-row{display:grid;grid-template-columns:minmax(260px,1fr) auto auto;gap:8px;align-items:end;margin:10px 0}
 .cloud-login-row .form-field{margin:0}
 @media(max-width:700px){.cloud-login-row{grid-template-columns:1fr}.cloud-login-row .btn{width:100%}}
+
+/* v0.9.4 Cloud Core */
+.cloud-core-card{border-color:rgba(67,193,122,.25)}
+.cloud-core-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}
+.cloud-core-grid>div{background:#11161c;border:1px solid var(--line);border-radius:9px;padding:10px}
+.cloud-core-grid span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:4px}
+.cloud-core-grid strong{font-size:20px}
+@media(max-width:800px){.cloud-core-grid{grid-template-columns:1fr 1fr}}

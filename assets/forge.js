@@ -103,15 +103,28 @@ function state(){
 }
 function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
 async function load(name){
+ if(name==='products'){
+   const cloud=await cloudCoreProducts();
+   if(cloud)return cloud;
+ }
+ if(name==='recipes'){
+   const cloud=await cloudCoreRecipes();
+   if(cloud)return cloud;
+ }
+
  const base=await (await fetch('data/'+name+'.json')).json();
  const s=state();
  if(name==='products'){
+   const cached=s.cloudCore?.products||[];
+   if(cached.length&&cloudToken())return cached;
    const custom=s.customData?.products||[];
    const bySku=new Map((base||[]).map(x=>[x.sku,x]));
    custom.forEach(x=>bySku.set(x.sku,x));
    return [...bySku.values()];
  }
  if(name==='recipes'){
+   const cached=s.cloudCore?.recipes||[];
+   if(cached.length&&cloudToken())return cached;
    const custom=s.customData?.recipes||[];
    const existing=(base||[]).filter(x=>!custom.some(c=>c.sku===x.sku&&c.filament===x.filament&&c.grouped_stl===x.grouped_stl));
    return existing.concat(custom);
@@ -181,6 +194,108 @@ async function cloudFetch(path,options={}){
  return data;
 }
 
+
+function normaliseCloudProduct(p){
+ return {
+   ...p,
+   type:p.product_type||p.type||'pal',
+   description:p.short_description||p.description||'',
+   height_cm:Number(p.height_cm||0),
+   width_cm:Number(p.width_cm||0),
+   depth_cm:Number(p.depth_cm||0),
+   price:Number(p.price||0),
+   on_sale:Number(p.on_sale||0)===1,
+   keyring:Number(p.keyring||0)===1,
+   recipe_ready:Number(p.recipe_ready||0)===1,
+   active:Number(p.active??1)===1,
+   characteristics:[p.characteristic_1,p.characteristic_2,p.characteristic_3].filter(Boolean)
+ };
+}
+function normaliseCloudRecipe(r){
+ return {
+   ...r,
+   filament:r.filament_name||r.filament||'',
+   weight_g:Number(r.weight_g||0),
+   part_count:Number(r.part_count||1)
+ };
+}
+async function syncCloudCoreState(){
+ if(!cloudToken())return {ok:false,reason:'not_logged_in'};
+ const s=state();
+ try{
+   const core=await cloudFetch('/core');
+   const products=(core.products||[]).map(normaliseCloudProduct);
+   const recipes=(core.recipes||[]).map(normaliseCloudRecipe);
+
+   s.cloudCore=s.cloudCore||{};
+   s.cloudCore.products=products;
+   s.cloudCore.recipes=recipes;
+   s.cloudCore.filaments=core.filaments||[];
+   s.cloudCore.synced_at=new Date().toISOString();
+
+   (core.targets||[]).forEach(t=>{
+     const loc=t.location_id==='factory'?'boat':t.location_id;
+     s.targets[targetKey(t.sku,loc)]=Number(t.target_qty||0);
+   });
+
+   products.forEach(p=>{
+     s.productAvailability[p.sku]={
+       on_sale:!!p.on_sale,
+       release_date:p.release_date||''
+     };
+   });
+
+   (core.filaments||[]).forEach(f=>{
+     s.filament[f.name]={
+       grams:Number(f.grams_in_stock||0),
+       reorder:Number(f.reorder_level_g||250)
+     };
+   });
+
+   save(s);
+   return {ok:true,core};
+ }catch(e){
+   console.warn('Cloud Core sync failed; using local cache.',e);
+   return {ok:false,reason:e.message};
+ }
+}
+async function cloudCoreProducts(){
+ if(cloudToken()){
+   try{
+     const d=await cloudFetch('/products');
+     const products=(d.products||[]).map(normaliseCloudProduct);
+     const s=state();
+     s.cloudCore=s.cloudCore||{};
+     s.cloudCore.products=products;
+     s.cloudCore.synced_at=new Date().toISOString();
+     products.forEach(p=>{
+       s.productAvailability[p.sku]={on_sale:!!p.on_sale,release_date:p.release_date||''};
+     });
+     save(s);
+     return products;
+   }catch(e){console.warn('Products cloud read failed; falling back.',e)}
+ }
+ return null;
+}
+async function cloudCoreRecipes(){
+ if(cloudToken()){
+   try{
+     const d=await cloudFetch('/recipes');
+     const recipes=(d.recipes||[]).map(normaliseCloudRecipe);
+     const s=state();
+     s.cloudCore=s.cloudCore||{};
+     s.cloudCore.recipes=recipes;
+     s.cloudCore.synced_at=new Date().toISOString();
+     save(s);
+     return recipes;
+   }catch(e){console.warn('Recipes cloud read failed; falling back.',e)}
+ }
+ return null;
+}
+function cloudModeBadge(){
+ return cloudToken()?badge('CLOUD CORE','ok'):badge('LOCAL FALLBACK','warning');
+}
+
 async function dashboard(){
  const ps=await load('products'), rs=await load('recipes'), mm=await load('mismatches'), s=state();
  const pals=ps.filter(x=>x.type==='pal'), keys=pals.filter(x=>x.keyring), st=ps.filter(x=>x.type==='sticker');
@@ -197,15 +312,30 @@ function isOnSale(s,sku){return s.productAvailability?.[sku]?.on_sale===true}
 function releaseDateFor(s,sku){return s.productAvailability?.[sku]?.release_date||''}
 
 async function inventory(type){
+ await syncCloudCoreState();
  const s=state(), ps=await load('products'); let items=ps.filter(x=>type==='sticker'?x.type==='sticker':x.type==='pal'&&(type==='pal'||x.keyring));
  const tbody=document.querySelector('#rows'), q=document.querySelector('#q');
  function draw(){const text=(q.value||'').toLowerCase(),shown=items.filter(x=>`${x.sku} ${x.name}`.toLowerCase().includes(text)).sort((a,b)=>Number(isOnSale(s,b.sku))-Number(isOnSale(s,a.sku))||a.name.localeCompare(b.name));
  tbody.innerHTML=shown.map(x=>{const b=stock(s,x.sku,'boat'),c=stock(s,x.sku,'cornwall'),bt=getTarget(s,x.sku,'boat'),ct=getTarget(s,x.sku,'cornwall'),need=needed(s,x.sku,'boat')+needed(s,x.sku,'cornwall'),sale=isOnSale(s,x.sku);
  return `<tr class="${sale?'on-sale-row':''}"><td><div class="product-name">${esc(x.name)}</div><span class="sku">${x.sku}</span></td><td>${sale?badge('ON SALE','ok'):badge('NOT ON SALE','')}</td><td>${x.recipe_ready?badge('Recipe ready','ok'):badge('No recipe','warning')}</td><td>${b}</td><td><input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}"></td><td>${c}</td><td><input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}"></td><td><strong>${need}</strong></td></tr>`}).join('');
- document.querySelectorAll('.t').forEach(el=>el.onchange=()=>{s.targets[targetKey(el.dataset.sku,el.dataset.loc)]=Number(el.value||0);save(s);draw()})}
+ document.querySelectorAll('.t').forEach(el=>el.onchange=async()=>{
+   const sku=el.dataset.sku,loc=el.dataset.loc,qty=Number(el.value||0);
+   s.targets[targetKey(sku,loc)]=qty;save(s);draw();
+   if(cloudToken()){
+     try{
+       await cloudFetch(`/targets/${encodeURIComponent(sku)}/${encodeURIComponent(loc)}`,{
+         method:'PUT',headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({target_qty:qty})
+       });
+     }catch(e){
+       alert(`Target saved locally, but cloud update failed: ${e.message}`);
+     }
+   }
+ })}
  q.oninput=draw;draw()
 }
 async function recipes(){
+ await syncCloudCoreState();
  const ps=await load('products'),rs=await load('recipes'),q=document.querySelector('#q'),box=document.querySelector('#cards');
  function draw(){const text=(q.value||'').toLowerCase(),filtered=ps.filter(p=>p.type==='pal'&&`${p.sku} ${p.name} ${(p.filaments||[]).join(' ')}`.toLowerCase().includes(text));
  box.innerHTML=filtered.map(p=>{const rr=rs.filter(r=>r.sku===p.sku);return `<div class="card recipe-card"><h3>${esc(p.name)}</h3><span class="sku">${p.sku}</span><div class="small">${rr.length} colour group(s) · ${p.recipe_weight_g||0}g total</div>${rr.map(r=>`<div class="listitem" style="margin-top:9px"><div class="colour">${esc(r.filament)}</div><strong>${esc(r.parts)}</strong><div>${r.weight_g}g · ${r.part_count} part(s)</div><code>${esc(r.grouped_stl)}</code></div>`).join('')||'<div class="listitem" style="margin-top:9px">No recipe entered yet.</div>'}</div>`}).join('')}
@@ -254,9 +384,69 @@ async function dataHealth(){
  body.innerHTML=rows.map(x=>`<tr><td>${badge(x.issue,x.level)}</td><td>${esc(x.item)}</td><td>${esc(x.detail)}</td></tr>`).join('')||'<tr><td colspan="3">No data issues detected.</td></tr>';
 }
 async function filament(){
- const s=state(),rs=await load('recipes'),body=document.querySelector('#fil'),colours=[...new Set(rs.map(r=>r.filament).filter(Boolean))].sort();
- colours.forEach(c=>{if(!s.filament[c])s.filament[c]={grams:0,reorder:250}});save(s);
- function draw(){body.innerHTML=colours.map(c=>{const x=s.filament[c],low=Number(x.grams)<=Number(x.reorder);return `<tr><td><strong>${esc(c)}</strong></td><td><input class="number fg" data-c="${esc(c)}" data-k="grams" type="number" min="0" value="${x.grams}"></td><td><input class="number fg" data-c="${esc(c)}" data-k="reorder" type="number" min="0" value="${x.reorder}"></td><td>${low?badge('Order','danger'):badge('OK','ok')}</td></tr>`}).join('');document.querySelectorAll('.fg').forEach(el=>el.onchange=()=>{s.filament[el.dataset.c][el.dataset.k]=Number(el.value||0);save(s);draw()})}draw()
+ const s=state(),body=document.querySelector('#fil');
+ let cloudRows=null;
+
+ if(cloudToken()){
+   try{
+     const d=await cloudFetch('/filaments');
+     cloudRows=d.filaments||[];
+     cloudRows.forEach(f=>{
+       s.filament[f.name]={
+         grams:Number(f.grams_in_stock||0),
+         reorder:Number(f.reorder_level_g||250)
+       };
+     });
+     save(s);
+   }catch(e){
+     console.warn('Filament cloud read failed; using local fallback.',e);
+   }
+ }
+
+ const rs=await load('recipes');
+ const colours=[...new Set([
+   ...rs.map(r=>r.filament).filter(Boolean),
+   ...Object.keys(s.filament||{})
+ ])].sort();
+
+ colours.forEach(c=>{
+   if(!s.filament[c])s.filament[c]={grams:0,reorder:250};
+ });
+ save(s);
+
+ function draw(){
+   body.innerHTML=colours.map(c=>{
+     const x=s.filament[c],low=Number(x.grams)<=Number(x.reorder);
+     return `<tr>
+       <td><strong>${esc(c)}</strong><div class="small">${cloudToken()?'Cloud backed':'Local fallback'}</div></td>
+       <td><input class="number fg" data-c="${esc(c)}" data-k="grams" type="number" min="0" value="${x.grams}"></td>
+       <td><input class="number fg" data-c="${esc(c)}" data-k="reorder" type="number" min="0" value="${x.reorder}"></td>
+       <td>${low?badge('Order','danger'):badge('OK','ok')}</td>
+     </tr>`;
+   }).join('');
+
+   document.querySelectorAll('.fg').forEach(el=>el.onchange=async()=>{
+     const c=el.dataset.c;
+     s.filament[c][el.dataset.k]=Number(el.value||0);
+     save(s);draw();
+
+     if(cloudToken()){
+       try{
+         await cloudFetch(`/filaments/${encodeURIComponent(c)}`,{
+           method:'PUT',
+           headers:{'Content-Type':'application/json'},
+           body:JSON.stringify({
+             grams_in_stock:Number(s.filament[c].grams||0),
+             reorder_level_g:Number(s.filament[c].reorder||250)
+           })
+         });
+       }catch(e){
+         alert(`Filament saved locally, but cloud update failed: ${e.message}`);
+       }
+     }
+   });
+ }
+ draw();
 }
 
 async function buildPlatePlanner(){
@@ -1056,6 +1246,7 @@ async function insertProductionPage(){
 }
 
 async function availabilityPage(){
+ await syncCloudCoreState();
  const s=state(),ps=await load('products'),pals=ps.filter(p=>p.type==='pal');
  const q=document.querySelector('#q'),filter=document.querySelector('#availabilityFilter'),list=document.querySelector('#availabilityList');
  const saleKpi=document.querySelector('#onSaleKpi'),futureKpi=document.querySelector('#futureKpi'),offKpi=document.querySelector('#offSaleKpi');
@@ -1066,14 +1257,35 @@ async function availabilityPage(){
   saleKpi.textContent=all.filter(x=>x.status==='sale').length;futureKpi.textContent=all.filter(x=>x.status==='future').length;offKpi.textContent=all.filter(x=>x.status==='off').length;
   const data=all.filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text)).filter(x=>mode==='all'||x.status===mode).sort((a,b)=>(a.status==='sale'?-2:a.status==='future'?-1:0)-(b.status==='sale'?-2:b.status==='future'?-1:0)||a.p.name.localeCompare(b.p.name));
   list.innerHTML=data.map(x=>`<div class="availability-row"><div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div><div>${x.status==='sale'?badge('ON SALE','ok'):x.status==='future'?badge('FUTURE RELEASE','warning'):badge('NOT ON SALE','')}</div><label><span class="small">Release Date</span><input class="releaseDate" data-sku="${x.p.sku}" type="date" value="${esc(x.rec.release_date||'')}"></label><button class="btn ${x.status==='sale'?'ghost':''} toggleSale" data-sku="${x.p.sku}">${x.status==='sale'?'Take Off Sale':'Put On Sale'}</button></div>`).join('')||'<div class="bench-empty">No Pals match this view.</div>';
-  document.querySelectorAll('.toggleSale').forEach(btn=>btn.onclick=()=>{const sku=btn.dataset.sku,r=s.productAvailability[sku]||{};r.on_sale=!r.on_sale;if(r.on_sale&&!r.release_date)r.release_date=new Date().toISOString().slice(0,10);s.productAvailability[sku]=r;save(s);render()});
-  document.querySelectorAll('.releaseDate').forEach(el=>el.onchange=()=>{const sku=el.dataset.sku,r=s.productAvailability[sku]||{};r.release_date=el.value;s.productAvailability[sku]=r;save(s);render()});
+  document.querySelectorAll('.toggleSale').forEach(btn=>btn.onclick=async()=>{
+   const sku=btn.dataset.sku,r=s.productAvailability[sku]||{};
+   r.on_sale=!r.on_sale;
+   if(r.on_sale&&!r.release_date)r.release_date=new Date().toISOString().slice(0,10);
+   s.productAvailability[sku]=r;save(s);render();
+   if(cloudToken()){
+     try{await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+       method:'PUT',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({on_sale:r.on_sale,release_date:r.release_date||null})
+     })}catch(e){alert(`Availability saved locally, but cloud update failed: ${e.message}`)}
+   }
+ });
+  document.querySelectorAll('.releaseDate').forEach(el=>el.onchange=async()=>{
+   const sku=el.dataset.sku,r=s.productAvailability[sku]||{};
+   r.release_date=el.value;s.productAvailability[sku]=r;save(s);render();
+   if(cloudToken()){
+     try{await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+       method:'PUT',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({on_sale:!!r.on_sale,release_date:r.release_date||null})
+     })}catch(e){alert(`Release date saved locally, but cloud update failed: ${e.message}`)}
+   }
+ });
  }
  q.oninput=render;filter.onchange=render;render();
 }
 
 
 async function settingsAvailabilityPage(){
+ await syncCloudCoreState();
  const s=state(), ps=await load('products'), pals=ps.filter(p=>p.type==='pal');
  const q=document.querySelector('#settingsAvailabilitySearch');
  const filter=document.querySelector('#settingsAvailabilityFilter');
@@ -1118,23 +1330,33 @@ async function settingsAvailabilityPage(){
        </button>
      </div>`).join('') || '<div class="bench-empty">No Pals match this view.</div>';
 
-   document.querySelectorAll('.settingsToggleSale').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.settingsToggleSale').forEach(btn=>btn.onclick=async()=>{
       const sku=btn.dataset.sku;
       const rec=s.productAvailability[sku]||{};
       rec.on_sale=!rec.on_sale;
-      if(rec.on_sale && !rec.release_date)rec.release_date=new Date().toISOString().slice(0,10);
+      if(rec.on_sale&&!rec.release_date)rec.release_date=new Date().toISOString().slice(0,10);
       s.productAvailability[sku]=rec;
-      save(s);
-      render();
+      save(s);render();
+      if(cloudToken()){
+        try{await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+          method:'PUT',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({on_sale:rec.on_sale,release_date:rec.release_date||null})
+        })}catch(e){alert(`Availability saved locally, but cloud update failed: ${e.message}`)}
+      }
    });
 
-   document.querySelectorAll('.settingsReleaseDate').forEach(el=>el.onchange=()=>{
+   document.querySelectorAll('.settingsReleaseDate').forEach(el=>el.onchange=async()=>{
       const sku=el.dataset.sku;
       const rec=s.productAvailability[sku]||{};
       rec.release_date=el.value;
       s.productAvailability[sku]=rec;
-      save(s);
-      render();
+      save(s);render();
+      if(cloudToken()){
+        try{await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+          method:'PUT',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({on_sale:!!rec.on_sale,release_date:rec.release_date||null})
+        })}catch(e){alert(`Release date saved locally, but cloud update failed: ${e.message}`)}
+      }
    });
  }
 
@@ -2530,4 +2752,28 @@ async function cloudAuthPanel(){
  };
  logoutBtn.onclick=()=>{setCloudToken('');pass.value='';draw(false,'Logged Out')};
  await verify();
+}
+
+
+async function cloudCoreStatusPanel(){
+ const badgeEl=document.querySelector('#cloudCoreModeBadge');
+ if(!badgeEl)return;
+ const msg=document.querySelector('#cloudCoreMessage');
+ if(!cloudToken()){
+   badgeEl.innerHTML=badge('LOCAL FALLBACK','warning');
+   msg.textContent='Log in to Cloud Forge to activate Cloud Core reads and writes.';
+   return;
+ }
+ try{
+   const d=await cloudFetch('/core');
+   document.querySelector('#cloudCoreProducts').textContent=(d.products||[]).length;
+   document.querySelector('#cloudCoreRecipes').textContent=(d.recipes||[]).length;
+   document.querySelector('#cloudCoreFilaments').textContent=(d.filaments||[]).length;
+   document.querySelector('#cloudCoreTargets').textContent=(d.targets||[]).length;
+   badgeEl.innerHTML=badge('CLOUD CORE LIVE','ok');
+   msg.textContent='Core catalogue and configuration are reading from Cloudflare D1.';
+ }catch(e){
+   badgeEl.innerHTML=badge('LOCAL FALLBACK','warning');
+   msg.textContent='Cloud Core unavailable: '+e.message;
+ }
 }

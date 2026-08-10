@@ -754,3 +754,34 @@ The secured Worker also adds:
 These endpoints are the foundation for switching Pals, Recipes, Filaments and stock targets to D1 in the next stage.
 
 No operational Forge page has yet been switched to cloud as the source of truth. Existing local data remains intact.
+
+
+## v0.9.4 — Cloud Core
+
+PLA Forge has entered the first live cloud-backed stage.
+
+When a valid Cloud Login session is present:
+
+### Cloud-backed reads
+- Pals / Products read from D1.
+- Recipes read from D1.
+- Filaments read from D1.
+- On Sale / Release Date state is synchronised from D1.
+- Boat / Cornwall stock targets are synchronised from D1.
+
+### Cloud-backed writes
+- Changing Boat or Cornwall target stock on the Pals page writes to D1.
+- Updating filament stock or reorder level writes to D1.
+- Changing On Sale status writes to D1.
+- Changing a release date writes to D1.
+
+### Safe fallback
+- Cloud data is cached into the existing Forge browser state.
+- If Cloudflare is unavailable, the current local/cache data remains available.
+- Build Plates, Printed Parts, The Bench, Insert Production, Packing, Dispatch, Rework and live inventory movements remain on the existing local production engine for now.
+- This prevents a partial cloud migration from disrupting the proven production workflow.
+
+### Data Health
+A new Cloud Core status panel shows the live counts for Products, Recipes, Filaments and Targets.
+
+No operational reset is triggered.
