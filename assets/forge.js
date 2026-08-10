@@ -119,16 +119,17 @@ let forgeLiveSyncBusy=false;
 
 async function forgeCloudStamp(){
  try{
-   const d=await cloudFetch('/production/sync-status');
+   const [d,availability]=await Promise.all([
+     cloudFetch('/production/sync-status'),
+     cloudAvailability()
+   ]);
    return JSON.stringify({
      production:d?.production?.updated_at||null,
      build_count:Number(d?.build_plates?.count||0),
-     build_updated:d?.build_plates?.updated_at||null
+     build_updated:d?.build_plates?.updated_at||null,
+     availability:(availability||[]).map(x=>`${x.sku}:${x.on_sale?'1':'0'}:${x.release_date||''}:${x.updated_at||''}`).sort().join('|')
    });
- }catch(e){
-   setForgeCloudSync('error',e.message||'Live sync check failed');
-   return null;
- }
+ }catch(e){return null}
 }
 
 async function startForgeLiveSync(onChange){
@@ -190,10 +191,11 @@ async function hydrateProductionCloud(force=false){
  if(!cloudToken())throw new Error('Cloud login required.');
  setForgeCloudSync('syncing','Loading live state from Cloudflare D1');
  try{
-   const [st,bp,targetData]=await Promise.all([
+   const [st,bp,targetData,availabilityData]=await Promise.all([
      cloudFetch('/production/state'),
      cloudFetch('/build-plates'),
-     cloudFetch('/targets')
+     cloudFetch('/targets'),
+     cloudAvailability()
    ]);
 
    const s=emptyCloudWorkingState();
@@ -211,6 +213,9 @@ async function hydrateProductionCloud(force=false){
      const loc=t.location_id==='factory'?'boat':t.location_id;
      s.targets[targetKey(t.sku,loc)]=Number(t.target_qty||0);
    });
+
+   // One authoritative availability source for every page.
+   applyCloudAvailability(s,availabilityData);
 
    s.plates=(bp?.plates||[]).map(p=>({
      id:p.id,code:p.code,name:p.name||'',colour:p.colour||'',printer:p.printer||'',
@@ -401,16 +406,9 @@ async function cloudFetchTimed(path,options={},timeoutMs=12000){
  }
 }
 async function refreshProductAvailabilityFromD1(s){
- const data=await cloudFetchTimed('/products',{},10000);
- const products=(data.products||[]).map(normaliseCloudProduct);
- s.productAvailability=s.productAvailability||{};
- products.forEach(p=>{
-   s.productAvailability[p.sku]={
-     on_sale:p.on_sale===true,
-     release_date:p.release_date||''
-   };
- });
- return products;
+ const rows=await cloudAvailability();
+ applyCloudAvailability(s,rows);
+ return rows;
 }
 
 
@@ -459,6 +457,20 @@ async function cloudCoreProducts(){
  if(!cloudToken())throw new Error('Cloud login required.');
  const d=await cloudFetch('/products');
  return (d.products||[]).map(normaliseCloudProduct);
+}
+async function cloudAvailability(){
+ if(!cloudToken())throw new Error('Cloud login required.');
+ const d=await cloudFetchTimed('/availability',{},10000);
+ return d.availability||[];
+}
+function applyCloudAvailability(s,rows){
+ s.productAvailability={};
+ (rows||[]).forEach(x=>{
+   s.productAvailability[x.sku]={
+     on_sale:x.on_sale===true,
+     release_date:x.release_date||''
+   };
+ });
 }
 async function cloudCoreRecipes(){
  if(!cloudToken())throw new Error('Cloud login required.');
@@ -1945,8 +1957,8 @@ async function availabilityPage(){
        },10000);
 
        // Confirm only the products table. Do not wait for unrelated production endpoints.
-       const products=await refreshProductAvailabilityFromD1(s);
-       const confirmed=products.find(p=>p.sku===sku);
+       const availability=await refreshProductAvailabilityFromD1(s);
+       const confirmed=availability.find(p=>p.sku===sku);
        if(!confirmed)throw new Error(`${sku} was not returned by D1 after the update.`);
        if(Boolean(confirmed.on_sale)!==next){
          throw new Error(`D1 did not confirm the requested On Sale value for ${sku}.`);
@@ -1975,8 +1987,8 @@ async function availabilityPage(){
          body:JSON.stringify({on_sale:Boolean(rec.on_sale),release_date:nextDate})
        },10000);
 
-       const products=await refreshProductAvailabilityFromD1(s);
-       const confirmed=products.find(p=>p.sku===sku);
+       const availability=await refreshProductAvailabilityFromD1(s);
+       const confirmed=availability.find(p=>p.sku===sku);
        if(!confirmed)throw new Error(`${sku} was not returned by D1 after the update.`);
        render();
        setForgeCloudSync('synced',`${sku} release date confirmed by D1`);
@@ -2070,8 +2082,8 @@ async function settingsAvailabilityPage(){
        },10000);
 
        // Confirm only the products table. Do not wait for unrelated production endpoints.
-       const products=await refreshProductAvailabilityFromD1(s);
-       const confirmed=products.find(p=>p.sku===sku);
+       const availability=await refreshProductAvailabilityFromD1(s);
+       const confirmed=availability.find(p=>p.sku===sku);
        if(!confirmed)throw new Error(`${sku} was not returned by D1 after the update.`);
        if(Boolean(confirmed.on_sale)!==next){
          throw new Error(`D1 did not confirm the requested On Sale value for ${sku}.`);
@@ -2100,8 +2112,8 @@ async function settingsAvailabilityPage(){
          body:JSON.stringify({on_sale:Boolean(rec.on_sale),release_date:nextDate})
        },10000);
 
-       const products=await refreshProductAvailabilityFromD1(s);
-       const confirmed=products.find(p=>p.sku===sku);
+       const availability=await refreshProductAvailabilityFromD1(s);
+       const confirmed=availability.find(p=>p.sku===sku);
        if(!confirmed)throw new Error(`${sku} was not returned by D1 after the update.`);
        render();
        setForgeCloudSync('synced',`${sku} release date confirmed by D1`);

@@ -1285,3 +1285,12 @@ Flow:
 4. Update the page.
 
 Both write and verification requests now have timeouts, so the UI cannot remain on `Saving to Cloud…` indefinitely. If D1 fails to confirm the value, Forge shows the actual failure instead of pretending the update worked.
+
+
+## v0.11.0 — Availability Rebuild
+
+The old mixed availability logic has been removed from the cloud flow.
+
+Worker v3g adds GET /availability and hardens PUT /products/:sku/availability.
+Every cloud-enabled Forge page now receives On Sale from the same GET /availability response.
+Pals no longer depends on availability being embedded in production state.
