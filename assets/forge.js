@@ -171,8 +171,13 @@ async function hydrateProductionCloud(force=false){
 
    // D1 is authoritative for migrated production fields.
    const cloudState=st?.state||{};
+   const blank=blankOperationalState();
    CLOUD_PRODUCTION_FIELDS.forEach(k=>{
-     if(cloudState[k]!==undefined)s[k]=cloudState[k];
+     // D1 is authoritative. If a field is absent in D1, use a clean default,
+     // never a stale value from this browser.
+     s[k]=cloudState[k]!==undefined
+       ? JSON.parse(JSON.stringify(cloudState[k]))
+       : JSON.parse(JSON.stringify(blank[k]));
    });
 
    // Build plates always come from D1, including an intentionally empty list.
@@ -1372,7 +1377,7 @@ async function assemblyPage(){
    return `<div class="assembly-card ready">
      <div class="assembly-card-head">
        <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${badge(`${x.ready} Ready`,'ok')}
+       ${badge(`${Math.min(x.ready,x.remainingNeed)} Ready`,'ok')}
      </div>
      <div class="assembly-demand-strip">
        <span>Production Need <strong>${x.plannerNeed}</strong></span>
@@ -1419,15 +1424,18 @@ async function assemblyPage(){
      groups:groupStock(p)
    })).filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
 
+   // READY: only show Pals that are still required by Production Planning
+   // and can physically be assembled now.
    const ready=all
-     .filter(x=>x.ready>0)
+     .filter(x=>x.remainingNeed>0 && x.ready>0)
      .sort((a,b)=>b.remainingNeed-a.remainingNeed || b.ready-a.ready || a.p.name.localeCompare(b.p.name));
 
+   // AWAITING: demanded by Production Planning but no complete Pal can be assembled yet.
    const awaiting=all
      .filter(x=>x.remainingNeed>0 && x.ready<=0)
      .sort((a,b)=>b.remainingNeed-a.remainingNeed || a.p.name.localeCompare(b.p.name));
 
-   kpiReady.textContent=ready.reduce((a,x)=>a+x.ready,0);
+   kpiReady.textContent=ready.reduce((a,x)=>a+Math.min(x.ready,x.remainingNeed),0);
    kpiAssembled.textContent=Object.values(s.assembled||{}).reduce((a,b)=>a+Number(b||0),0);
    kpiWaiting.textContent=awaiting.reduce((a,x)=>a+x.remainingNeed,0);
    readySectionCount.textContent=`${ready.length} Ready`;
@@ -1507,7 +1515,8 @@ async function assemblyPage(){
  render();
 
  await startForgeLiveSync(async fresh=>{
-   s=fresh;
+   // Replace the Bench state reference completely with the D1-hydrated state.
+   s=JSON.parse(JSON.stringify(fresh));
    render();
  });
 }

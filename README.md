@@ -1074,3 +1074,19 @@ Assembly now:
 - shows the same Cloud Sync status used by Build Plates and Printed Parts
 
 No SQL or Worker update is required beyond the existing v0.9.9 / Worker v3f production-cloud setup.
+
+
+### v0.9.9.5 — Bench Demand + Mobile Consistency
+
+The Bench has been tightened for production use.
+
+- D1 fully replaces all migrated operational fields on hydration.
+- Missing cloud fields fall back to clean defaults, never stale browser values.
+- Bench Ready now shows only Pals that are actually still needed by Production Planning.
+- Ready quantity is capped to the remaining production requirement.
+- Awaiting Parts only represents demanded Pals that cannot currently be assembled.
+- Bench live sync replaces its state reference with the newest D1 snapshot.
+- Added iPhone safe-area handling and improved Kitsu/header spacing on mobile.
+- SQL/schema files are removed from the GitHub deployment ZIP.
+
+No Worker or SQL changes are required for this release.
