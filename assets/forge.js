@@ -97,6 +97,7 @@ function state(){
   s.siteSettings.shopifyBridgeUrl=s.siteSettings.shopifyBridgeUrl||'';
   s.siteSettings.shopifyVendor=s.siteSettings.shopifyVendor||'PLA Pals';
   s.siteSettings.shopifyProductType=s.siteSettings.shopifyProductType||'PLA Pal';
+  s.siteSettings.forgeApiUrl=s.siteSettings.forgeApiUrl||'https://pla-forge-api.plapalsuk.workers.dev';
   s.productAvailability=s.productAvailability||{};
   return s;
 }
@@ -2349,4 +2350,144 @@ async function newPalPage(){
    createBtn.disabled=false;
  };
  drawRecipes();drawReview();
+}
+
+
+async function cloudMigrationPanel(){
+ const s=state();
+ const apiInput=document.querySelector('#cloudApiUrl');
+ const healthEl=document.querySelector('#cloudHealthStatus');
+ const summaryEl=document.querySelector('#cloudMigrationSummary');
+ const migrateBtn=document.querySelector('#migrateForgeCloud');
+ const verifyBtn=document.querySelector('#verifyForgeCloud');
+ const localCountEl=document.querySelector('#cloudLocalProducts');
+ const cloudCountEl=document.querySelector('#cloudRemoteProducts');
+
+ if(!apiInput||!migrateBtn)return;
+
+ apiInput.value=s.siteSettings?.forgeApiUrl||'https://pla-forge-api.plapalsuk.workers.dev';
+
+ function apiBase(){
+   return String(apiInput.value||'').trim().replace(/\/+$/,'');
+ }
+ function setSummary(html){if(summaryEl)summaryEl.innerHTML=html}
+ function setHealth(text,cls='info'){if(healthEl)healthEl.innerHTML=badge(text,cls)}
+
+ async function localPayload(){
+   const products=await load('products');
+   const recipes=await load('recipes');
+   const insertFiles=await load('insert_files');
+   return {products,recipes,insert_files:insertFiles,state:s};
+ }
+
+ async function checkHealth(){
+   const base=apiBase();
+   if(!base){setHealth('API URL Missing','danger');return false}
+   try{
+     const res=await fetch(base+'/health',{method:'GET'});
+     const data=await res.json();
+     if(!res.ok||!data.success)throw new Error(data.error||`HTTP ${res.status}`);
+     setHealth(`Connected · Schema ${data.schema_version||'?'}`,'ok');
+     return true;
+   }catch(e){
+     setHealth('Connection Failed','danger');
+     setSummary(`<div class="cloud-error">${esc(e.message)}</div>`);
+     return false;
+   }
+ }
+
+ async function verify(){
+   const payload=await localPayload();
+   localCountEl.textContent=payload.products.length;
+   try{
+     const res=await fetch(apiBase()+'/products',{method:'GET'});
+     const data=await res.json();
+     if(!res.ok||!data.success)throw new Error(data.error||`HTTP ${res.status}`);
+     const remote=Number(data.count||0);
+     cloudCountEl.textContent=remote;
+     const ok=remote===payload.products.length;
+     setSummary(ok
+       ?`${badge('VERIFIED','ok')} <span class="small">Cloud products match Forge: ${remote} / ${payload.products.length}.</span>`
+       :`${badge('CHECK REQUIRED','warning')} <span class="small">Cloud has ${remote} products; local Forge has ${payload.products.length}.</span>`);
+     return ok;
+   }catch(e){
+     cloudCountEl.textContent='—';
+     setSummary(`${badge('VERIFY FAILED','danger')} <span class="small">${esc(e.message)}</span>`);
+     return false;
+   }
+ }
+
+ apiInput.onchange=()=>{
+   s.siteSettings.forgeApiUrl=apiBase();
+   save(s);
+   checkHealth();
+ };
+
+ migrateBtn.onclick=async()=>{
+   migrateBtn.disabled=true;
+   verifyBtn.disabled=true;
+   setSummary(`${badge('PREPARING','warning')} <span class="small">Collecting current Forge data…</span>`);
+
+   try{
+     const healthy=await checkHealth();
+     if(!healthy)throw new Error('Cloud API health check failed.');
+
+     const payload=await localPayload();
+     localCountEl.textContent=payload.products.length;
+
+     const confirmed=confirm(
+       `Copy current PLA Forge data to Cloudflare D1?\n\n`+
+       `${payload.products.length} products\n`+
+       `${payload.recipes.length} recipe rows\n\n`+
+       `This is COPY ONLY. Your current browser data will not be deleted.`
+     );
+     if(!confirmed){
+       setSummary(`${badge('CANCELLED','info')} <span class="small">No data was changed.</span>`);
+       return;
+     }
+
+     setSummary(`${badge('MIGRATING','warning')} <span class="small">Uploading Forge data to Cloudflare…</span>`);
+
+     const res=await fetch(apiBase()+'/migration/import',{
+       method:'POST',
+       headers:{'Content-Type':'application/json'},
+       body:JSON.stringify(payload)
+     });
+
+     const data=await res.json().catch(()=>({}));
+     if(!res.ok||!data.success){
+       throw new Error(data.detail||data.error||`HTTP ${res.status}`);
+     }
+
+     const imported=data.imported||{};
+     setSummary(`
+       <div class="cloud-success-head">${badge('MIGRATION COMPLETE','ok')}<strong>Copied to Cloudflare D1</strong></div>
+       <div class="cloud-result-grid">
+        <div><span>Products</span><strong>${Number(imported.products||0)}</strong></div>
+        <div><span>Recipes</span><strong>${Number(imported.recipes||0)}</strong></div>
+        <div><span>Filaments</span><strong>${Number(imported.filaments||0)}</strong></div>
+        <div><span>Insert Files</span><strong>${Number(imported.insert_files||0)}</strong></div>
+       </div>
+       <div class="small">Verifying cloud product count now…</div>
+     `);
+
+     await verify();
+   }catch(e){
+     setSummary(`${badge('MIGRATION FAILED','danger')} <span class="small">${esc(e.message)}</span>`);
+   }finally{
+     migrateBtn.disabled=false;
+     verifyBtn.disabled=false;
+   }
+ };
+
+ verifyBtn.onclick=async()=>{
+   verifyBtn.disabled=true;
+   await verify();
+   verifyBtn.disabled=false;
+ };
+
+ const payload=await localPayload();
+ localCountEl.textContent=payload.products.length;
+ await checkHealth();
+ await verify();
 }

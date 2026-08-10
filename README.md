@@ -694,3 +694,25 @@ Existing operational data is preserved and no reset is triggered.
 - Where a filament has inventory data, its current grams in stock are shown alongside the filament name.
 - This prevents spelling differences from accidentally creating duplicate filament colours.
 - Existing operational data is preserved and no reset is triggered.
+
+
+## v0.9.2 — Cloud Database Migration Panel
+
+Added a copy-only Cloudflare D1 migration panel to Data Health.
+
+Features:
+- Uses `https://pla-forge-api.plapalsuk.workers.dev` by default.
+- Runs `/health` to confirm Worker → D1 connectivity.
+- Displays local Forge product count and current cloud product count.
+- `Migrate Forge to Cloud` automatically gathers:
+  - merged products catalogue
+  - recipes
+  - Insert PDF mappings
+  - current browser operational state
+- Sends the payload to `POST /migration/import`.
+- Existing localStorage data is not deleted or modified by the migration.
+- After import, Forge automatically calls `/products` and verifies that the cloud product count matches the local catalogue.
+- `Verify Cloud Data` can be run independently at any time.
+- The API URL is stored in Forge site settings for later cloud-mode use.
+
+This release does not yet switch any operational Forge page to D1 as its source of truth. Migration remains copy-only until cloud data has been verified.

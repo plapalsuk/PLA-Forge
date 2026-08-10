@@ -523,3 +523,20 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .newpal-create-footer{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:12px}
 @media(max-width:1200px){.newpal-grid{grid-template-columns:repeat(2,1fr)}.newpal-recipe-row{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.newpal-grid,.newpal-grid.three,.newpal-review-grid,.newpal-recipe-row{grid-template-columns:1fr}.newpal-grid .wide{grid-column:auto}.newpal-create-footer{align-items:stretch;flex-direction:column}}
+
+/* v0.9.2 Cloud database migration */
+.cloud-migration-card{border-color:rgba(78,154,255,.25)}
+.cloud-api-row{margin-top:10px}
+.cloud-api-row input{width:100%}
+.cloud-count-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
+.cloud-count-grid>div,.cloud-result-grid>div{background:#11161c;border:1px solid var(--line);border-radius:9px;padding:11px}
+.cloud-count-grid span,.cloud-result-grid span{display:block;font-size:9px;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.cloud-count-grid strong,.cloud-result-grid strong{font-size:20px}
+.cloud-warning{display:flex;gap:8px;align-items:flex-start;background:rgba(244,185,66,.06);border:1px solid rgba(244,185,66,.22);border-radius:9px;padding:10px;margin:10px 0}
+.cloud-warning strong{white-space:nowrap;color:#ffd16c}
+.cloud-migration-summary{min-height:38px;margin:10px 0}
+.cloud-success-head{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.cloud-result-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:9px}
+.cloud-error{color:#ff858a}
+.cloud-actions{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--line);padding-top:11px}
+@media(max-width:800px){.cloud-count-grid,.cloud-result-grid{grid-template-columns:1fr 1fr}.cloud-warning{flex-direction:column}.cloud-actions{flex-direction:column}}

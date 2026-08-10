@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data Health | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=091"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data Health | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=092"></head>
 <body><div class="app">
 <aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
@@ -18,4 +18,40 @@
   <a href="data-health.html">! Data Health</a><a href="settings.html">⚙ Settings</a>
  </nav>
 </aside>
-<main><div class="topbar"><div class="pageTitle"><h1>Data Health</h1><div class="small">Master-data checks before Shopify and production automation.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="card"><p class="small">PLA Forge resolves recipe links against the master product list and highlights mismatches here so a wrong spreadsheet SKU cannot silently attach a recipe to the wrong Pal.</p></div><div class="card" style="padding:0;overflow:auto;margin-top:14px"><table><thead><tr><th>Issue</th><th>Item</th><th>Detail</th></tr></thead><tbody id="health"></tbody></table></div><div class="footer-note">PLA Forge v0.9.1 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=091"></script><script>dataHealth()</script></body></html>
+<main><div class="topbar"><div class="pageTitle"><h1>Data Health</h1><div class="small">Master-data checks before Shopify and production automation.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="card"><p class="small">PLA Forge resolves recipe links against the master product list and highlights mismatches here so a wrong spreadsheet SKU cannot silently attach a recipe to the wrong Pal.</p></div><div class="card" style="padding:0;overflow:auto;margin-top:14px"><table><thead><tr><th>Issue</th><th>Item</th><th>Detail</th></tr></thead><tbody id="health"></tbody></table></div>
+<div class="card cloud-migration-card" style="margin-top:14px">
+ <div class="section-title">
+  <div>
+   <h2>Cloud Database Migration</h2>
+   <div class="small">Copy the current Forge catalogue and operational browser data into Cloudflare D1. Local data remains untouched.</div>
+  </div>
+  <span id="cloudHealthStatus" class="badge info">Checking…</span>
+ </div>
+
+ <div class="cloud-api-row">
+  <div class="form-field">
+   <label>PLA Forge API</label>
+   <input id="cloudApiUrl" value="https://pla-forge-api.plapalsuk.workers.dev">
+  </div>
+ </div>
+
+ <div class="cloud-count-grid">
+  <div><span>Local Forge Products</span><strong id="cloudLocalProducts">—</strong></div>
+  <div><span>Cloud Products</span><strong id="cloudRemoteProducts">—</strong></div>
+  <div><span>Migration Mode</span><strong>Copy Only</strong></div>
+ </div>
+
+ <div class="cloud-warning">
+  <strong>Safe migration:</strong>
+  <span>This does not delete localStorage or switch Forge to cloud mode. It only copies the current data into D1 so we can verify it first.</span>
+ </div>
+
+ <div id="cloudMigrationSummary" class="cloud-migration-summary"></div>
+
+ <div class="cloud-actions">
+  <button class="btn ghost" id="verifyForgeCloud">Verify Cloud Data</button>
+  <button class="btn" id="migrateForgeCloud">Migrate Forge to Cloud</button>
+ </div>
+</div>
+
+<div class="footer-note">PLA Forge v0.9.2 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=092"></script><script>dataHealth()</script><script>cloudMigrationPanel()</script></body></html>
