@@ -67,6 +67,63 @@ function ensureCleanResetRelease(){
 ensureCleanResetRelease();
 
 
+
+const CLOUD_PRODUCTION_FIELDS=[
+ 'stock','parts','printHistory','failedParts','assembled','assemblyHistory','boxes','boxHistory',
+ 'packagingComponents','inserts','insertHistory','consumables','consumableHistory','packingJobs',
+ 'packingHistory','finishedStock','awaitingDispatch','transfers','damageHistory','damageReworkJobs',
+ 'reworkHistory','cornwallReworkStock','cornwallInsertReplenishment','damageInsertDemand','production',
+ 'productionPlan','plateSeq'
+];
+let forgeProductionCloudReady=false;
+let forgeProductionCloudSaving=false;
+
+function productionCloudPayload(s){
+ const out={};
+ CLOUD_PRODUCTION_FIELDS.forEach(k=>out[k]=s[k]);
+ return out;
+}
+async function hydrateProductionCloud(){
+ if(!cloudToken())return false;
+ try{
+   const [st,bp]=await Promise.all([cloudFetch('/production/state'),cloudFetch('/build-plates')]);
+   const s=state();
+   if(st?.state && Object.keys(st.state).length){
+     CLOUD_PRODUCTION_FIELDS.forEach(k=>{if(st.state[k]!==undefined)s[k]=st.state[k]});
+   }
+   if(bp?.plates)s.plates=bp.plates.map(p=>({
+     id:p.id,code:p.code,name:p.name||'',colour:p.colour||'',printer:p.printer||'',
+     status:p.status||'draft',items:p.items||[],created_at:p.created_at,
+     started_at:p.started_at||null,completed_at:p.completed_at||null
+   }));
+   localStorage.setItem(STORE,JSON.stringify(s));
+   forgeProductionCloudReady=true;
+   return true;
+ }catch(e){
+   console.error('Cloud production hydrate failed',e);
+   return false;
+ }
+}
+async function saveProductionCloud(s){
+ if(!cloudToken()||forgeProductionCloudSaving)return;
+ forgeProductionCloudSaving=true;
+ try{
+   await cloudFetch('/production/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:productionCloudPayload(s)})});
+   const cloud=await cloudFetch('/build-plates');
+   const localIds=new Set((s.plates||[]).map(p=>p.id));
+   for(const p of (cloud.plates||[])){
+     if(!localIds.has(p.id))await cloudFetch('/build-plates/'+encodeURIComponent(p.id),{method:'DELETE'});
+   }
+   for(const p of (s.plates||[])){
+     await cloudFetch('/build-plates/'+encodeURIComponent(p.id),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({plate:p})});
+   }
+ }catch(e){
+   console.error('Cloud production save failed',e);
+ }finally{
+   forgeProductionCloudSaving=false;
+ }
+}
+
 function state(){
   let s={};
   try{s=JSON.parse(localStorage.getItem(STORE)||'{}')}catch(e){}
@@ -107,7 +164,10 @@ function state(){
   s.productAvailability=s.productAvailability||{};
   return s;
 }
-function save(s){localStorage.setItem(STORE,JSON.stringify(s))}
+function save(s){
+ localStorage.setItem(STORE,JSON.stringify(s));
+ if(forgeProductionCloudReady)saveProductionCloud(s);
+}
 async function load(name){
  if(name==='products'){
    const cloud=await cloudCoreProducts();
@@ -496,6 +556,7 @@ async function recipes(){
  q.oninput=draw;draw()
 }
 async function production(){
+ if(!forgeProductionCloudReady)await hydrateProductionCloud();
  const s=state(),ps=await load('products'),rs=await load('recipes'),body=document.querySelector('#prod'),rows=[];
  ps.filter(p=>p.type==='pal').forEach(p=>{const n=manufacturingNeed(s,p.sku);if(n>0)rows.push({p,n,groups:rs.filter(r=>r.sku===p.sku)})});rows.sort((a,b)=>b.n-a.n);
  body.innerHTML=rows.map(x=>`<tr><td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td><td>${x.n}</td><td>${x.groups.length}</td><td>${(x.groups.reduce((a,r)=>a+r.weight_g,0)*x.n).toFixed(1)}g</td><td>${x.groups.map(r=>esc(r.filament)).join(', ')}</td></tr>`).join('')||'<tr><td colspan="5">No Pal manufacturing currently required.</td></tr>';
@@ -604,6 +665,7 @@ async function filament(){
 }
 
 async function buildPlatePlanner(){
+ if(!forgeProductionCloudReady)await hydrateProductionCloud();
  const s=state();
  const ps=await load('products');
  const rs=await load('recipes');

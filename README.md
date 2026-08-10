@@ -982,3 +982,29 @@ Preserved:
 - consumable names/reorder levels
 
 Also removed the old behaviour where changing Forge's reset-release version could automatically replace the entire local state.
+
+
+## v0.9.9 — Cloud Production Stage 1
+
+Stage 1 moves the Production Planner / Build Plate operational source into Cloudflare D1.
+
+New D1 storage:
+- `forge_operational_state` — production operational state required by the planner
+- `build_plates` — shared saved/printing build plates
+
+New Worker endpoints:
+- GET/PUT `/production/state`
+- GET `/build-plates`
+- PUT/DELETE `/build-plates/:id`
+
+Behaviour:
+- Production Planner and Build Plates hydrate from D1 when opened.
+- Changes are mirrored back to D1.
+- Build plates created on one authenticated Admin device become available to another device.
+- Local storage remains as a temporary cache/fallback during migration.
+- Existing employee authentication remains unchanged.
+
+Installation order:
+1. Run `PLA-FORGE-V099-CLOUD-PRODUCTION.sql` once in the D1 console.
+2. Deploy `pla-forge-api-v3e.js`.
+3. Upload the v0.9.9 Forge frontend files to GitHub Pages.
