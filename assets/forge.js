@@ -163,7 +163,7 @@ window.addEventListener('beforeunload',()=>{
 });
 
 function installForgeCloudSyncBadge(){
- if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html'].includes(forgeCurrentPage()))return;
+ if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
  const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
  const wrap=document.createElement('div');
@@ -1638,8 +1638,16 @@ function ensureCornwallInsertReplenishment(s,products){
 }
 
 async function insertProductionPage(){
- const s=state(), ps=await load('products'), files=await load('insert_files');
- const pals=ps.filter(p=>p.type==='pal' && isOnSale(s,p.sku));
+ installForgeCloudSyncBadge();
+ if(!forgeProductionCloudReady){
+   try{await hydrateProductionCloud()}
+   catch(e){showCloudRequiredError(e.message);return}
+ }
+
+ let s=cloudOperationalState();
+ const ps=await load('products');
+ const files=await load('insert_files');
+ let pals=ps.filter(p=>p.type==='pal' && isOnSale(s,p.sku));
  ensureCornwallInsertReplenishment(s,ps);
  const q=document.querySelector('#q');
  const printCards=document.querySelector('#insertPrintCards');
@@ -1737,14 +1745,16 @@ async function insertProductionPage(){
        <td><strong>${Number(x.r.ready||0)}</strong></td>
      </tr>`).join('')||'<tr><td colspan="2">No matching On Sale Pals.</td></tr>';
 
-   document.querySelectorAll('.markPrinted').forEach(btn=>btn.onclick=()=>{
-     const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku), r=rec(sku);
+   document.querySelectorAll('.markPrinted').forEach(btn=>btn.onclick=async()=>{
+     const sku=btn.dataset.sku, r=rec(sku);
      const qty=Math.max(1,Number(document.querySelector('#printed-'+sku)?.value||1));
      const cardStock=Number(s.consumables?.card_210gsm?.stock||0);
      if(cardStock<qty){
        alert(`Not enough 210gsm Card. Need ${qty} sheet${qty===1?'':'s'}, but only ${cardStock} available.`);
        return;
      }
+
+     const before=JSON.parse(JSON.stringify(s));
      s.consumables.card_210gsm.stock=cardStock-qty;
      s.consumableHistory=s.consumableHistory||[];
      s.consumableHistory.push({
@@ -1753,20 +1763,31 @@ async function insertProductionPage(){
        name:'210gsm Card',
        qty:-qty,
        reason:`Insert printed · ${sku}`,
-       created_at:new Date().toISOString()
+       created_at:new Date().toISOString(),
+       updated_by:currentForgeUser()?.email||''
      });
      r.awaiting_cut=Number(r.awaiting_cut||0)+qty;
-     save(s);render();
+
+     btn.disabled=true;
+     btn.textContent='Saving…';
+     try{
+       await save(s);
+       render();
+     }catch(e){
+       s=before;
+       render();
+       alert('Printed inserts could not be saved to Cloudflare. Card stock and Cut & Score quantities have been rolled back.');
+     }
    });
 
-   document.querySelectorAll('.completeCut').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.completeCut').forEach(btn=>btn.onclick=async()=>{
      const sku=btn.dataset.sku, r=rec(sku);
      const available=Number(r.awaiting_cut||0);
      const qty=Math.max(1,Math.min(available,Number(document.querySelector('#cut-'+sku)?.value||1)));
      if(available<=0)return;
 
+     const before=JSON.parse(JSON.stringify(s));
      r.awaiting_cut=available-qty;
-
      let remaining=qty;
 
      // First satisfy full-factory damage replacement insert demand.
@@ -1794,23 +1815,38 @@ async function insertProductionPage(){
          status:'awaiting_dispatch',
          packed_at:now,
          locked_destination:'cornwall',
-         supply_label:'Cornwall Spare Insert'
+         supply_label:'Cornwall Spare Insert',
+         created_by:currentForgeUser()?.email||''
        });
        s.cornwallInsertReplenishment[sku]=Math.max(0,cornwallNeed-cornwallUsed);
        remaining-=cornwallUsed;
      }
 
      // Any normal insert production becomes factory Ready Insert stock.
-     if(remaining>0){
-       r.ready=Number(r.ready||0)+remaining;
-     }
+     if(remaining>0)r.ready=Number(r.ready||0)+remaining;
 
-     save(s);render();
+     btn.disabled=true;
+     btn.textContent='Saving…';
+     try{
+       await save(s);
+       render();
+     }catch(e){
+       s=before;
+       render();
+       alert('Cut & Score completion could not be saved to Cloudflare. Insert stock has been rolled back.');
+     }
    });
  }
  q.oninput=render;
  if(inventorySearch)inventorySearch.oninput=render;
  render();
+
+ await startForgeLiveSync(async fresh=>{
+   s=JSON.parse(JSON.stringify(fresh));
+   pals=ps.filter(p=>p.type==='pal' && isOnSale(s,p.sku));
+   ensureCornwallInsertReplenishment(s,ps);
+   render();
+ });
 }
 
 async function availabilityPage(){
@@ -3507,7 +3543,7 @@ async function employeeAdminPage(){
 })();
 
 document.addEventListener('visibilitychange',async()=>{
- if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html'].includes(forgeCurrentPage())){
+ if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html'].includes(forgeCurrentPage())){
    const stamp=await forgeCloudStamp();
    if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
      // interval will pick this up immediately on its next tick

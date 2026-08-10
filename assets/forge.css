@@ -2193,3 +2193,13 @@ body.forge-page-packing-station .nextPackStep:disabled{
   opacity:.65;
   cursor:wait;
 }
+
+/* v0.10.8 — Insert Production Cloud */
+body.forge-page-packaging .forge-cloud-sync{
+  margin-bottom:10px;
+}
+body.forge-page-packaging .markPrinted:disabled,
+body.forge-page-packaging .completeCut:disabled{
+  opacity:.65;
+  cursor:wait;
+}

@@ -1226,3 +1226,19 @@ Packing Station is now part of the cloud-only production pipeline.
 - Critical completion actions roll back in memory if Cloudflare rejects the save.
 - Packing Station live-syncs while open so another device sees packing progress and completed batches without refreshing.
 - No additional Worker or SQL migration is required because these fields already exist in the shared operational D1 state.
+
+
+### v0.10.8 — Insert Production Cloud
+
+Insert Production is now cloud-only and live-synced.
+
+- Ready Insert stock and Awaiting Cut & Score stock are read from D1.
+- Insert print demand is calculated from the live D1 state.
+- Mark Printed deducts 210gsm card and moves inserts into Cut & Score only after Cloudflare accepts the save.
+- Cut & Score Complete moves normal inserts into Ready Insert stock.
+- Damage-replacement insert demand is satisfied from completed Cut & Score work.
+- Cornwall spare-insert replenishment is routed into Awaiting Dispatch from the same cloud state.
+- Failed D1 writes roll the in-memory transaction back.
+- Insert Production live-syncs across open devices without manual refresh.
+- Packing Station therefore sees newly ready inserts automatically.
+- No additional Worker or SQL migration is required.
