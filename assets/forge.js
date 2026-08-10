@@ -388,6 +388,31 @@ async function cloudFetch(path,options={}){
  return data;
 }
 
+async function cloudFetchTimed(path,options={},timeoutMs=12000){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),timeoutMs);
+ try{
+   return await cloudFetch(path,{...options,signal:controller.signal});
+ }catch(e){
+   if(e?.name==='AbortError')throw new Error(`Cloud request timed out after ${Math.round(timeoutMs/1000)} seconds.`);
+   throw e;
+ }finally{
+   clearTimeout(timer);
+ }
+}
+async function refreshProductAvailabilityFromD1(s){
+ const data=await cloudFetchTimed('/products',{},10000);
+ const products=(data.products||[]).map(normaliseCloudProduct);
+ s.productAvailability=s.productAvailability||{};
+ products.forEach(p=>{
+   s.productAvailability[p.sku]={
+     on_sale:p.on_sale===true,
+     release_date:p.release_date||''
+   };
+ });
+ return products;
+}
+
 
 function normaliseCloudProduct(p){
  return {
@@ -1913,18 +1938,22 @@ async function availabilityPage(){
      btn.textContent='Saving to Cloud…';
 
      try{
-       await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+       await cloudFetchTimed(`/products/${encodeURIComponent(sku)}/availability`,{
          method:'PUT',
          headers:{'Content-Type':'application/json'},
          body:JSON.stringify({on_sale:next,release_date:releaseDate})
-       });
+       },10000);
 
-       // Do not trust an optimistic browser mutation. Re-read D1.
-       await hydrateProductionCloud(true);
-       s=cloudOperationalState();
-       forgeLastCloudStamp=await forgeCloudStamp()||forgeLastCloudStamp;
+       // Confirm only the products table. Do not wait for unrelated production endpoints.
+       const products=await refreshProductAvailabilityFromD1(s);
+       const confirmed=products.find(p=>p.sku===sku);
+       if(!confirmed)throw new Error(`${sku} was not returned by D1 after the update.`);
+       if(Boolean(confirmed.on_sale)!==next){
+         throw new Error(`D1 did not confirm the requested On Sale value for ${sku}.`);
+       }
+
        render();
-       setForgeCloudSync('synced',`${sku} availability confirmed by D1`);
+       setForgeCloudSync('synced',`${sku} ${next?'On Sale':'Not On Sale'} confirmed by D1`);
      }catch(e){
        btn.disabled=false;
        btn.textContent=oldText;
@@ -1940,15 +1969,15 @@ async function availabilityPage(){
      el.disabled=true;
 
      try{
-       await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+       await cloudFetchTimed(`/products/${encodeURIComponent(sku)}/availability`,{
          method:'PUT',
          headers:{'Content-Type':'application/json'},
          body:JSON.stringify({on_sale:Boolean(rec.on_sale),release_date:nextDate})
-       });
+       },10000);
 
-       await hydrateProductionCloud(true);
-       s=cloudOperationalState();
-       forgeLastCloudStamp=await forgeCloudStamp()||forgeLastCloudStamp;
+       const products=await refreshProductAvailabilityFromD1(s);
+       const confirmed=products.find(p=>p.sku===sku);
+       if(!confirmed)throw new Error(`${sku} was not returned by D1 after the update.`);
        render();
        setForgeCloudSync('synced',`${sku} release date confirmed by D1`);
      }catch(e){
@@ -2034,18 +2063,22 @@ async function settingsAvailabilityPage(){
      btn.textContent='Saving to Cloud…';
 
      try{
-       await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+       await cloudFetchTimed(`/products/${encodeURIComponent(sku)}/availability`,{
          method:'PUT',
          headers:{'Content-Type':'application/json'},
          body:JSON.stringify({on_sale:next,release_date:releaseDate})
-       });
+       },10000);
 
-       // Do not trust an optimistic browser mutation. Re-read D1.
-       await hydrateProductionCloud(true);
-       s=cloudOperationalState();
-       forgeLastCloudStamp=await forgeCloudStamp()||forgeLastCloudStamp;
+       // Confirm only the products table. Do not wait for unrelated production endpoints.
+       const products=await refreshProductAvailabilityFromD1(s);
+       const confirmed=products.find(p=>p.sku===sku);
+       if(!confirmed)throw new Error(`${sku} was not returned by D1 after the update.`);
+       if(Boolean(confirmed.on_sale)!==next){
+         throw new Error(`D1 did not confirm the requested On Sale value for ${sku}.`);
+       }
+
        render();
-       setForgeCloudSync('synced',`${sku} availability confirmed by D1`);
+       setForgeCloudSync('synced',`${sku} ${next?'On Sale':'Not On Sale'} confirmed by D1`);
      }catch(e){
        btn.disabled=false;
        btn.textContent=oldText;
@@ -2061,15 +2094,15 @@ async function settingsAvailabilityPage(){
      el.disabled=true;
 
      try{
-       await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+       await cloudFetchTimed(`/products/${encodeURIComponent(sku)}/availability`,{
          method:'PUT',
          headers:{'Content-Type':'application/json'},
          body:JSON.stringify({on_sale:Boolean(rec.on_sale),release_date:nextDate})
-       });
+       },10000);
 
-       await hydrateProductionCloud(true);
-       s=cloudOperationalState();
-       forgeLastCloudStamp=await forgeCloudStamp()||forgeLastCloudStamp;
+       const products=await refreshProductAvailabilityFromD1(s);
+       const confirmed=products.find(p=>p.sku===sku);
+       if(!confirmed)throw new Error(`${sku} was not returned by D1 after the update.`);
        render();
        setForgeCloudSync('synced',`${sku} release date confirmed by D1`);
      }catch(e){

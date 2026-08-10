@@ -2269,3 +2269,8 @@ body.forge-page-packaging .completeCut:disabled{
   opacity:.62;
   cursor:wait;
 }
+
+/* v0.10.9.3 — Availability request feedback */
+.availability-row .cloudToggleSale:disabled{
+  min-width:140px;
+}

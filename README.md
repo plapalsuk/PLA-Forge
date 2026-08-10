@@ -1272,3 +1272,16 @@ Now:
 - Pals and Product Availability therefore render from the same D1 source of truth.
 - Availability changes live-sync across open Forge devices.
 - No local availability fallback or optimistic local save remains on these pages.
+
+
+### v0.10.9.3 — Direct On Sale Confirmation
+
+Availability writes no longer wait for a full production-state re-hydration.
+
+Flow:
+1. PUT product availability to D1.
+2. GET `/products`.
+3. Confirm the requested SKU and `on_sale` value returned by D1.
+4. Update the page.
+
+Both write and verification requests now have timeouts, so the UI cannot remain on `Saving to Cloud…` indefinitely. If D1 fails to confirm the value, Forge shows the actual failure instead of pretending the update worked.
