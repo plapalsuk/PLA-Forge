@@ -839,6 +839,7 @@ async function insertProductionPage(){
  const printCards=document.querySelector('#insertPrintCards');
  const cutCards=document.querySelector('#insertCutCards');
  const inventory=document.querySelector('#insertInventory');
+ const inventorySearch=document.querySelector('#insertInventorySearch');
  const readyKpi=document.querySelector('#insertReadyKpi');
  const cutKpi=document.querySelector('#insertCutKpi');
  const printKpi=document.querySelector('#insertPrintKpi');
@@ -919,12 +920,16 @@ async function insertProductionPage(){
      ? cutJobs.map(renderCutCard).join('')
      : '<div class="bench-empty">Nothing is waiting for Cut & Score.</div>';
 
-   inventory.innerHTML=data
-     .sort((a,b)=>a.p.name.localeCompare(b.p.name))
+   const inventoryText=(inventorySearch?.value||'').toLowerCase();
+   const inventoryRows=data
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(inventoryText))
+     .sort((a,b)=>a.p.name.localeCompare(b.p.name));
+
+   inventory.innerHTML=inventoryRows
      .map(x=>`<tr>
        <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
        <td><strong>${Number(x.r.ready||0)}</strong></td>
-     </tr>`).join('')||'<tr><td colspan="2">No On Sale Pals.</td></tr>';
+     </tr>`).join('')||'<tr><td colspan="2">No matching On Sale Pals.</td></tr>';
 
    document.querySelectorAll('.markPrinted').forEach(btn=>btn.onclick=()=>{
      const sku=btn.dataset.sku, p=pals.find(x=>x.sku===sku), r=rec(sku);
@@ -982,6 +987,7 @@ async function insertProductionPage(){
    });
  }
  q.oninput=render;
+ if(inventorySearch)inventorySearch.oninput=render;
  render();
 }
 

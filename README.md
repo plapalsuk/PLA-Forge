@@ -601,3 +601,11 @@ Recipes and Printed Parts have been moved from The Workshop into Materials on ev
 - Search supports Pal name and SKU.
 - Inventory updates immediately whenever Pals are assembled or consumed downstream.
 - Existing operational data is preserved and no reset is triggered.
+
+
+## v0.8.17 — Insert Inventory Search
+
+- Added a dedicated search bar to Insert Inventory.
+- Search filters by Pal name or SKU.
+- The Insert Inventory search is independent from the main Insert Production search, so it does not affect Print or Cut & Score queues.
+- Existing operational data is preserved and no reset is triggered.

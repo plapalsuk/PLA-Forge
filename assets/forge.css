@@ -501,3 +501,7 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .assembled-inventory-search{margin:10px 0 12px}
 .assembled-inventory-search .search{width:100%}
 #assembledInventory td:nth-child(2){font-size:16px;text-align:center}
+
+/* v0.8.17 Insert Inventory search */
+.insert-inventory-search{margin:10px 0 12px}
+.insert-inventory-search .search{width:100%}
