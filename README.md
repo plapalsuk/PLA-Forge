@@ -684,3 +684,13 @@ When a Bridge URL is configured, Forge sends a product-creation payload to it an
 If no bridge is configured, the Pal is still fully created in Forge and its Shopify status is stored as `Pending`, ready to send once the secure bridge is connected.
 
 Existing operational data is preserved and no reset is triggered.
+
+
+## v0.9.1 — New Pal Filament Dropdown
+
+- Production Recipe filament entry on New Pal Setup is now a dropdown rather than free text.
+- The dropdown is populated from the filaments already configured/used in Forge.
+- Existing filament inventory names and recipe filament names are merged and de-duplicated.
+- Where a filament has inventory data, its current grams in stock are shown alongside the filament name.
+- This prevents spelling differences from accidentally creating duplicate filament colours.
+- Existing operational data is preserved and no reset is triggered.

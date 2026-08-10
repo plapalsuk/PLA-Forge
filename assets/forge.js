@@ -2173,6 +2173,11 @@ function nextPalSku(products){
 async function newPalPage(){
  const s=state();
  const existingProducts=await load('products');
+ const existingRecipes=await load('recipes');
+ const filamentOptions=[...new Set([
+   ...Object.keys(s.filament||{}),
+   ...existingRecipes.map(r=>String(r.filament||'').trim()).filter(Boolean)
+ ])].sort((a,b)=>a.localeCompare(b));
  const form=document.querySelector('#newPalForm');
  const status=document.querySelector('#newPalStatus');
  const recipeRows=document.querySelector('#newPalRecipeRows');
@@ -2190,7 +2195,7 @@ async function newPalPage(){
 
  function recipeHtml(r,idx){
    return `<div class="newpal-recipe-row">
-     <div class="form-field"><label>Filament</label><input data-r="${idx}" data-k="filament" value="${esc(r.filament)}" placeholder="e.g. Matte Sakura Pink"></div>
+     <div class="form-field"><label>Filament</label><select data-r="${idx}" data-k="filament">${filamentOptions.length?`<option value="">Select filament…</option>${filamentOptions.map(f=>`<option value="${esc(f)}" ${f===r.filament?'selected':''}>${esc(f)}${s.filament?.[f]?` · ${Number(s.filament[f].grams||0)}g in stock`:''}</option>`).join('')}`:'<option value="">No filaments configured</option>'}</select></div>
      <div class="form-field"><label>Parts / Colour Group</label><input data-r="${idx}" data-k="parts" value="${esc(r.parts)}" placeholder="Body / Eye 1; Eye 2"></div>
      <div class="form-field"><label>Grouped STL</label><input data-r="${idx}" data-k="grouped_stl" value="${esc(r.grouped_stl)}" placeholder="grouped_file.stl"></div>
      <div class="form-field"><label>Individual STL(s)</label><input data-r="${idx}" data-k="separate_stls" value="${esc(r.separate_stls)}" placeholder="part1.stl; part2.stl"></div>
@@ -2201,7 +2206,7 @@ async function newPalPage(){
  }
  function drawRecipes(){
    recipeRows.innerHTML=recipes.map(recipeHtml).join('');
-   recipeRows.querySelectorAll('input[data-r]').forEach(el=>el.oninput=()=>{
+   recipeRows.querySelectorAll('input[data-r],select[data-r]').forEach(el=>el.oninput=()=>{
      const i=Number(el.dataset.r),k=el.dataset.k;
      recipes[i][k]=['part_count','weight_g'].includes(k)?Number(el.value||0):el.value;
      drawReview();
