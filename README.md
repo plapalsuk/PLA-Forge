@@ -934,3 +934,18 @@ The Forge sidebar/mobile navigation now shows only tabs permitted for the signed
 - The current permitted tab is highlighted.
 - Manual URL protection remains in place, so hidden pages are still inaccessible even if the URL is entered directly.
 - No Worker, SQL, stock or database changes are required.
+
+
+### v0.9.7b — Navigation Flash Fix
+
+Fixed the mobile/desktop navigation flash seen when moving between Forge pages.
+
+Previously the static HTML sidebar rendered all Admin links for a fraction of a second before the asynchronous employee role check hid unauthorised tabs.
+
+Now:
+- navigation links remain hidden while Forge validates the signed-in employee
+- the sidebar is revealed only after role permissions are applied
+- Retail Staff never briefly see Admin/Factory navigation when changing pages
+- Packing users never briefly see other Forge tabs
+- Admin navigation appears normally after authentication
+- no Worker, SQL, database or permission changes are required

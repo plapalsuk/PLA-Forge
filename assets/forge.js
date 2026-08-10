@@ -332,6 +332,7 @@ async function forgeRequireLogin(){
      return;
    }
    applyRoleNavigation(user);
+   document.body.classList.add('forge-auth-ready');
    setTimeout(()=>applyRolePageRestrictions(user),0);
  }catch(e){
    setCloudToken('');setForgeUser(null);
@@ -438,6 +439,7 @@ function applyRolePageRestrictions(user){
 }
 
 function forgeLogout(){
+ document.body.classList.remove('forge-auth-ready');
  setCloudToken('');setForgeUser(null);
  location.replace('login.html');
 }

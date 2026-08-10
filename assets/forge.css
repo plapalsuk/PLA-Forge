@@ -1429,3 +1429,16 @@ img,svg,canvas,video{
     justify-content:center;
   }
 }
+
+/* v0.9.7b — prevent role navigation flash during page navigation */
+body:not(.forge-auth-ready) .sidebar a,
+body:not(.forge-auth-ready) .sidebar .navgroup,
+body:not(.forge-auth-ready) .sidebar .forge-user-card{
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+body.forge-auth-ready .sidebar a,
+body.forge-auth-ready .sidebar .navgroup,
+body.forge-auth-ready .sidebar .forge-user-card{
+  visibility:visible;
+}
