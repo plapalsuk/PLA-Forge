@@ -307,6 +307,11 @@ function roleCanOpen(role,page){
  const allowed=FORGE_ROLE_PAGES[role]||[];
  return allowed.includes('*')||allowed.includes(page);
 }
+function roleHomePage(role){
+ if(role==='packing')return 'packing-station.html';
+ if(role==='retail_staff')return 'deliveries.html';
+ return 'index.html';
+}
 function currentForgeUser(){
  try{return JSON.parse(localStorage.getItem('plaForgeUser')||'null')}catch{return null}
 }
@@ -323,7 +328,7 @@ async function forgeRequireLogin(){
    const user=me.user||me;
    setForgeUser(user);
    if(!roleCanOpen(user.role,forgeCurrentPage())){
-     location.replace('index.html?denied=1');
+     location.replace(roleHomePage(user.role)+'?denied=1');
      return;
    }
    applyRoleNavigation(user);
@@ -2844,7 +2849,8 @@ async function forgeLoginPage(){
      const me=await cloudFetch('/auth/me');
      setForgeUser(me.user||me);
      const r=new URLSearchParams(location.search).get('return');
-     location.replace(r?decodeURIComponent(r):'index.html');
+     const target=r?decodeURIComponent(r):roleHomePage((me.user||me).role);
+     location.replace(target);
      return;
    }catch{setCloudToken('');setForgeUser(null)}
  }
@@ -2858,7 +2864,14 @@ async function forgeLoginPage(){
      if(!res.ok||!data.success)throw new Error(data.error||'Login failed');
      setCloudToken(data.token);setForgeUser(data.user);
      const r=new URLSearchParams(location.search).get('return');
-     location.replace(r?decodeURIComponent(r):'index.html');
+     let target=r?decodeURIComponent(r):roleHomePage(data.user?.role);
+     try{
+       const page=new URL(target,location.href).pathname.split('/').pop()||'index.html';
+       if(!roleCanOpen(data.user?.role,page))target=roleHomePage(data.user?.role);
+     }catch{
+       target=roleHomePage(data.user?.role);
+     }
+     location.replace(target);
    }catch(err){status.innerHTML=badge(err.message,'danger');btn.disabled=false}
  };
  pass.addEventListener('keydown',e=>{if(e.key==='Enter')btn.click()});

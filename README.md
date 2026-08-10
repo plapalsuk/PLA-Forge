@@ -850,3 +850,14 @@ Employee permissions now use the agreed PLA Forge roles:
 Both the frontend page guard and Cloudflare Worker role map use these role names. The Worker remains the security boundary; hiding navigation is only an additional UI convenience.
 
 Existing Admin accounts remain Admin. If any test employee was previously assigned Factory, Cornwall or View Only, change/recreate that employee with Packing or Retail Staff after deploying v0.9.6.
+
+
+### v0.9.6a — Role Landing Page Fix
+
+- Fixed an infinite reload loop affecting restricted employee roles after login.
+- Admin now lands on Dashboard.
+- Packing now lands directly on Packing Station.
+- Retail Staff now lands directly on Awaiting Cornwall Delivery.
+- If a restricted user manually opens a page they cannot access, Forge now redirects them to their own permitted home page instead of Dashboard.
+- Login return URLs are checked against the employee role before navigation.
+- No database or stock data is changed.
