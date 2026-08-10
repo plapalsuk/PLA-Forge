@@ -418,3 +418,46 @@ Existing operational data is preserved and no reset is triggered.
   - records the completion in Rework History
 - Packing Station keeps its quick Damage Rework view and now links to the full Rework page.
 - Existing v0.8.x data is preserved; no reset is triggered.
+
+
+## v0.8.8 — Split Rework Routes
+
+Rework now has two distinct operational routes.
+
+### Cornwall Local Repair
+Used when the Pal itself is intact:
+- Box Damaged
+- Insert Damaged
+- Box Damaged + Insert Damaged
+
+These jobs use `Cornwall Rework Stock` held locally:
+- Flat Clear Boxes
+- Pal-specific Ready Inserts
+
+Completing a local repair immediately returns the repaired Pal to Cornwall usable inventory.
+
+### Factory Replacement
+Any job containing `Pal Broken` goes back to factory production.
+
+- Pal Broken only:
+  - Factory produces a replacement Pal.
+  - Rework waits for an assembled replacement Pal.
+  - The replacement is sent to Dispatch.
+  - Dispatch destination is locked to Kitsune Cornwall.
+  - Cornwall inventory is updated only after physical receipt.
+
+- Box + Insert + Pal all selected:
+  - There is no separate `Complete Write Off` option anymore.
+  - Forge automatically treats all three faults as a Full Factory Replacement.
+  - Factory requires a replacement Pal, insert, clear box, bottom card and sticker.
+  - The completed replacement goes through Dispatch back to Cornwall.
+
+### Dispatch
+Factory rework returns appear in Dispatch separately from normal stock and are locked to Cornwall.
+
+### Cornwall Rework Stock
+The Rework page now includes a local spare-stock section:
+- Generic Flat Clear Box quantity
+- Pal-specific spare Insert quantities for On Sale Pals
+
+Existing operational data is preserved and no reset is triggered.

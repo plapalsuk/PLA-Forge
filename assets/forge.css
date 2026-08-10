@@ -449,3 +449,16 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .rework-route strong{color:var(--orange)}
 .rework-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid #252c34;margin-top:10px;padding-top:10px}
 @media(max-width:900px){.rework-list{grid-template-columns:1fr}}
+
+/* v0.8.8 split rework routes */
+.cornwall-spares-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.cornwall-spare-card{background:#11161c;border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:9px}
+.cornwall-spare-card label{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:9px;text-transform:uppercase;color:var(--muted)}
+.cornwall-spare-card select{background:#10151b;color:#fff;border:1px solid var(--line);border-radius:8px;padding:9px}
+.spare-add-row{display:flex;gap:7px}.spare-add-row .number{width:90px}
+.rework-card.in-dispatch{border-color:rgba(76,151,255,.3)}
+.dispatch-locked-route{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.dispatch-locked-route>div{background:#171d24;border:1px solid #292f37;border-radius:8px;padding:10px}
+.dispatch-locked-route span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:4px}
+.rework-dispatch-card{border-color:rgba(76,151,255,.35)}
+@media(max-width:800px){.cornwall-spares-grid,.dispatch-locked-route{grid-template-columns:1fr}}

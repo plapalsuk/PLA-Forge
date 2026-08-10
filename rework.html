@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rework | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=087"></head><body><div class="app"><aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rework | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=088"></head><body><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
   <div class="navgroup">Forge Control</div>
@@ -31,6 +31,29 @@
  <input id="q" class="search" placeholder="Search Pal, SKU or issue">
 </div>
 
+
+<div class="card" style="margin-top:14px">
+ <div class="section-title">
+  <div><h2>Cornwall Rework Stock</h2><div class="small">Small local stock used for Box and Insert repairs without returning the Pal to the factory.</div></div>
+  <span class="badge info">Cornwall Spares</span>
+ </div>
+ <div class="cornwall-spares-grid">
+  <div class="cornwall-spare-card">
+   <strong>Flat Clear Boxes</strong>
+   <label><span>Current Stock</span><input class="number" id="cornwallBoxStock" type="number" min="0"></label>
+   <div class="spare-add-row"><input class="number" id="cornwallBoxAddQty" type="number" min="1" value="10"><button class="btn" id="addCornwallBoxes">Add Boxes</button></div>
+  </div>
+  <div class="cornwall-spare-card">
+   <strong>Pal Inserts</strong>
+   <select id="cornwallInsertSku"></select>
+   <div class="spare-add-row"><input class="number" id="cornwallInsertQty" type="number" min="1" value="2"><button class="btn" id="addCornwallInserts">Add Inserts</button></div>
+  </div>
+ </div>
+ <div style="overflow:auto;margin-top:12px">
+  <table><thead><tr><th>Pal</th><th>Cornwall Ready Inserts</th></tr></thead><tbody id="cornwallInsertInventory"></tbody></table>
+ </div>
+</div>
+
 <div class="card">
  <div class="section-title">
   <div><h2>Active Rework</h2><div class="small">Every damaged physical item is tracked as one job with its exact replacement requirements.</div></div>
@@ -46,11 +69,11 @@
  </div>
  <div style="overflow:auto">
   <table>
-   <thead><tr><th>Date</th><th>Pal</th><th>Rework</th><th>Qty</th></tr></thead>
+   <thead><tr><th>Date</th><th>Pal</th><th>Rework</th><th>Route</th><th>Qty</th></tr></thead>
    <tbody id="reworkHistory"></tbody>
   </table>
  </div>
 </div>
 
-<div class="footer-note">PLA Forge v0.8.7 · Manufacturing & Inventory System</div>
-</main></div><script src="assets/forge.js?v=087"></script><script>reworkPage()</script></body></html>
+<div class="footer-note">PLA Forge v0.8.8 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=088"></script><script>reworkPage()</script></body></html>

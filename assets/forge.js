@@ -31,6 +31,7 @@ function blankOperationalState(){
    damageHistory:[],
    damageReworkJobs:[],
    reworkHistory:[],
+   cornwallReworkStock:{clear_boxes:0,inserts:{}},
    damageInsertDemand:{},
    production:{},
    productionPlan:{},
@@ -108,11 +109,11 @@ function damageReworkQty(s,sku,type){
 }
 function intactDamageReworkQty(s,sku){
  const legacy=damageReworkQty(s,sku,'box')+damageReworkQty(s,sku,'insert');
- const itemJobs=(s.damageReworkJobs||[])
+ const localItems=(s.damageReworkJobs||[])
    .filter(x=>x.sku===sku&&x.status==='awaiting_rework'&&x.type==='item')
-   .filter(x=>!x.requirements?.pal)
+   .filter(x=>damageReworkRequirements(x).route==='cornwall')
    .reduce((a,x)=>a+Number(x.qty||1),0);
- return legacy+itemJobs;
+ return legacy+localItems;
 }
 function manufacturingNeed(s,sku){
  return Math.max(0,totalNeed(s,sku)-assembledQtyForDemand(s,sku)-awaitingDispatchQty(s,sku)-intactDamageReworkQty(s,sku));
@@ -1270,25 +1271,40 @@ function addForgeInventory(s,sku,loc,qty){
 
 
 function damageReworkRequirements(job){
+ const q=Number(job.qty||1);
  if(job.type==='item'){
-   const q=Number(job.qty||1),req=job.requirements||{};
+   const req=job.requirements||{};
+   const fullFactory=!!(req.box&&req.insert&&req.pal);
+   if(req.pal){
+     // Pal damage always returns to the factory.
+     // If all three faults are selected, this becomes a complete factory replacement.
+     return {
+       route:'factory',
+       full_factory:fullFactory,
+       clear_boxes:fullFactory?q:0,
+       inserts:fullFactory?q:0,
+       pals:q,
+       bottom_cards:fullFactory?q:0,
+       stickers:fullFactory?q:0,
+       label:fullFactory?'Full factory replacement':'Factory replacement Pal'
+     };
+   }
+   // Box / insert only = local Cornwall repair using Cornwall spare stock.
    return {
+     route:'cornwall',
+     full_factory:false,
      clear_boxes:req.box?q:0,
      inserts:req.insert?q:0,
-     pals:req.pal?q:0,
-     bottom_cards:req.writeoff?q:0,
-     stickers:req.writeoff?q:0,
-     label:req.writeoff?'Complete replacement':[
-       req.box?'Replace box':'',
-       req.insert?'Replace insert':'',
-       req.pal?'Replace Pal':''
-     ].filter(Boolean).join(' + ')
+     pals:0,bottom_cards:0,stickers:0,
+     label:[req.box?'Replace box':'',req.insert?'Replace insert':''].filter(Boolean).join(' + ')
    };
  }
- if(job.type==='box')return {clear_boxes:job.qty,inserts:0,pals:0,bottom_cards:0,stickers:0,label:'Replace damaged box'};
- if(job.type==='insert')return {clear_boxes:0,inserts:job.qty,pals:0,bottom_cards:0,stickers:0,label:'Replace damaged insert'};
- if(job.type==='pal')return {clear_boxes:0,inserts:0,pals:job.qty,bottom_cards:0,stickers:0,label:'Replace broken Pal'};
- return {clear_boxes:job.qty,inserts:job.qty,pals:job.qty,bottom_cards:job.qty,stickers:job.qty,label:'Complete replacement'};
+ // Legacy jobs.
+ if(job.type==='pal')return {route:'factory',full_factory:false,clear_boxes:0,inserts:0,pals:q,bottom_cards:0,stickers:0,label:'Factory replacement Pal'};
+ if(job.type==='writeoff')return {route:'factory',full_factory:true,clear_boxes:q,inserts:q,pals:q,bottom_cards:q,stickers:q,label:'Full factory replacement'};
+ if(job.type==='box')return {route:'cornwall',full_factory:false,clear_boxes:q,inserts:0,pals:0,bottom_cards:0,stickers:0,label:'Replace damaged box'};
+ if(job.type==='insert')return {route:'cornwall',full_factory:false,clear_boxes:0,inserts:q,pals:0,bottom_cards:0,stickers:0,label:'Replace damaged insert'};
+ return {route:'cornwall',full_factory:false,clear_boxes:0,inserts:0,pals:0,bottom_cards:0,stickers:0,label:'Rework'};
 }
 function forgeAssembledQty(s,sku){
  if(s.assembled&&s.assembled[sku]!=null)return Number(s.assembled[sku]||0);
@@ -1305,33 +1321,66 @@ function setForgeAssembledQty(s,sku,v){
 }
 function forgeInsertReady(s,sku){return Number(s.inserts?.[sku]?.ready||0)}
 function forgeConsumableStock(s,key){return Number(s.consumables?.[key]?.stock||0)}
+function cornwallBoxStock(s){return Number(s.cornwallReworkStock?.clear_boxes||0)}
+function cornwallInsertStock(s,sku){return Number(s.cornwallReworkStock?.inserts?.[sku]||0)}
 function damageReworkReady(s,job){
  const r=damageReworkRequirements(job);
- return forgeConsumableStock(s,'clear_boxes')>=r.clear_boxes &&
-        forgeConsumableStock(s,'bottom_cards')>=r.bottom_cards &&
-        forgeConsumableStock(s,'stickers')>=r.stickers &&
+ if(r.route==='cornwall'){
+   return cornwallBoxStock(s)>=r.clear_boxes && cornwallInsertStock(s,job.sku)>=r.inserts;
+ }
+ return forgeAssembledQty(s,job.sku)>=r.pals &&
         forgeInsertReady(s,job.sku)>=r.inserts &&
-        forgeAssembledQty(s,job.sku)>=r.pals;
+        forgeConsumableStock(s,'clear_boxes')>=r.clear_boxes &&
+        forgeConsumableStock(s,'bottom_cards')>=r.bottom_cards &&
+        forgeConsumableStock(s,'stickers')>=r.stickers;
 }
-function completeDamageReworkJob(s,job){
- if(!job||job.status!=='awaiting_rework'||!damageReworkReady(s,job))return false;
+function completeCornwallReworkJob(s,job){
  const r=damageReworkRequirements(job);
- if(r.clear_boxes)s.consumables.clear_boxes.stock=Math.max(0,forgeConsumableStock(s,'clear_boxes')-r.clear_boxes);
- if(r.bottom_cards)s.consumables.bottom_cards.stock=Math.max(0,forgeConsumableStock(s,'bottom_cards')-r.bottom_cards);
- if(r.stickers)s.consumables.stickers.stock=Math.max(0,forgeConsumableStock(s,'stickers')-r.stickers);
+ if(!job||job.status!=='awaiting_rework'||r.route!=='cornwall'||!damageReworkReady(s,job))return false;
+ if(r.clear_boxes)s.cornwallReworkStock.clear_boxes=Math.max(0,cornwallBoxStock(s)-r.clear_boxes);
+ if(r.inserts){
+   s.cornwallReworkStock.inserts[job.sku]=Math.max(0,cornwallInsertStock(s,job.sku)-r.inserts);
+ }
+ addForgeInventory(s,job.sku,'cornwall',Number(job.qty||1));
+ job.status='complete';
+ job.completed_at=new Date().toISOString();
+ job.completed_route='cornwall';
+ s.reworkHistory=s.reworkHistory||[];
+ s.reworkHistory.push({id:makeId(),job_id:job.id,sku:job.sku,name:job.name,qty:Number(job.qty||1),label:r.label,route:'Cornwall',created_at:job.completed_at});
+ save(s);
+ return true;
+}
+function sendFactoryReworkToDispatch(s,job){
+ const r=damageReworkRequirements(job);
+ if(!job||job.status!=='awaiting_rework'||r.route!=='factory'||!damageReworkReady(s,job))return false;
+
+ // Consume replacement factory components.
+ if(r.pals)setForgeAssembledQty(s,job.sku,forgeAssembledQty(s,job.sku)-r.pals);
  if(r.inserts){
    s.inserts[job.sku]=s.inserts[job.sku]||{awaiting_cut:0,ready:0};
    s.inserts[job.sku].ready=Math.max(0,forgeInsertReady(s,job.sku)-r.inserts);
  }
- if(r.pals)setForgeAssembledQty(s,job.sku,forgeAssembledQty(s,job.sku)-r.pals);
- addForgeInventory(s,job.sku,'cornwall',Number(job.qty||1));
- job.status='complete';
- job.completed_at=new Date().toISOString();
- s.reworkHistory=s.reworkHistory||[];
- s.reworkHistory.push({
-   id:makeId(),job_id:job.id,sku:job.sku,name:job.name,qty:Number(job.qty||1),
-   label:r.label,created_at:job.completed_at
+ if(r.clear_boxes)s.consumables.clear_boxes.stock=Math.max(0,forgeConsumableStock(s,'clear_boxes')-r.clear_boxes);
+ if(r.bottom_cards)s.consumables.bottom_cards.stock=Math.max(0,forgeConsumableStock(s,'bottom_cards')-r.bottom_cards);
+ if(r.stickers)s.consumables.stickers.stock=Math.max(0,forgeConsumableStock(s,'stickers')-r.stickers);
+
+ const now=new Date().toISOString();
+ s.awaitingDispatch=s.awaitingDispatch||[];
+ s.awaitingDispatch.push({
+   id:makeId(),
+   sku:job.sku,
+   name:job.name,
+   qty:Number(job.qty||1),
+   status:'awaiting_dispatch',
+   packed_at:now,
+   destination:null,
+   locked_destination:'cornwall',
+   rework_return:true,
+   rework_job_id:job.id,
+   rework_label:r.label
  });
+ job.status='awaiting_dispatch';
+ job.sent_to_dispatch_at=now;
  save(s);
  return true;
 }
@@ -1361,11 +1410,13 @@ async function deliveriesPage(){
      const identity=x.source_history_id?`history:${x.source_history_id}`:`record:${x.id}`;
      if(seenDispatch.has(identity))return;
      seenDispatch.add(identity);
-     if(!map[x.sku])map[x.sku]={sku:x.sku,name:x.name||x.sku,qty:0,records:[],oldest:x.packed_at||x.created_at||''};
-     map[x.sku].qty+=Number(x.qty||0);
-     map[x.sku].records.push(x);
+     const groupKey=x.rework_return?`${x.sku}|rework|${x.rework_job_id||x.id}`:`${x.sku}|normal`;
+     if(!map[groupKey])map[groupKey]={key:groupKey,sku:x.sku,name:x.name||x.sku,qty:0,records:[],oldest:x.packed_at||x.created_at||'',locked_destination:x.locked_destination||null,rework_return:!!x.rework_return,rework_job_id:x.rework_job_id||null,rework_label:x.rework_label||''};
+     const g=map[groupKey];
+     g.qty+=Number(x.qty||0);
+     g.records.push(x);
      const dt=x.packed_at||x.created_at||'';
-     if(dt&&(!map[x.sku].oldest||dt<map[x.sku].oldest))map[x.sku].oldest=dt;
+     if(dt&&(!g.oldest||dt<g.oldest))g.oldest=dt;
    });
    return Object.values(map).sort((a,b)=>(needed(s,b.sku,'boat')+needed(s,b.sku,'cornwall'))-(needed(s,a.sku,'boat')+needed(s,a.sku,'cornwall'))||a.name.localeCompare(b.name));
  }
@@ -1386,6 +1437,22 @@ async function deliveriesPage(){
    const boatStock=stock(s,g.sku,'boat'),cornStock=stock(s,g.sku,'cornwall');
    const boatTarget=getTarget(s,g.sku,'boat'),cornTarget=getTarget(s,g.sku,'cornwall');
    const boatNeed=needed(s,g.sku,'boat'),cornNeed=needed(s,g.sku,'cornwall');
+   if(g.locked_destination==='cornwall'){
+     return `<div class="dispatch-pal-card rework-dispatch-card">
+       <div class="dispatch-pal-head">
+         <div><strong>${esc(g.name)}</strong><div class="sku">${g.sku}</div><div class="small">${esc(g.rework_label||'Factory rework return')}</div></div>
+         <div class="dispatch-ready-total"><span>Rework Return</span><strong>${g.qty}</strong></div>
+       </div>
+       <div class="dispatch-locked-route">
+         <div><span>Destination</span><strong>Kitsune Cornwall</strong></div>
+         <div><span>Route</span><strong>Factory Replacement → Cornwall</strong></div>
+       </div>
+       <div class="dispatch-allocation-footer">
+         <div class="dispatch-allocation-summary">This rework replacement is locked to Cornwall.</div>
+         <button class="btn dispatchReworkCornwall" data-key="${esc(g.key)}">Dispatch to Cornwall</button>
+       </div>
+     </div>`;
+   }
    return `<div class="dispatch-pal-card">
      <div class="dispatch-pal-head">
        <div><strong>${esc(g.name)}</strong><div class="sku">${g.sku}</div><div class="small">Oldest packed ${fmtDate(g.oldest)}</div></div>
@@ -1431,7 +1498,7 @@ async function deliveriesPage(){
  }
 
  function issueLabel(item){
-   if(item.writeoff)return 'Complete Write Off';
+   if(item.box&&item.insert&&item.pal)return 'Full Factory Replacement';
    const a=[];
    if(item.box)a.push('Box Damaged');
    if(item.insert)a.push('Insert Damaged');
@@ -1444,25 +1511,22 @@ async function deliveriesPage(){
    return items.map((item,idx)=>`<div class="damaged-item-card ${item.writeoff?'writeoff-item':''}">
       <div class="damaged-item-head">
         <div><strong>Damaged Item ${idx+1}</strong><div class="small">${esc(issueLabel(item))}</div></div>
-        ${item.writeoff?badge('WRITE OFF','danger'):badge('REPAIR / REWORK','warning')}
+        ${item.box&&item.insert&&item.pal?badge('FULL FACTORY','danger'):item.pal?badge('FACTORY','warning'):badge('CORNWALL REPAIR','info')}
       </div>
       <div class="damage-toggle-grid">
         <label class="damage-toggle ${item.box?'selected':''}">
-          <input class="damageFault" data-id="${t.id}" data-item="${item.id}" data-field="box" type="checkbox" ${item.box?'checked':''} ${item.writeoff?'disabled':''}>
+          <input class="damageFault" data-id="${t.id}" data-item="${item.id}" data-field="box" type="checkbox" ${item.box?'checked':''}>
           <span>Box Damaged</span>
         </label>
         <label class="damage-toggle ${item.insert?'selected':''}">
-          <input class="damageFault" data-id="${t.id}" data-item="${item.id}" data-field="insert" type="checkbox" ${item.insert?'checked':''} ${item.writeoff?'disabled':''}>
+          <input class="damageFault" data-id="${t.id}" data-item="${item.id}" data-field="insert" type="checkbox" ${item.insert?'checked':''}>
           <span>Insert Damaged</span>
         </label>
         <label class="damage-toggle ${item.pal?'selected':''}">
-          <input class="damageFault" data-id="${t.id}" data-item="${item.id}" data-field="pal" type="checkbox" ${item.pal?'checked':''} ${item.writeoff?'disabled':''}>
+          <input class="damageFault" data-id="${t.id}" data-item="${item.id}" data-field="pal" type="checkbox" ${item.pal?'checked':''}>
           <span>Pal Broken</span>
         </label>
-        <label class="damage-toggle writeoff-toggle ${item.writeoff?'selected':''}">
-          <input class="damageFault" data-id="${t.id}" data-item="${item.id}" data-field="writeoff" type="checkbox" ${item.writeoff?'checked':''}>
-          <span>Complete Write Off</span>
-        </label>
+
       </div>
    </div>`).join('');
  }
@@ -1527,6 +1591,20 @@ async function deliveriesPage(){
    document.querySelectorAll('.dispatchBoatQty,.dispatchCornQty').forEach(el=>el.oninput=()=>updateSummary(el.dataset.sku));
    groups.forEach(g=>updateSummary(g.sku));
 
+   document.querySelectorAll('.dispatchReworkCornwall').forEach(btn=>btn.onclick=()=>{
+     const g=groups.find(x=>x.key===btn.dataset.key);if(!g)return;
+     if(!consumeDispatchRecords(g,g.qty)){alert('Could not dispatch this rework return.');return}
+     const now=new Date().toISOString();
+     // Do NOT add Cornwall inventory yet. The replacement must be physically received first.
+     s.transfers.push({
+       id:makeId(),sku:g.sku,name:g.name,qty:g.qty,destination:'cornwall',
+       status:'awaiting_delivery',packed_at:g.oldest,dispatched_at:now,received_at:null,
+       good_qty:null,damaged_qty:null,qcDraftDamaged:0,qcDamagedItems:[],
+       rework_return:true,rework_job_id:g.rework_job_id,rework_label:g.rework_label
+     });
+     save(s);render();
+   });
+
    document.querySelectorAll('.allocateSplit').forEach(btn=>btn.onclick=()=>{
      const g=groups.find(x=>x.sku===btn.dataset.sku);if(!g)return;
      const boatQty=Math.max(0,Math.floor(Number(document.querySelector('#boat-'+g.sku)?.value||0)));
@@ -1556,7 +1634,7 @@ async function deliveriesPage(){
      const damaged=Number(t.qcDraftDamaged||0);
      const good=Number(t.qty||0)-damaged;
      const items=normaliseDamageItems(t);
-     const incomplete=items.filter(item=>!item.writeoff&&!item.box&&!item.insert&&!item.pal).length;
+     const incomplete=items.filter(item=>!item.box&&!item.insert&&!item.pal).length;
      const el=document.querySelector('#qc-summary-'+t.id);if(!el)return;
 
      if(damaged===0){
@@ -1580,16 +1658,10 @@ async function deliveriesPage(){
      const item=(t.qcDamagedItems||[]).find(x=>x.id===el.dataset.item);if(!item)return;
      const field=el.dataset.field;
 
-     if(field==='writeoff'){
-       item.writeoff=el.checked;
-       if(item.writeoff){
-         item.box=false;item.insert=false;item.pal=false;
-       }
-     }else{
-       item[field]=el.checked;
-       if(el.checked)item.writeoff=false;
-     }
-
+     item[field]=el.checked;
+     // No separate "write off" option. Selecting all three faults automatically
+     // becomes a full factory replacement.
+     item.writeoff=false;
      save(s);render();
    });
 
@@ -1606,7 +1678,7 @@ async function deliveriesPage(){
      const good=Number(t.qty||0)-damaged;
      const items=normaliseDamageItems(t);
 
-     const incomplete=items.filter(item=>!item.writeoff&&!item.box&&!item.insert&&!item.pal);
+     const incomplete=items.filter(item=>!item.box&&!item.insert&&!item.pal);
      if(incomplete.length){
        alert(`Please select at least one fault for each damaged item.`);
        return;
@@ -1620,14 +1692,30 @@ async function deliveriesPage(){
      t.damaged_qty=damaged;
      t.damage_items=items.map(x=>({...x}));
 
+     if(t.rework_return){
+       // Rework replacements were NOT pre-added to Cornwall inventory.
+       // Add only the quantity received in good condition.
+       if(good>0)addForgeInventory(s,t.sku,'cornwall',good);
+       const originalJob=(s.damageReworkJobs||[]).find(x=>x.id===t.rework_job_id);
+       if(originalJob){
+         originalJob.status=damaged>0?'complete_with_transit_damage':'complete';
+         originalJob.completed_at=now;
+         originalJob.completed_route='factory_dispatch';
+         s.reworkHistory=s.reworkHistory||[];
+         s.reworkHistory.push({id:makeId(),job_id:originalJob.id,sku:originalJob.sku,name:originalJob.name,qty:good,label:damageReworkRequirements(originalJob).label,route:'Factory → Dispatch → Cornwall',created_at:now});
+       }
+     }
+
      if(damaged>0){
        // Remove each damaged physical item once from Cornwall usable stock.
-       s.stock[t.sku]=s.stock[t.sku]||{};
-       s.stock[t.sku].cornwall=Math.max(0,Number(s.stock[t.sku].cornwall||0)-damaged);
+       if(!t.rework_return){
+         s.stock[t.sku]=s.stock[t.sku]||{};
+         s.stock[t.sku].cornwall=Math.max(0,Number(s.stock[t.sku].cornwall||0)-damaged);
 
-       s.finishedStock=s.finishedStock||{boat:{},cornwall:{}};
-       s.finishedStock.cornwall=s.finishedStock.cornwall||{};
-       s.finishedStock.cornwall[t.sku]=Math.max(0,Number(s.finishedStock.cornwall[t.sku]||0)-damaged);
+         s.finishedStock=s.finishedStock||{boat:{},cornwall:{}};
+         s.finishedStock.cornwall=s.finishedStock.cornwall||{};
+         s.finishedStock.cornwall[t.sku]=Math.max(0,Number(s.finishedStock.cornwall[t.sku]||0)-damaged);
+       }
 
        items.forEach((item,index)=>{
          // Each physical damaged Pal creates ONE rework job with a list of requirements.
@@ -1635,14 +1723,8 @@ async function deliveriesPage(){
            box:!!item.box,
            insert:!!item.insert,
            pal:!!item.pal,
-           writeoff:!!item.writeoff
+           writeoff:!!(item.box&&item.insert&&item.pal)
          };
-
-         if(item.writeoff){
-           requirements.box=true;
-           requirements.insert=true;
-           requirements.pal=true;
-         }
 
          s.damageReworkJobs.push({
            id:makeId(),
@@ -1658,7 +1740,8 @@ async function deliveriesPage(){
            location:'cornwall'
          });
 
-         if(requirements.insert){
+         if(requirements.insert&&requirements.pal&&requirements.box){
+           // All three faults selected = full factory replacement, including a new insert.
            s.damageInsertDemand[t.sku]=Number(s.damageInsertDemand[t.sku]||0)+1;
          }
 
@@ -1697,6 +1780,8 @@ function resetForgeData(){
 
 async function reworkPage(){
  const s=state();
+ const ps=await load('products');
+ const onSale=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).sort((a,b)=>a.name.localeCompare(b.name));
  const q=document.querySelector('#q');
  const activeList=document.querySelector('#activeRework');
  const historyList=document.querySelector('#reworkHistory');
@@ -1704,86 +1789,120 @@ async function reworkPage(){
  const readyKpi=document.querySelector('#reworkReadyKpi');
  const waitKpi=document.querySelector('#reworkWaitingKpi');
  const completeKpi=document.querySelector('#reworkCompleteKpi');
+ const localBox=document.querySelector('#cornwallBoxStock');
+ const localInsertSku=document.querySelector('#cornwallInsertSku');
+ const localInsertQty=document.querySelector('#cornwallInsertQty');
+ const localInsertInventory=document.querySelector('#cornwallInsertInventory');
+
+ localInsertSku.innerHTML=onSale.map(p=>`<option value="${p.sku}">${esc(p.name)} · ${p.sku}</option>`).join('');
 
  function issueSummary(job){
    if(job.type!=='item'){
-     const m={box:'Box Damaged',insert:'Insert Damaged',pal:'Pal Broken',writeoff:'Complete Write Off'};
+     const m={box:'Box Damaged',insert:'Insert Damaged',pal:'Pal Broken',writeoff:'Full Factory Replacement'};
      return m[job.type]||job.type;
    }
    const r=job.requirements||{};
-   if(r.writeoff)return 'Complete Write Off';
+   if(r.box&&r.insert&&r.pal)return 'Box Damaged + Insert Damaged + Pal Broken';
    return [r.box?'Box Damaged':'',r.insert?'Insert Damaged':'',r.pal?'Pal Broken':''].filter(Boolean).join(' + ');
  }
  function requirementPills(job){
-   const r=damageReworkRequirements(job);
-   const pills=[];
-   if(r.clear_boxes)pills.push({label:`Clear Box ${forgeConsumableStock(s,'clear_boxes')} / ${r.clear_boxes}`,ok:forgeConsumableStock(s,'clear_boxes')>=r.clear_boxes});
-   if(r.inserts)pills.push({label:`Ready Insert ${forgeInsertReady(s,job.sku)} / ${r.inserts}`,ok:forgeInsertReady(s,job.sku)>=r.inserts});
-   if(r.pals)pills.push({label:`Assembled Pal ${forgeAssembledQty(s,job.sku)} / ${r.pals}`,ok:forgeAssembledQty(s,job.sku)>=r.pals});
-   if(r.bottom_cards)pills.push({label:`Bottom Card ${forgeConsumableStock(s,'bottom_cards')} / ${r.bottom_cards}`,ok:forgeConsumableStock(s,'bottom_cards')>=r.bottom_cards});
-   if(r.stickers)pills.push({label:`Sticker ${forgeConsumableStock(s,'stickers')} / ${r.stickers}`,ok:forgeConsumableStock(s,'stickers')>=r.stickers});
+   const r=damageReworkRequirements(job),pills=[];
+   if(r.route==='cornwall'){
+     if(r.clear_boxes)pills.push({label:`Cornwall Boxes ${cornwallBoxStock(s)} / ${r.clear_boxes}`,ok:cornwallBoxStock(s)>=r.clear_boxes});
+     if(r.inserts)pills.push({label:`Cornwall Inserts ${cornwallInsertStock(s,job.sku)} / ${r.inserts}`,ok:cornwallInsertStock(s,job.sku)>=r.inserts});
+   }else{
+     if(r.pals)pills.push({label:`Factory Assembled Pal ${forgeAssembledQty(s,job.sku)} / ${r.pals}`,ok:forgeAssembledQty(s,job.sku)>=r.pals});
+     if(r.inserts)pills.push({label:`Factory Ready Insert ${forgeInsertReady(s,job.sku)} / ${r.inserts}`,ok:forgeInsertReady(s,job.sku)>=r.inserts});
+     if(r.clear_boxes)pills.push({label:`Factory Clear Box ${forgeConsumableStock(s,'clear_boxes')} / ${r.clear_boxes}`,ok:forgeConsumableStock(s,'clear_boxes')>=r.clear_boxes});
+     if(r.bottom_cards)pills.push({label:`Bottom Card ${forgeConsumableStock(s,'bottom_cards')} / ${r.bottom_cards}`,ok:forgeConsumableStock(s,'bottom_cards')>=r.bottom_cards});
+     if(r.stickers)pills.push({label:`Sticker ${forgeConsumableStock(s,'stickers')} / ${r.stickers}`,ok:forgeConsumableStock(s,'stickers')>=r.stickers});
+   }
    return pills.map(x=>`<span class="${x.ok?'stock-good':'stock-bad'}">${esc(x.label)}</span>`).join('');
  }
  function waitingReason(job){
    const r=damageReworkRequirements(job),miss=[];
-   if(r.clear_boxes&&forgeConsumableStock(s,'clear_boxes')<r.clear_boxes)miss.push('clear box');
-   if(r.inserts&&forgeInsertReady(s,job.sku)<r.inserts)miss.push('ready insert');
-   if(r.pals&&forgeAssembledQty(s,job.sku)<r.pals)miss.push('assembled Pal');
-   if(r.bottom_cards&&forgeConsumableStock(s,'bottom_cards')<r.bottom_cards)miss.push('bottom card');
-   if(r.stickers&&forgeConsumableStock(s,'stickers')<r.stickers)miss.push('sticker');
-   return miss.length?`Waiting for ${miss.join(', ')}`:'Ready to rework';
+   if(r.route==='cornwall'){
+     if(r.clear_boxes&&cornwallBoxStock(s)<r.clear_boxes)miss.push('Cornwall spare box');
+     if(r.inserts&&cornwallInsertStock(s,job.sku)<r.inserts)miss.push('Cornwall spare insert');
+   }else{
+     if(r.pals&&forgeAssembledQty(s,job.sku)<r.pals)miss.push('factory replacement Pal');
+     if(r.inserts&&forgeInsertReady(s,job.sku)<r.inserts)miss.push('factory insert');
+     if(r.clear_boxes&&forgeConsumableStock(s,'clear_boxes')<r.clear_boxes)miss.push('factory clear box');
+     if(r.bottom_cards&&forgeConsumableStock(s,'bottom_cards')<r.bottom_cards)miss.push('bottom card');
+     if(r.stickers&&forgeConsumableStock(s,'stickers')<r.stickers)miss.push('sticker');
+   }
+   return miss.length?`Waiting for ${miss.join(', ')}`:r.route==='cornwall'?'Ready for Cornwall repair':'Ready to send through Dispatch';
+ }
+ function drawLocalStock(){
+   localBox.value=cornwallBoxStock(s);
+   localInsertInventory.innerHTML=onSale.map(p=>`<tr><td><strong>${esc(p.name)}</strong><br><span class="sku">${p.sku}</span></td><td><strong>${cornwallInsertStock(s,p.sku)}</strong></td></tr>`).join('')||'<tr><td colspan="2">No On Sale Pals.</td></tr>';
  }
  function draw(){
+   drawLocalStock();
    const text=(q.value||'').toLowerCase();
    const active=(s.damageReworkJobs||[])
-     .filter(x=>x.status==='awaiting_rework')
+     .filter(x=>x.status==='awaiting_rework'||x.status==='awaiting_dispatch')
      .filter(x=>`${x.name} ${x.sku} ${issueSummary(x)} ${damageReworkRequirements(x).label}`.toLowerCase().includes(text))
      .sort((a,b)=>Number(damageReworkReady(s,b))-Number(damageReworkReady(s,a))||(a.created_at||'').localeCompare(b.created_at||''));
 
-   const ready=active.filter(x=>damageReworkReady(s,x));
-   const waiting=active.filter(x=>!damageReworkReady(s,x));
+   const open=active.filter(x=>x.status==='awaiting_rework');
+   const ready=open.filter(x=>damageReworkReady(s,x));
+   const waiting=open.filter(x=>!damageReworkReady(s,x));
    const hist=(s.reworkHistory||[]).slice().reverse();
 
-   activeKpi.textContent=active.length;
+   activeKpi.textContent=open.length;
    readyKpi.textContent=ready.length;
    waitKpi.textContent=waiting.length;
    completeKpi.textContent=hist.length;
 
    activeList.innerHTML=active.length?active.map(job=>{
-     const r=damageReworkRequirements(job),ready=damageReworkReady(s,job);
-     return `<div class="rework-card ${ready?'ready':'waiting'}">
+     const r=damageReworkRequirements(job),ready=damageReworkReady(s,job),inDispatch=job.status==='awaiting_dispatch';
+     return `<div class="rework-card ${inDispatch?'in-dispatch':ready?'ready':'waiting'}">
        <div class="rework-card-head">
-         <div>
-           <strong>${esc(job.name)}</strong>
-           <div class="sku">${job.sku}${job.damaged_item_index?` · Damaged Item ${job.damaged_item_index}`:''}</div>
-           <div class="small">Created ${fmtDate(job.created_at)}</div>
-         </div>
-         ${ready?badge('READY','ok'):badge('WAITING','warning')}
+         <div><strong>${esc(job.name)}</strong><div class="sku">${job.sku}${job.damaged_item_index?` · Damaged Item ${job.damaged_item_index}`:''}</div><div class="small">Created ${fmtDate(job.created_at)}</div></div>
+         ${inDispatch?badge('IN DISPATCH','info'):ready?badge('READY','ok'):badge('WAITING','warning')}
        </div>
        <div class="rework-issue"><span>Reported Issue</span><strong>${esc(issueSummary(job))}</strong></div>
-       <div class="rework-route"><span>Rework Route</span><strong>${esc(r.label||'Rework')}</strong></div>
-       <div class="packing-checks">${requirementPills(job)||'<span class="stock-good">No replacement stock required</span>'}</div>
+       <div class="rework-route"><span>Route</span><strong>${r.route==='cornwall'?'Cornwall Local Repair':'Factory → Dispatch → Cornwall'}</strong></div>
+       <div class="rework-route"><span>Work Required</span><strong>${esc(r.label||'Rework')}</strong></div>
+       ${!inDispatch?`<div class="packing-checks">${requirementPills(job)||'<span class="stock-good">No replacement stock required</span>'}</div>`:''}
        <div class="rework-footer">
-         <div class="small">${esc(waitingReason(job))}</div>
-         <button class="btn completeStandaloneRework" data-id="${job.id}" ${ready?'':'disabled'}>Complete Rework</button>
+         <div class="small">${inDispatch?'Replacement is waiting in Dispatch for return to Cornwall.':esc(waitingReason(job))}</div>
+         ${!inDispatch?(r.route==='cornwall'
+           ?`<button class="btn completeLocalRework" data-id="${job.id}" ${ready?'':'disabled'}>Complete Cornwall Repair</button>`
+           :`<button class="btn sendReworkDispatch" data-id="${job.id}" ${ready?'':'disabled'}>Send to Dispatch</button>`):'<a class="btn ghost" href="deliveries.html">Open Dispatch →</a>'}
        </div>
      </div>`;
    }).join(''):'<div class="bench-empty">No active rework jobs.</div>';
 
-   historyList.innerHTML=hist.length?hist.slice(0,40).map(h=>`<tr>
-     <td>${fmtDate(h.created_at)}</td>
-     <td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td>
-     <td>${esc(h.label||'Rework')}</td>
-     <td>${h.qty}</td>
-   </tr>`).join(''):'<tr><td colspan="4">No completed rework yet.</td></tr>';
+   historyList.innerHTML=hist.length?hist.slice(0,40).map(h=>`<tr><td>${fmtDate(h.created_at)}</td><td><strong>${esc(h.name)}</strong><br><span class="sku">${h.sku}</span></td><td>${esc(h.label||'Rework')}</td><td>${esc(h.route||'Cornwall')}</td><td>${h.qty}</td></tr>`).join(''):'<tr><td colspan="5">No completed rework yet.</td></tr>';
 
-   document.querySelectorAll('.completeStandaloneRework').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.completeLocalRework').forEach(btn=>btn.onclick=()=>{
      const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);
-     if(!job)return;
-     if(!completeDamageReworkJob(s,job)){alert('This rework is not ready yet.');return}
+     if(!job||!completeCornwallReworkJob(s,job)){alert('This Cornwall repair is not ready yet.');return}
+     draw();
+   });
+   document.querySelectorAll('.sendReworkDispatch').forEach(btn=>btn.onclick=()=>{
+     const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);
+     if(!job||!sendFactoryReworkToDispatch(s,job)){alert('The factory replacement is not ready yet.');return}
      draw();
    });
  }
+
+ localBox.onchange=()=>{
+   s.cornwallReworkStock.clear_boxes=Math.max(0,Number(localBox.value||0));
+   save(s);draw();
+ };
+ document.querySelector('#addCornwallBoxes').onclick=()=>{
+   s.cornwallReworkStock.clear_boxes=cornwallBoxStock(s)+Math.max(1,Number(document.querySelector('#cornwallBoxAddQty').value||1));
+   save(s);draw();
+ };
+ document.querySelector('#addCornwallInserts').onclick=()=>{
+   const sku=localInsertSku.value;if(!sku)return;
+   s.cornwallReworkStock.inserts[sku]=cornwallInsertStock(s,sku)+Math.max(1,Number(localInsertQty.value||1));
+   save(s);draw();
+ };
+
  q.oninput=draw;
  draw();
 }
