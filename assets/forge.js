@@ -1345,7 +1345,7 @@ async function assemblyPage(){
    return `<div class="assembly-card ready">
      <div class="assembly-card-head">
        <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${badge(`${Math.min(x.ready,x.remainingNeed)} Ready`,'ok')}
+       ${badge(`${x.ready} Ready`,'ok')}
      </div>
      <div class="assembly-demand-strip">
        <span>Production Need <strong>${x.plannerNeed}</strong></span>
@@ -1392,18 +1392,18 @@ async function assemblyPage(){
      groups:groupStock(p)
    })).filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
 
-   // READY: only show Pals that are still required by Production Planning
-   // and can physically be assembled now.
+   // READY: any Pal for which every required printed colour-group is physically available.
+   // Production demand does not control whether it appears here.
    const ready=all
-     .filter(x=>x.remainingNeed>0 && x.ready>0)
-     .sort((a,b)=>b.remainingNeed-a.remainingNeed || b.ready-a.ready || a.p.name.localeCompare(b.p.name));
+     .filter(x=>x.ready>0)
+     .sort((a,b)=>b.ready-a.ready || b.remainingNeed-a.remainingNeed || a.p.name.localeCompare(b.p.name));
 
    // AWAITING: demanded by Production Planning but no complete Pal can be assembled yet.
    const awaiting=all
      .filter(x=>x.remainingNeed>0 && x.ready<=0)
      .sort((a,b)=>b.remainingNeed-a.remainingNeed || a.p.name.localeCompare(b.p.name));
 
-   kpiReady.textContent=ready.reduce((a,x)=>a+Math.min(x.ready,x.remainingNeed),0);
+   kpiReady.textContent=ready.reduce((a,x)=>a+x.ready,0);
    kpiAssembled.textContent=Object.values(s.assembled||{}).reduce((a,b)=>a+Number(b||0),0);
    kpiWaiting.textContent=awaiting.reduce((a,x)=>a+x.remainingNeed,0);
    readySectionCount.textContent=`${ready.length} Ready`;

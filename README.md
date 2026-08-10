@@ -1117,3 +1117,16 @@ Rules:
 Important: pages not yet migrated to D1 still retain their legacy local behaviour until they are moved in subsequent stages. Every new migration from this version onward will be cloud-only.
 
 Deployment ZIP is frontend-only. No SQL or Worker files are included.
+
+
+### v0.10.1 — Ready to Assemble Logic
+
+The Bench "Ready" section now means physically ready to assemble.
+
+A Pal appears in Ready whenever all required printed colour-groups are available, regardless of current Production Planner demand.
+
+- Ready KPI = total complete Pal sets that can currently be assembled.
+- Ready badge = actual number of complete buildable sets.
+- Production Need / Already Assembled / Still Needed remain visible as context only.
+- Awaiting continues to show Pals that are required by Production Planning but cannot yet be assembled.
+- Cloudflare D1 remains the sole source of truth for migrated production data.
