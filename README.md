@@ -716,3 +716,41 @@ Features:
 - The API URL is stored in Forge site settings for later cloud-mode use.
 
 This release does not yet switch any operational Forge page to D1 as its source of truth. Migration remains copy-only until cloud data has been verified.
+
+
+## v0.9.3 — Cloud Login & API Security
+
+Before enabling live cloud-backed production writes, the PLA Forge Cloudflare API is now secured.
+
+### Worker authentication
+The supplied `pla-forge-api-v2.js` requires two Cloudflare Worker Secrets:
+- `FORGE_ADMIN_PASSWORD`
+- `FORGE_SESSION_SECRET`
+
+`FORGE_ADMIN_PASSWORD` is the password used to sign into Forge Cloud.
+`FORGE_SESSION_SECRET` is a long random secret used only by the Worker to sign 12-hour session tokens.
+
+The Worker uses Cloudflare Web Crypto HMAC signing. The password and signing secret remain in Cloudflare Worker Secrets and are never committed to GitHub Pages.
+
+### Forge Cloud Login
+Data Health now includes a Cloud Login panel.
+- Password is submitted directly to `/auth/login`.
+- A signed 12-hour token is stored in `sessionStorage` for the current browser tab.
+- The password itself is not stored by Forge.
+- Logout removes the token.
+- Migration and cloud verification calls now use the authenticated token.
+
+### Protected endpoints
+All database endpoints except `/health` and `/auth/login` now require authentication.
+
+### Cloud Core API groundwork
+The secured Worker also adds:
+- `GET /core`
+- `GET /targets`
+- `PUT /targets/:sku/:location`
+- `PUT /products/:sku/availability`
+- `PUT /filaments/:name`
+
+These endpoints are the foundation for switching Pals, Recipes, Filaments and stock targets to D1 in the next stage.
+
+No operational Forge page has yet been switched to cloud as the source of truth. Existing local data remains intact.

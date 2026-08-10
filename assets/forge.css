@@ -540,3 +540,9 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .cloud-error{color:#ff858a}
 .cloud-actions{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--line);padding-top:11px}
 @media(max-width:800px){.cloud-count-grid,.cloud-result-grid{grid-template-columns:1fr 1fr}.cloud-warning{flex-direction:column}.cloud-actions{flex-direction:column}}
+
+/* v0.9.3 Cloud authentication */
+.cloud-auth-card{border-color:rgba(255,106,0,.22)}
+.cloud-login-row{display:grid;grid-template-columns:minmax(260px,1fr) auto auto;gap:8px;align-items:end;margin:10px 0}
+.cloud-login-row .form-field{margin:0}
+@media(max-width:700px){.cloud-login-row{grid-template-columns:1fr}.cloud-login-row .btn{width:100%}}

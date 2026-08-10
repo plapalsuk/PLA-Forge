@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data Health | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=092"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data Health | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=093"></head>
 <body><div class="app">
 <aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
@@ -19,6 +19,20 @@
  </nav>
 </aside>
 <main><div class="topbar"><div class="pageTitle"><h1>Data Health</h1><div class="small">Master-data checks before Shopify and production automation.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="card"><p class="small">PLA Forge resolves recipe links against the master product list and highlights mismatches here so a wrong spreadsheet SKU cannot silently attach a recipe to the wrong Pal.</p></div><div class="card" style="padding:0;overflow:auto;margin-top:14px"><table><thead><tr><th>Issue</th><th>Item</th><th>Detail</th></tr></thead><tbody id="health"></tbody></table></div>
+
+<div class="card cloud-auth-card" style="margin-top:14px">
+ <div class="section-title">
+  <div><h2>Cloud Login</h2><div class="small">Authenticate before Forge can read or write protected Cloudflare database data.</div></div>
+  <span id="cloudAuthStatus" class="badge warning">Checking…</span>
+ </div>
+ <div class="cloud-login-row">
+  <div class="form-field"><label>Forge Admin Password</label><input id="cloudPassword" type="password" autocomplete="current-password" placeholder="Enter Cloudflare Forge password"></div>
+  <button class="btn" id="cloudLoginBtn">Log In</button>
+  <button class="btn ghost" id="cloudLogoutBtn" style="display:none">Log Out</button>
+ </div>
+ <div class="small">The password is sent only to your Cloudflare Worker. Forge stores a temporary signed session token in this browser tab, not the password.</div>
+</div>
+
 <div class="card cloud-migration-card" style="margin-top:14px">
  <div class="section-title">
   <div>
@@ -54,4 +68,4 @@
  </div>
 </div>
 
-<div class="footer-note">PLA Forge v0.9.2 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=092"></script><script>dataHealth()</script><script>cloudMigrationPanel()</script></body></html>
+<div class="footer-note">PLA Forge v0.9.3 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=093"></script><script>dataHealth()</script><script>cloudAuthPanel();cloudMigrationPanel()</script></body></html>

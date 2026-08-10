@@ -166,6 +166,21 @@ function statusLabel(st){const m={draft:['Draft','info'],printing:['Printing','w
 function fmtDate(v){if(!v)return '—';try{return new Date(v).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}catch(e){return v}}
 function makeId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 
+
+function cloudToken(){return sessionStorage.getItem('plaForgeCloudToken')||''}
+function setCloudToken(v){if(v)sessionStorage.setItem('plaForgeCloudToken',v);else sessionStorage.removeItem('plaForgeCloudToken')}
+function cloudApiBase(){return String(state().siteSettings?.forgeApiUrl||'https://pla-forge-api.plapalsuk.workers.dev').replace(/\/+$/,'')}
+async function cloudFetch(path,options={}){
+ const headers={...(options.headers||{})};
+ const token=cloudToken();
+ if(token)headers.Authorization=`Bearer ${token}`;
+ const res=await fetch(cloudApiBase()+path,{...options,headers});
+ const data=await res.json().catch(()=>({}));
+ if(res.status===401)setCloudToken('');
+ if(!res.ok)throw new Error(data.detail||data.error||`HTTP ${res.status}`);
+ return data;
+}
+
 async function dashboard(){
  const ps=await load('products'), rs=await load('recipes'), mm=await load('mismatches'), s=state();
  const pals=ps.filter(x=>x.type==='pal'), keys=pals.filter(x=>x.keyring), st=ps.filter(x=>x.type==='sticker');
@@ -2400,9 +2415,7 @@ async function cloudMigrationPanel(){
    const payload=await localPayload();
    localCountEl.textContent=payload.products.length;
    try{
-     const res=await fetch(apiBase()+'/products',{method:'GET'});
-     const data=await res.json();
-     if(!res.ok||!data.success)throw new Error(data.error||`HTTP ${res.status}`);
+     const data=await cloudFetch('/products',{method:'GET'});
      const remote=Number(data.count||0);
      cloudCountEl.textContent=remote;
      const ok=remote===payload.products.length;
@@ -2448,16 +2461,11 @@ async function cloudMigrationPanel(){
 
      setSummary(`${badge('MIGRATING','warning')} <span class="small">Uploading Forge data to Cloudflare…</span>`);
 
-     const res=await fetch(apiBase()+'/migration/import',{
+     const data=await cloudFetch('/migration/import',{
        method:'POST',
        headers:{'Content-Type':'application/json'},
        body:JSON.stringify(payload)
      });
-
-     const data=await res.json().catch(()=>({}));
-     if(!res.ok||!data.success){
-       throw new Error(data.detail||data.error||`HTTP ${res.status}`);
-     }
 
      const imported=data.imported||{};
      setSummary(`
@@ -2489,5 +2497,37 @@ async function cloudMigrationPanel(){
  const payload=await localPayload();
  localCountEl.textContent=payload.products.length;
  await checkHealth();
+ await verify();
+}
+
+
+async function cloudAuthPanel(){
+ const pass=document.querySelector('#cloudPassword');
+ const loginBtn=document.querySelector('#cloudLoginBtn');
+ const logoutBtn=document.querySelector('#cloudLogoutBtn');
+ const authStatus=document.querySelector('#cloudAuthStatus');
+ if(!pass||!loginBtn)return;
+ function draw(logged,label=''){
+   authStatus.innerHTML=logged?badge(label||'Authenticated','ok'):badge(label||'Not Logged In','warning');
+   logoutBtn.style.display=logged?'inline-flex':'none';
+   pass.disabled=logged; loginBtn.style.display=logged?'none':'inline-flex';
+ }
+ async function verify(){
+   if(!cloudToken()){draw(false);return false}
+   try{const me=await cloudFetch('/auth/me');draw(true,`Logged In · ${me.role||'admin'}`);return true}
+   catch{draw(false,'Session Expired');return false}
+ }
+ loginBtn.onclick=async()=>{
+   if(!pass.value){draw(false,'Enter Password');return}
+   loginBtn.disabled=true;authStatus.innerHTML=badge('Logging In…','warning');
+   try{
+     const res=await fetch(cloudApiBase()+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass.value})});
+     const data=await res.json().catch(()=>({}));
+     if(!res.ok||!data.success)throw new Error(data.error||'Login failed');
+     setCloudToken(data.token);pass.value='';draw(true,'Logged In · Admin');
+     document.querySelector('#verifyForgeCloud')?.click();
+   }catch(e){setCloudToken('');draw(false,e.message)}finally{loginBtn.disabled=false}
+ };
+ logoutBtn.onclick=()=>{setCloudToken('');pass.value='';draw(false,'Logged Out')};
  await verify();
 }
