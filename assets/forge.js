@@ -163,7 +163,7 @@ window.addEventListener('beforeunload',()=>{
 });
 
 function installForgeCloudSyncBadge(){
- if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html'].includes(forgeCurrentPage()))return;
+ if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
  const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
  const wrap=document.createElement('div');
@@ -190,11 +190,10 @@ async function hydrateProductionCloud(force=false){
  if(!cloudToken())throw new Error('Cloud login required.');
  setForgeCloudSync('syncing','Loading live state from Cloudflare D1');
  try{
-   const [st,bp,targetData,productData]=await Promise.all([
+   const [st,bp,targetData]=await Promise.all([
      cloudFetch('/production/state'),
      cloudFetch('/build-plates'),
-     cloudFetch('/targets'),
-     cloudFetch('/products')
+     cloudFetch('/targets')
    ]);
 
    const s=emptyCloudWorkingState();
@@ -211,17 +210,6 @@ async function hydrateProductionCloud(force=false){
    (targetData?.targets||[]).forEach(t=>{
      const loc=t.location_id==='factory'?'boat':t.location_id;
      s.targets[targetKey(t.sku,loc)]=Number(t.target_qty||0);
-   });
-
-   // D1 products are the single source of truth for On Sale / release state.
-   // Never use browser-cached availability when rendering operational pages.
-   s.productAvailability={};
-   (productData?.products||[]).forEach(raw=>{
-     const p=normaliseCloudProduct(raw);
-     s.productAvailability[p.sku]={
-       on_sale:p.on_sale===true,
-       release_date:raw.release_date||p.release_date||''
-     };
    });
 
    s.plates=(bp?.plates||[]).map(p=>({
@@ -1862,59 +1850,27 @@ async function insertProductionPage(){
 }
 
 async function availabilityPage(){
- await syncCloudCoreState();
- const s=state(),ps=await load('products'),pals=ps.filter(p=>p.type==='pal');
- const q=document.querySelector('#q'),filter=document.querySelector('#availabilityFilter'),list=document.querySelector('#availabilityList');
- const saleKpi=document.querySelector('#onSaleKpi'),futureKpi=document.querySelector('#futureKpi'),offKpi=document.querySelector('#offSaleKpi');
- function status(p){const r=s.productAvailability[p.sku]||{};if(r.on_sale)return'sale';if(r.release_date&&r.release_date>new Date().toISOString().slice(0,10))return'future';return'off'}
- function render(){
-  const text=(q.value||'').toLowerCase(),mode=filter.value;
-  const all=pals.map(p=>({p,rec:s.productAvailability[p.sku]||{},status:status(p)}));
-  saleKpi.textContent=all.filter(x=>x.status==='sale').length;futureKpi.textContent=all.filter(x=>x.status==='future').length;offKpi.textContent=all.filter(x=>x.status==='off').length;
-  const data=all.filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text)).filter(x=>mode==='all'||x.status===mode).sort((a,b)=>(a.status==='sale'?-2:a.status==='future'?-1:0)-(b.status==='sale'?-2:b.status==='future'?-1:0)||a.p.name.localeCompare(b.p.name));
-  list.innerHTML=data.map(x=>`<div class="availability-row"><div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div><div>${x.status==='sale'?badge('ON SALE','ok'):x.status==='future'?badge('FUTURE RELEASE','warning'):badge('NOT ON SALE','')}</div><label><span class="small">Release Date</span><input class="releaseDate" data-sku="${x.p.sku}" type="date" value="${esc(x.rec.release_date||'')}"></label><button class="btn ${x.status==='sale'?'ghost':''} toggleSale" data-sku="${x.p.sku}">${x.status==='sale'?'Take Off Sale':'Put On Sale'}</button></div>`).join('')||'<div class="bench-empty">No Pals match this view.</div>';
-  document.querySelectorAll('.toggleSale').forEach(btn=>btn.onclick=async()=>{
-   const sku=btn.dataset.sku,r=s.productAvailability[sku]||{};
-   r.on_sale=!r.on_sale;
-   if(r.on_sale&&!r.release_date)r.release_date=new Date().toISOString().slice(0,10);
-   s.productAvailability[sku]=r;save(s);render();
-   if(cloudToken()){
-     try{await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
-       method:'PUT',headers:{'Content-Type':'application/json'},
-       body:JSON.stringify({on_sale:r.on_sale,release_date:r.release_date||null})
-     })}catch(e){alert(`Availability saved locally, but cloud update failed: ${e.message}`)}
-   }
- });
-  document.querySelectorAll('.releaseDate').forEach(el=>el.onchange=async()=>{
-   const sku=el.dataset.sku,r=s.productAvailability[sku]||{};
-   r.release_date=el.value;s.productAvailability[sku]=r;save(s);render();
-   if(cloudToken()){
-     try{await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
-       method:'PUT',headers:{'Content-Type':'application/json'},
-       body:JSON.stringify({on_sale:!!r.on_sale,release_date:r.release_date||null})
-     })}catch(e){alert(`Release date saved locally, but cloud update failed: ${e.message}`)}
-   }
- });
+ installForgeCloudSyncBadge();
+ if(!forgeProductionCloudReady){
+   try{await hydrateProductionCloud()}
+   catch(e){showCloudRequiredError(e.message);return}
  }
- q.oninput=render;filter.onchange=render;render();
-}
 
+ let s=cloudOperationalState();
+ const ps=await load('products');
+ const pals=ps.filter(p=>p.type==='pal');
 
-async function settingsAvailabilityPage(){
- await syncCloudCoreState();
- const s=state(), ps=await load('products'), pals=ps.filter(p=>p.type==='pal');
- const q=document.querySelector('#settingsAvailabilitySearch');
- const filter=document.querySelector('#settingsAvailabilityFilter');
- const list=document.querySelector('#settingsAvailabilityList');
- const saleKpi=document.querySelector('#settingsOnSaleKpi');
- const futureKpi=document.querySelector('#settingsFutureKpi');
- const offKpi=document.querySelector('#settingsOffSaleKpi');
-
- if(!q || !filter || !list)return;
+ const q=document.querySelector('#q');
+ const filter=document.querySelector('#availabilityFilter');
+ const list=document.querySelector('#availabilityList');
+ const saleKpi=document.querySelector('#onSaleKpi');
+ const futureKpi=document.querySelector('#futureKpi');
+ const offKpi=document.querySelector('#offSaleKpi');
+ if(!q||!filter||!list)return;
 
  function status(p){
-   const rec=s.productAvailability[p.sku]||{};
-   if(rec.on_sale)return 'sale';
+   const rec=s.productAvailability?.[p.sku]||{};
+   if(rec.on_sale===true)return 'sale';
    if(rec.release_date && rec.release_date>new Date().toISOString().slice(0,10))return 'future';
    return 'off';
  }
@@ -1922,11 +1878,11 @@ async function settingsAvailabilityPage(){
  function render(){
    const text=(q.value||'').toLowerCase();
    const mode=filter.value;
-   const all=pals.map(p=>({p,rec:s.productAvailability[p.sku]||{},status:status(p)}));
+   const all=pals.map(p=>({p,rec:s.productAvailability?.[p.sku]||{},status:status(p)}));
 
-   saleKpi.textContent=all.filter(x=>x.status==='sale').length;
-   futureKpi.textContent=all.filter(x=>x.status==='future').length;
-   offKpi.textContent=all.filter(x=>x.status==='off').length;
+   if(saleKpi)saleKpi.textContent=all.filter(x=>x.status==='sale').length;
+   if(futureKpi)futureKpi.textContent=all.filter(x=>x.status==='future').length;
+   if(offKpi)offKpi.textContent=all.filter(x=>x.status==='off').length;
 
    const data=all
      .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
@@ -1939,46 +1895,200 @@ async function settingsAvailabilityPage(){
        <div>${x.status==='sale'?badge('ON SALE','ok'):x.status==='future'?badge('FUTURE RELEASE','warning'):badge('NOT ON SALE','')}</div>
        <label>
          <span class="small">Release Date</span>
-         <input class="settingsReleaseDate" data-sku="${x.p.sku}" type="date" value="${esc(x.rec.release_date||'')}">
+         <input class="cloudReleaseDate" data-sku="${x.p.sku}" type="date" value="${esc(x.rec.release_date||'')}">
        </label>
-       <button class="btn ${x.status==='sale'?'ghost':''} settingsToggleSale" data-sku="${x.p.sku}">
+       <button class="btn ${x.status==='sale'?'ghost':''} cloudToggleSale" data-sku="${x.p.sku}">
          ${x.status==='sale'?'Take Off Sale':'Put On Sale'}
        </button>
      </div>`).join('') || '<div class="bench-empty">No Pals match this view.</div>';
 
-   document.querySelectorAll('.settingsToggleSale').forEach(btn=>btn.onclick=async()=>{
-      const sku=btn.dataset.sku;
-      const rec=s.productAvailability[sku]||{};
-      rec.on_sale=!rec.on_sale;
-      if(rec.on_sale&&!rec.release_date)rec.release_date=new Date().toISOString().slice(0,10);
-      s.productAvailability[sku]=rec;
-      save(s);render();
-      if(cloudToken()){
-        try{await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
-          method:'PUT',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({on_sale:rec.on_sale,release_date:rec.release_date||null})
-        })}catch(e){alert(`Availability saved locally, but cloud update failed: ${e.message}`)}
-      }
+   document.querySelectorAll('.cloudToggleSale').forEach(btn=>btn.onclick=async()=>{
+     const sku=btn.dataset.sku;
+     const rec=s.productAvailability?.[sku]||{on_sale:false,release_date:''};
+     const next=!Boolean(rec.on_sale);
+     const releaseDate=next?(rec.release_date||new Date().toISOString().slice(0,10)):(rec.release_date||null);
+
+     btn.disabled=true;
+     const oldText=btn.textContent;
+     btn.textContent='Saving to Cloud…';
+
+     try{
+       await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+         method:'PUT',
+         headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({on_sale:next,release_date:releaseDate})
+       });
+
+       // Do not trust an optimistic browser mutation. Re-read D1.
+       await hydrateProductionCloud(true);
+       s=cloudOperationalState();
+       forgeLastCloudStamp=await forgeCloudStamp()||forgeLastCloudStamp;
+       render();
+       setForgeCloudSync('synced',`${sku} availability confirmed by D1`);
+     }catch(e){
+       btn.disabled=false;
+       btn.textContent=oldText;
+       setForgeCloudSync('error',e.message||'Availability update failed');
+       alert(`Availability was NOT changed in Cloudflare: ${e.message}`);
+     }
    });
 
-   document.querySelectorAll('.settingsReleaseDate').forEach(el=>el.onchange=async()=>{
-      const sku=el.dataset.sku;
-      const rec=s.productAvailability[sku]||{};
-      rec.release_date=el.value;
-      s.productAvailability[sku]=rec;
-      save(s);render();
-      if(cloudToken()){
-        try{await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
-          method:'PUT',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({on_sale:!!rec.on_sale,release_date:rec.release_date||null})
-        })}catch(e){alert(`Release date saved locally, but cloud update failed: ${e.message}`)}
-      }
+   document.querySelectorAll('.cloudReleaseDate').forEach(el=>el.onchange=async()=>{
+     const sku=el.dataset.sku;
+     const rec=s.productAvailability?.[sku]||{on_sale:false,release_date:''};
+     const nextDate=el.value||null;
+     el.disabled=true;
+
+     try{
+       await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+         method:'PUT',
+         headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({on_sale:Boolean(rec.on_sale),release_date:nextDate})
+       });
+
+       await hydrateProductionCloud(true);
+       s=cloudOperationalState();
+       forgeLastCloudStamp=await forgeCloudStamp()||forgeLastCloudStamp;
+       render();
+       setForgeCloudSync('synced',`${sku} release date confirmed by D1`);
+     }catch(e){
+       el.disabled=false;
+       render();
+       setForgeCloudSync('error',e.message||'Release date update failed');
+       alert(`Release date was NOT changed in Cloudflare: ${e.message}`);
+     }
    });
  }
 
  q.oninput=render;
  filter.onchange=render;
  render();
+
+ await startForgeLiveSync(async fresh=>{
+   s=JSON.parse(JSON.stringify(fresh));
+   render();
+ });
+}
+
+async function settingsAvailabilityPage(){
+ installForgeCloudSyncBadge();
+ if(!forgeProductionCloudReady){
+   try{await hydrateProductionCloud()}
+   catch(e){showCloudRequiredError(e.message);return}
+ }
+
+ let s=cloudOperationalState();
+ const ps=await load('products');
+ const pals=ps.filter(p=>p.type==='pal');
+
+ const q=document.querySelector('#settingsAvailabilitySearch');
+ const filter=document.querySelector('#settingsAvailabilityFilter');
+ const list=document.querySelector('#settingsAvailabilityList');
+ const saleKpi=document.querySelector('#settingsOnSaleKpi');
+ const futureKpi=document.querySelector('#settingsFutureKpi');
+ const offKpi=document.querySelector('#settingsOffSaleKpi');
+ if(!q||!filter||!list)return;
+
+ function status(p){
+   const rec=s.productAvailability?.[p.sku]||{};
+   if(rec.on_sale===true)return 'sale';
+   if(rec.release_date && rec.release_date>new Date().toISOString().slice(0,10))return 'future';
+   return 'off';
+ }
+
+ function render(){
+   const text=(q.value||'').toLowerCase();
+   const mode=filter.value;
+   const all=pals.map(p=>({p,rec:s.productAvailability?.[p.sku]||{},status:status(p)}));
+
+   if(saleKpi)saleKpi.textContent=all.filter(x=>x.status==='sale').length;
+   if(futureKpi)futureKpi.textContent=all.filter(x=>x.status==='future').length;
+   if(offKpi)offKpi.textContent=all.filter(x=>x.status==='off').length;
+
+   const data=all
+     .filter(x=>`${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
+     .filter(x=>mode==='all'||x.status===mode)
+     .sort((a,b)=>(a.status==='sale'?-2:a.status==='future'?-1:0)-(b.status==='sale'?-2:b.status==='future'?-1:0)||a.p.name.localeCompare(b.p.name));
+
+   list.innerHTML=data.map(x=>`
+     <div class="availability-row">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       <div>${x.status==='sale'?badge('ON SALE','ok'):x.status==='future'?badge('FUTURE RELEASE','warning'):badge('NOT ON SALE','')}</div>
+       <label>
+         <span class="small">Release Date</span>
+         <input class="cloudReleaseDate" data-sku="${x.p.sku}" type="date" value="${esc(x.rec.release_date||'')}">
+       </label>
+       <button class="btn ${x.status==='sale'?'ghost':''} cloudToggleSale" data-sku="${x.p.sku}">
+         ${x.status==='sale'?'Take Off Sale':'Put On Sale'}
+       </button>
+     </div>`).join('') || '<div class="bench-empty">No Pals match this view.</div>';
+
+   document.querySelectorAll('.cloudToggleSale').forEach(btn=>btn.onclick=async()=>{
+     const sku=btn.dataset.sku;
+     const rec=s.productAvailability?.[sku]||{on_sale:false,release_date:''};
+     const next=!Boolean(rec.on_sale);
+     const releaseDate=next?(rec.release_date||new Date().toISOString().slice(0,10)):(rec.release_date||null);
+
+     btn.disabled=true;
+     const oldText=btn.textContent;
+     btn.textContent='Saving to Cloud…';
+
+     try{
+       await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+         method:'PUT',
+         headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({on_sale:next,release_date:releaseDate})
+       });
+
+       // Do not trust an optimistic browser mutation. Re-read D1.
+       await hydrateProductionCloud(true);
+       s=cloudOperationalState();
+       forgeLastCloudStamp=await forgeCloudStamp()||forgeLastCloudStamp;
+       render();
+       setForgeCloudSync('synced',`${sku} availability confirmed by D1`);
+     }catch(e){
+       btn.disabled=false;
+       btn.textContent=oldText;
+       setForgeCloudSync('error',e.message||'Availability update failed');
+       alert(`Availability was NOT changed in Cloudflare: ${e.message}`);
+     }
+   });
+
+   document.querySelectorAll('.cloudReleaseDate').forEach(el=>el.onchange=async()=>{
+     const sku=el.dataset.sku;
+     const rec=s.productAvailability?.[sku]||{on_sale:false,release_date:''};
+     const nextDate=el.value||null;
+     el.disabled=true;
+
+     try{
+       await cloudFetch(`/products/${encodeURIComponent(sku)}/availability`,{
+         method:'PUT',
+         headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({on_sale:Boolean(rec.on_sale),release_date:nextDate})
+       });
+
+       await hydrateProductionCloud(true);
+       s=cloudOperationalState();
+       forgeLastCloudStamp=await forgeCloudStamp()||forgeLastCloudStamp;
+       render();
+       setForgeCloudSync('synced',`${sku} release date confirmed by D1`);
+     }catch(e){
+       el.disabled=false;
+       render();
+       setForgeCloudSync('error',e.message||'Release date update failed');
+       alert(`Release date was NOT changed in Cloudflare: ${e.message}`);
+     }
+   });
+ }
+
+ q.oninput=render;
+ filter.onchange=render;
+ render();
+
+ await startForgeLiveSync(async fresh=>{
+   s=JSON.parse(JSON.stringify(fresh));
+   render();
+ });
 }
 
 async function consumablesPage(){
@@ -3555,7 +3665,7 @@ async function employeeAdminPage(){
 })();
 
 document.addEventListener('visibilitychange',async()=>{
- if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html'].includes(forgeCurrentPage())){
+ if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html'].includes(forgeCurrentPage())){
    const stamp=await forgeCloudStamp();
    if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
      // interval will pick this up immediately on its next tick

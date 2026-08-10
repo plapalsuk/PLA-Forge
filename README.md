@@ -1257,3 +1257,18 @@ Product availability is now fully cloud-backed.
 - Product availability is never taken from browser localStorage.
 - Insert Production and Packing Station therefore immediately use the same D1 On Sale status.
 - No Worker or D1 migration is required because Worker v3f already supports the availability endpoint and the products table already stores `on_sale`.
+
+
+### v0.10.9.2 — Authoritative On Sale Fix
+
+Root cause fixed: Product Availability was still using browser `state()` and changing its UI before D1 confirmed the write.
+
+Now:
+- Product Availability reads exclusively from the D1-hydrated operational state.
+- `Put On Sale` / `Take Off Sale` writes to Cloudflare first.
+- Forge then re-fetches `/products` from D1 before showing the new status.
+- Release-date changes follow the same write-then-reload behaviour.
+- If the D1 write fails, Forge explicitly says the availability was NOT changed.
+- Pals and Product Availability therefore render from the same D1 source of truth.
+- Availability changes live-sync across open Forge devices.
+- No local availability fallback or optimistic local save remains on these pages.
