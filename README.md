@@ -1176,3 +1176,15 @@ On mobile, every recipe colour group now has a dedicated card showing:
 Exact Part is collapsed by default and explicitly described as the individual-STL option. Grouped printing is now the primary mobile action, matching the desktop workflow.
 
 Desktop Build Plates retain the existing table layout.
+
+
+### v0.10.4 — Build Plate Page Order + Compact Mobile Colour Queue
+
+- Current Plate now sits directly below `Colours You Need to Print` on both desktop and mobile.
+- Colour-sorted Print Checklist follows Current Plate.
+- Saved Build Plates remains below the checklist.
+- Desktop planner content is now a single full-width column after moving Current Plate.
+- On mobile, the colour-demand queue uses a compact four-column grid.
+- Mobile colour buttons are substantially smaller while still showing colour name, required grams and a short queue summary.
+- The Kitsu Print Queue badge is hidden on mobile to reclaim space.
+- No Worker or D1 changes are required.
