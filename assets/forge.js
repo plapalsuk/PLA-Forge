@@ -1789,7 +1789,7 @@ async function reworkPage(){
  const readyKpi=document.querySelector('#reworkReadyKpi');
  const waitKpi=document.querySelector('#reworkWaitingKpi');
  const completeKpi=document.querySelector('#reworkCompleteKpi');
- const localBox=document.querySelector('#cornwallBoxStock');
+ const localBox=document.querySelector('#cornwallBoxStockDisplay');
  const localInsertSku=document.querySelector('#cornwallInsertSku');
  const localInsertQty=document.querySelector('#cornwallInsertQty');
  const localInsertInventory=document.querySelector('#cornwallInsertInventory');
@@ -1834,7 +1834,7 @@ async function reworkPage(){
    return miss.length?`Waiting for ${miss.join(', ')}`:r.route==='cornwall'?'Ready for Cornwall repair':'Ready to send through Dispatch';
  }
  function drawLocalStock(){
-   localBox.value=cornwallBoxStock(s);
+   localBox.textContent=cornwallBoxStock(s);
    localInsertInventory.innerHTML=onSale.map(p=>`<tr><td><strong>${esc(p.name)}</strong><br><span class="sku">${p.sku}</span></td><td><strong>${cornwallInsertStock(s,p.sku)}</strong></td></tr>`).join('')||'<tr><td colspan="2">No On Sale Pals.</td></tr>';
  }
  function draw(){
@@ -1889,17 +1889,19 @@ async function reworkPage(){
    });
  }
 
- localBox.onchange=()=>{
-   s.cornwallReworkStock.clear_boxes=Math.max(0,Number(localBox.value||0));
-   save(s);draw();
- };
  document.querySelector('#addCornwallBoxes').onclick=()=>{
-   s.cornwallReworkStock.clear_boxes=cornwallBoxStock(s)+Math.max(1,Number(document.querySelector('#cornwallBoxAddQty').value||1));
+   const qty=Math.max(1,Math.floor(Number(document.querySelector('#cornwallBoxAddQty')?.value||1)));
+   s.cornwallReworkStock=s.cornwallReworkStock||{clear_boxes:0,inserts:{}};
+   s.cornwallReworkStock.inserts=s.cornwallReworkStock.inserts||{};
+   s.cornwallReworkStock.clear_boxes=cornwallBoxStock(s)+qty;
    save(s);draw();
  };
  document.querySelector('#addCornwallInserts').onclick=()=>{
    const sku=localInsertSku.value;if(!sku)return;
-   s.cornwallReworkStock.inserts[sku]=cornwallInsertStock(s,sku)+Math.max(1,Number(localInsertQty.value||1));
+   const qty=Math.max(1,Math.floor(Number(localInsertQty.value||1)));
+   s.cornwallReworkStock=s.cornwallReworkStock||{clear_boxes:0,inserts:{}};
+   s.cornwallReworkStock.inserts=s.cornwallReworkStock.inserts||{};
+   s.cornwallReworkStock.inserts[sku]=cornwallInsertStock(s,sku)+qty;
    save(s);draw();
  };
 

@@ -462,3 +462,8 @@ button:disabled,input:disabled{opacity:.4;cursor:not-allowed}
 .dispatch-locked-route span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:4px}
 .rework-dispatch-card{border-color:rgba(76,151,255,.35)}
 @media(max-width:800px){.cornwall-spares-grid,.dispatch-locked-route{grid-template-columns:1fr}}
+
+/* v0.8.9 Cornwall spare stock controls */
+.cornwall-current-stock{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#171d24;border:1px solid #292f37;border-radius:9px;padding:10px}
+.cornwall-current-stock span{font-size:9px;text-transform:uppercase;color:var(--muted)}
+.cornwall-current-stock strong{font-size:22px;color:#fff}

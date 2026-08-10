@@ -461,3 +461,13 @@ The Rework page now includes a local spare-stock section:
 - Pal-specific spare Insert quantities for On Sale Pals
 
 Existing operational data is preserved and no reset is triggered.
+
+
+## v0.8.9 — Cornwall Spare Stock Controls
+
+- Fixed Cornwall Rework Stock add controls not reliably updating stock.
+- `Current Stock` is now display-only.
+- Clear Box stock can only be changed by entering a quantity and pressing `Add Boxes`.
+- Pal-specific Insert stock can only be changed by selecting the Pal, entering a quantity and pressing `Add Inserts`.
+- Add handlers now defensively initialise Cornwall spare-stock data before saving.
+- Existing operational data is preserved; no reset is triggered.
