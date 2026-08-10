@@ -75,6 +75,21 @@ const CLOUD_PRODUCTION_FIELDS=[
  'reworkHistory','cornwallReworkStock','cornwallInsertReplenishment','damageInsertDemand','production',
  'productionPlan','plateSeq'
 ];
+
+let forgeCloudOperationalState=null;
+
+function emptyCloudWorkingState(){
+ const s=blankOperationalState();
+ s.targets={};
+ s.stock={};
+ s.productAvailability={};
+ return s;
+}
+function cloudOperationalState(){
+ if(!forgeCloudOperationalState)throw new Error('Cloud operational state has not loaded yet.');
+ return forgeCloudOperationalState;
+}
+
 let forgeProductionCloudReady=false;
 let forgeProductionCloudSaving=false;
 
@@ -131,7 +146,7 @@ async function startForgeLiveSync(onChange){
        const ok=await hydrateProductionCloud(true);
        if(ok){
          forgeLastCloudStamp=await forgeCloudStamp()||stamp;
-         if(typeof onChange==='function')await onChange(state());
+         if(typeof onChange==='function')await onChange(cloudOperationalState());
          setForgeCloudSync('synced','Live cloud update received');
        }
      }else if(stamp && !forgeLastCloudStamp){
@@ -162,40 +177,57 @@ function installForgeCloudSyncBadge(){
  };
 }
 
-async function hydrateProductionCloud(force=false){
- if(!cloudToken())return false;
- setForgeCloudSync('syncing','Loading production state from Cloudflare D1');
- try{
-   const [st,bp]=await Promise.all([cloudFetch('/production/state'),cloudFetch('/build-plates')]);
-   const s=state();
 
-   // D1 is authoritative for migrated production fields.
+function showCloudRequiredError(message){
+ const main=document.querySelector('main')||document.body;
+ const box=document.createElement('div');
+ box.className='card cloud-required-error';
+ box.innerHTML=`<h2>Cloud connection required</h2><p>${esc(message||'Forge could not load live data from Cloudflare D1.')}</p><button class="btn" onclick="location.reload()">Try Again</button>`;
+ main.prepend(box);
+}
+
+async function hydrateProductionCloud(force=false){
+ if(!cloudToken())throw new Error('Cloud login required.');
+ setForgeCloudSync('syncing','Loading live state from Cloudflare D1');
+ try{
+   const [st,bp,targetData]=await Promise.all([
+     cloudFetch('/production/state'),
+     cloudFetch('/build-plates'),
+     cloudFetch('/targets')
+   ]);
+
+   const s=emptyCloudWorkingState();
    const cloudState=st?.state||{};
    const blank=blankOperationalState();
+
    CLOUD_PRODUCTION_FIELDS.forEach(k=>{
-     // D1 is authoritative. If a field is absent in D1, use a clean default,
-     // never a stale value from this browser.
      s[k]=cloudState[k]!==undefined
        ? JSON.parse(JSON.stringify(cloudState[k]))
        : JSON.parse(JSON.stringify(blank[k]));
    });
 
-   // Build plates always come from D1, including an intentionally empty list.
+   s.targets={};
+   (targetData?.targets||[]).forEach(t=>{
+     const loc=t.location_id==='factory'?'boat':t.location_id;
+     s.targets[targetKey(t.sku,loc)]=Number(t.target_qty||0);
+   });
+
    s.plates=(bp?.plates||[]).map(p=>({
      id:p.id,code:p.code,name:p.name||'',colour:p.colour||'',printer:p.printer||'',
      status:p.status||'draft',items:p.items||[],created_at:p.created_at,
      started_at:p.started_at||null,completed_at:p.completed_at||null
    }));
 
-   localStorage.setItem(STORE,JSON.stringify(s));
+   forgeCloudOperationalState=s;
    forgeProductionCloudReady=true;
-   setForgeCloudSync('synced',`D1 loaded · ${s.plates.length} active build plate(s)`);
-   return true;
+   setForgeCloudSync('synced',`Live D1 · ${s.plates.length} active build plate(s)`);
+   return s;
  }catch(e){
+   forgeCloudOperationalState=null;
    forgeProductionCloudReady=false;
-   setForgeCloudSync('error',e.message||'Cloud production sync failed');
+   setForgeCloudSync('error',e.message||'Cloud data unavailable');
    console.error('Cloud production hydrate failed',e);
-   return false;
+   throw e;
  }
 }
 let forgeProductionSaveQueue=Promise.resolve();
@@ -277,40 +309,22 @@ function state(){
   return s;
 }
 function save(s){
+ if(forgeProductionCloudReady){
+   forgeCloudOperationalState=s;
+   return saveProductionCloud(s);
+ }
+ // Legacy pages not migrated yet may still use this path temporarily.
+ // New cloud-migrated workflows must never depend on it.
  localStorage.setItem(STORE,JSON.stringify(s));
- if(forgeProductionCloudReady)return saveProductionCloud(s);
  return Promise.resolve(true);
 }
 async function load(name){
- if(name==='products'){
-   const cloud=await cloudCoreProducts();
-   if(cloud)return cloud;
- }
- if(name==='recipes'){
-   const cloud=await cloudCoreRecipes();
-   if(cloud)return cloud;
- }
+ if(name==='products')return await cloudCoreProducts();
+ if(name==='recipes')return await cloudCoreRecipes();
 
- const base=await (await fetch('data/'+name+'.json')).json();
- const s=state();
- if(name==='products'){
-   const cached=s.cloudCore?.products||[];
-   if(cached.length&&cloudToken())return cached;
-   const custom=s.customData?.products||[];
-   const bySku=new Map((base||[]).map(x=>[x.sku,x]));
-   custom.forEach(x=>bySku.set(x.sku,x));
-   return [...bySku.values()];
- }
- if(name==='recipes'){
-   const cached=s.cloudCore?.recipes||[];
-   if(cached.length&&cloudToken())return cached;
-   const custom=s.customData?.recipes||[];
-   const existing=(base||[]).filter(x=>!custom.some(c=>c.sku===x.sku&&c.filament===x.filament&&c.grouped_stl===x.grouped_stl));
-   return existing.concat(custom);
- }
- if(name==='insert_files'){
-   return {...(base||{}),...(s.customData?.insert_files||{})};
- }
+ // Non-catalogue static reference files may still be loaded from the deployed site,
+ // but operational inventory never comes from browser localStorage.
+ const base=await (await fetch('data/'+name+'.json',{cache:'no-store'})).json();
  return base;
 }
 function badge(txt, cls='info'){return `<span class="badge ${cls}">${txt}</span>`}
@@ -361,7 +375,8 @@ function makeId(){return Date.now().toString(36)+Math.random().toString(36).slic
 
 function cloudToken(){return localStorage.getItem('plaForgeCloudToken')||''}
 function setCloudToken(v){if(v)localStorage.setItem('plaForgeCloudToken',v);else localStorage.removeItem('plaForgeCloudToken')}
-function cloudApiBase(){return String(state().siteSettings?.forgeApiUrl||'https://pla-forge-api.plapalsuk.workers.dev').replace(/\/+$/,'')}
+const FORGE_API_URL='https://pla-forge-api.plapalsuk.workers.dev';
+function cloudApiBase(){return FORGE_API_URL}
 async function cloudFetch(path,options={}){
  const headers={...(options.headers||{})};
  const token=cloudToken();
@@ -400,79 +415,33 @@ function normaliseCloudRecipe(r){
 }
 async function syncCloudCoreState(){
  if(!cloudToken())return {ok:false,reason:'not_logged_in'};
- const s=state();
  try{
    const core=await cloudFetch('/core');
-   const products=(core.products||[]).map(normaliseCloudProduct);
-   const recipes=(core.recipes||[]).map(normaliseCloudRecipe);
-
-   s.cloudCore=s.cloudCore||{};
-   s.cloudCore.products=products;
-   s.cloudCore.recipes=recipes;
-   s.cloudCore.filaments=core.filaments||[];
-   s.cloudCore.synced_at=new Date().toISOString();
-
-   (core.targets||[]).forEach(t=>{
-     const loc=t.location_id==='factory'?'boat':t.location_id;
-     s.targets[targetKey(t.sku,loc)]=Number(t.target_qty||0);
-   });
-
-   products.forEach(p=>{
-     s.productAvailability[p.sku]={
-       on_sale:!!p.on_sale,
-       release_date:p.release_date||''
-     };
-   });
-
-   (core.filaments||[]).forEach(f=>{
-     s.filament[f.name]={
-       grams:Number(f.grams_in_stock||0),
-       reorder:Number(f.reorder_level_g||250)
-     };
-   });
-
-   save(s);
-   return {ok:true,core};
+   return {
+     ok:true,
+     core:{
+       ...core,
+       products:(core.products||[]).map(normaliseCloudProduct),
+       recipes:(core.recipes||[]).map(normaliseCloudRecipe)
+     }
+   };
  }catch(e){
-   console.warn('Cloud Core sync failed; using local cache.',e);
+   console.error('Cloud Core sync failed.',e);
    return {ok:false,reason:e.message};
  }
 }
 async function cloudCoreProducts(){
- if(cloudToken()){
-   try{
-     const d=await cloudFetch('/products');
-     const products=(d.products||[]).map(normaliseCloudProduct);
-     const s=state();
-     s.cloudCore=s.cloudCore||{};
-     s.cloudCore.products=products;
-     s.cloudCore.synced_at=new Date().toISOString();
-     products.forEach(p=>{
-       s.productAvailability[p.sku]={on_sale:!!p.on_sale,release_date:p.release_date||''};
-     });
-     save(s);
-     return products;
-   }catch(e){console.warn('Products cloud read failed; falling back.',e)}
- }
- return null;
+ if(!cloudToken())throw new Error('Cloud login required.');
+ const d=await cloudFetch('/products');
+ return (d.products||[]).map(normaliseCloudProduct);
 }
 async function cloudCoreRecipes(){
- if(cloudToken()){
-   try{
-     const d=await cloudFetch('/recipes');
-     const recipes=(d.recipes||[]).map(normaliseCloudRecipe);
-     const s=state();
-     s.cloudCore=s.cloudCore||{};
-     s.cloudCore.recipes=recipes;
-     s.cloudCore.synced_at=new Date().toISOString();
-     save(s);
-     return recipes;
-   }catch(e){console.warn('Recipes cloud read failed; falling back.',e)}
- }
- return null;
+ if(!cloudToken())throw new Error('Cloud login required.');
+ const d=await cloudFetch('/recipes');
+ return (d.recipes||[]).map(normaliseCloudRecipe);
 }
 function cloudModeBadge(){
- return cloudToken()?badge('CLOUD CORE','ok'):badge('LOCAL FALLBACK','warning');
+ return cloudToken()?badge('CLOUD LIVE','ok'):badge('CLOUD LOGIN REQUIRED','danger');
 }
 
 
@@ -670,9 +639,9 @@ async function recipes(){
 }
 async function production(){
  installForgeCloudSyncBadge();
- if(!forgeProductionCloudReady)await hydrateProductionCloud();
+ if(!forgeProductionCloudReady){try{await hydrateProductionCloud()}catch(e){showCloudRequiredError(e.message);return}}
  const ps=await load('products'),rs=await load('recipes'),body=document.querySelector('#prod');
- let s=state();
+ let s=cloudOperationalState();
  function drawProduction(){
    const rows=[];
  ps.filter(p=>p.type==='pal').forEach(p=>{const n=manufacturingNeed(s,p.sku);if(n>0)rows.push({p,n,groups:rs.filter(r=>r.sku===p.sku)})});rows.sort((a,b)=>b.n-a.n);
@@ -790,8 +759,8 @@ async function filament(){
 
 async function buildPlatePlanner(){
  installForgeCloudSyncBadge();
- if(!forgeProductionCloudReady)await hydrateProductionCloud();
- const s=state();
+ if(!forgeProductionCloudReady){try{await hydrateProductionCloud()}catch(e){showCloudRequiredError(e.message);return}}
+ const s=cloudOperationalState();
  const ps=await load('products');
  const rs=await load('recipes');
  const pals=Object.fromEntries(ps.filter(p=>p.type==='pal').map(p=>[p.sku,p]));
@@ -1167,7 +1136,7 @@ async function buildPlatePlanner(){
 
 async function printedParts(){
  installForgeCloudSyncBadge();
- if(!forgeProductionCloudReady)await hydrateProductionCloud();
+ if(!forgeProductionCloudReady){try{await hydrateProductionCloud()}catch(e){showCloudRequiredError(e.message);return}}
 
  const ps=await load('products');
  const rs=await load('recipes');
@@ -1175,7 +1144,7 @@ async function printedParts(){
  const q=document.querySelector('#q');
  const body=document.querySelector('#partsRows');
  const failures=document.querySelector('#failedRows');
- let s=state();
+ let s=cloudOperationalState();
 
  function draw(){
    const text=(q.value||'').toLowerCase();
@@ -1242,7 +1211,6 @@ async function printedParts(){
        draw();
      }catch(e){
        s.parts[key]=before;
-       localStorage.setItem(STORE,JSON.stringify(s));
        draw();
        alert('Printed Parts could not be updated in Cloudflare. The change has been rolled back.');
      }
@@ -1336,9 +1304,9 @@ async function settingsPage(){
 
 async function assemblyPage(){
  installForgeCloudSyncBadge();
- if(!forgeProductionCloudReady)await hydrateProductionCloud();
+ if(!forgeProductionCloudReady){try{await hydrateProductionCloud()}catch(e){showCloudRequiredError(e.message);return}}
 
- let s=state();
+ let s=cloudOperationalState();
  const ps=await load('products');
  const rs=await load('recipes');
  const pals=ps.filter(p=>p.type==='pal');
@@ -1503,7 +1471,6 @@ async function assemblyPage(){
        s.parts=beforeParts;
        s.assembled=beforeAssembled;
        s.assemblyHistory=beforeHistory;
-       localStorage.setItem(STORE,JSON.stringify(s));
        render();
        alert('Assembly could not be saved to Cloudflare. Printed Parts and Assembled Inventory have been rolled back.');
      }

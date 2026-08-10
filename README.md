@@ -1090,3 +1090,30 @@ The Bench has been tightened for production use.
 - SQL/schema files are removed from the GitHub deployment ZIP.
 
 No Worker or SQL changes are required for this release.
+
+
+## v0.10.0 — Cloud-Only Production Core
+
+Architectural change: migrated Forge workflows no longer use browser localStorage as a data source.
+
+Cloud-only now applies to:
+- Production Planner
+- Build Plates
+- Printed Parts
+- The Bench / Assembled Inventory
+- Products and Recipes used by those workflows
+- Production targets used by those workflows
+
+Rules:
+- D1 is the sole source of truth for migrated operational data.
+- Cloud data is held only in memory while the page is open.
+- No D1 operational payload is written to localStorage.
+- No local cache fallback is used if D1 is unavailable.
+- If Cloudflare cannot be reached, Forge shows a Cloud Connection Required error instead of stale numbers.
+- The Cloud Sync badge only means a successful live D1 read/write.
+- The browser still stores the authentication/session token; this is not inventory or production data.
+- Unsaved form/plate draft state remains temporary in memory only.
+
+Important: pages not yet migrated to D1 still retain their legacy local behaviour until they are moved in subsequent stages. Every new migration from this version onward will be cloud-only.
+
+Deployment ZIP is frontend-only. No SQL or Worker files are included.
