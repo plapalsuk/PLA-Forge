@@ -1442,3 +1442,26 @@ body.forge-auth-ready .sidebar .navgroup,
 body.forge-auth-ready .sidebar .forge-user-card{
   visibility:visible;
 }
+
+/* v0.9.9.1 Cloud Sync status */
+.forge-cloud-sync{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  justify-content:flex-end;
+  margin-left:auto;
+}
+.forge-cloud-sync .btn{
+  min-height:34px;
+  padding:7px 10px;
+}
+@media(max-width:980px){
+  .forge-cloud-sync{
+    width:100%;
+    justify-content:flex-start;
+    margin:0;
+  }
+  .forge-cloud-sync .btn{
+    width:auto !important;
+  }
+}

@@ -83,45 +83,101 @@ function productionCloudPayload(s){
  CLOUD_PRODUCTION_FIELDS.forEach(k=>out[k]=s[k]);
  return out;
 }
-async function hydrateProductionCloud(){
+
+let forgeCloudSyncState='idle';
+let forgeCloudSyncMessage='Waiting for sync';
+
+function setForgeCloudSync(state,message){
+ forgeCloudSyncState=state;
+ forgeCloudSyncMessage=message||state;
+ const el=document.querySelector('#forgeCloudSyncBadge');
+ if(!el)return;
+ const cls=state==='synced'?'ok':state==='error'?'danger':state==='syncing'?'warning':'info';
+ el.className='badge '+cls;
+ el.textContent=state==='synced'?'Cloud Synced':state==='error'?'Sync Error':state==='syncing'?'Syncing…':'Cloud Ready';
+ el.title=forgeCloudSyncMessage;
+}
+function installForgeCloudSyncBadge(){
+ if(!['production.html','plates.html'].includes(forgeCurrentPage()))return;
+ if(document.querySelector('#forgeCloudSyncBadge'))return;
+ const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
+ const wrap=document.createElement('div');
+ wrap.className='forge-cloud-sync';
+ wrap.innerHTML='<span id="forgeCloudSyncBadge" class="badge info">Cloud Ready</span><button id="forgeCloudRefresh" class="btn ghost" type="button">Refresh Cloud</button>';
+ host.appendChild(wrap);
+ document.querySelector('#forgeCloudRefresh').onclick=async()=>{
+   setForgeCloudSync('syncing','Refreshing from D1');
+   const ok=await hydrateProductionCloud(true);
+   if(ok)location.reload();
+ };
+}
+
+async function hydrateProductionCloud(force=false){
  if(!cloudToken())return false;
+ setForgeCloudSync('syncing','Loading production state from Cloudflare D1');
  try{
    const [st,bp]=await Promise.all([cloudFetch('/production/state'),cloudFetch('/build-plates')]);
    const s=state();
-   if(st?.state && Object.keys(st.state).length){
-     CLOUD_PRODUCTION_FIELDS.forEach(k=>{if(st.state[k]!==undefined)s[k]=st.state[k]});
-   }
-   if(bp?.plates)s.plates=bp.plates.map(p=>({
+
+   // D1 is authoritative for migrated production fields.
+   const cloudState=st?.state||{};
+   CLOUD_PRODUCTION_FIELDS.forEach(k=>{
+     if(cloudState[k]!==undefined)s[k]=cloudState[k];
+   });
+
+   // Build plates always come from D1, including an intentionally empty list.
+   s.plates=(bp?.plates||[]).map(p=>({
      id:p.id,code:p.code,name:p.name||'',colour:p.colour||'',printer:p.printer||'',
      status:p.status||'draft',items:p.items||[],created_at:p.created_at,
      started_at:p.started_at||null,completed_at:p.completed_at||null
    }));
+
    localStorage.setItem(STORE,JSON.stringify(s));
    forgeProductionCloudReady=true;
+   setForgeCloudSync('synced',`D1 loaded · ${s.plates.length} active build plate(s)`);
    return true;
  }catch(e){
+   forgeProductionCloudReady=false;
+   setForgeCloudSync('error',e.message||'Cloud production sync failed');
    console.error('Cloud production hydrate failed',e);
    return false;
  }
 }
-async function saveProductionCloud(s){
- if(!cloudToken()||forgeProductionCloudSaving)return;
- forgeProductionCloudSaving=true;
- try{
-   await cloudFetch('/production/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:productionCloudPayload(s)})});
-   const cloud=await cloudFetch('/build-plates');
-   const localIds=new Set((s.plates||[]).map(p=>p.id));
-   for(const p of (cloud.plates||[])){
-     if(!localIds.has(p.id))await cloudFetch('/build-plates/'+encodeURIComponent(p.id),{method:'DELETE'});
+let forgeProductionSaveQueue=Promise.resolve();
+function saveProductionCloud(s){
+ if(!cloudToken())return Promise.resolve(false);
+ const snapshot=JSON.parse(JSON.stringify(s));
+ forgeProductionSaveQueue=forgeProductionSaveQueue.then(async()=>{
+   setForgeCloudSync('syncing','Saving production changes to D1');
+   try{
+     await cloudFetch('/production/state',{
+       method:'PUT',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({state:productionCloudPayload(snapshot)})
+     });
+
+     const cloud=await cloudFetch('/build-plates');
+     const localIds=new Set((snapshot.plates||[]).map(p=>p.id));
+
+     for(const p of (cloud.plates||[])){
+       if(!localIds.has(p.id)){
+         await cloudFetch('/build-plates/'+encodeURIComponent(p.id),{method:'DELETE'});
+       }
+     }
+     for(const p of (snapshot.plates||[])){
+       await cloudFetch('/build-plates/'+encodeURIComponent(p.id),{
+         method:'PUT',headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({plate:p})
+       });
+     }
+     setForgeCloudSync('synced',`Saved to D1 · ${(snapshot.plates||[]).length} active build plate(s)`);
+     return true;
+   }catch(e){
+     setForgeCloudSync('error',e.message||'Cloud save failed');
+     console.error('Cloud production save failed',e);
+     throw e;
    }
-   for(const p of (s.plates||[])){
-     await cloudFetch('/build-plates/'+encodeURIComponent(p.id),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({plate:p})});
-   }
- }catch(e){
-   console.error('Cloud production save failed',e);
- }finally{
-   forgeProductionCloudSaving=false;
- }
+ });
+ return forgeProductionSaveQueue;
 }
 
 function state(){
@@ -166,7 +222,8 @@ function state(){
 }
 function save(s){
  localStorage.setItem(STORE,JSON.stringify(s));
- if(forgeProductionCloudReady)saveProductionCloud(s);
+ if(forgeProductionCloudReady)return saveProductionCloud(s);
+ return Promise.resolve(true);
 }
 async function load(name){
  if(name==='products'){
@@ -556,6 +613,7 @@ async function recipes(){
  q.oninput=draw;draw()
 }
 async function production(){
+ installForgeCloudSyncBadge();
  if(!forgeProductionCloudReady)await hydrateProductionCloud();
  const s=state(),ps=await load('products'),rs=await load('recipes'),body=document.querySelector('#prod'),rows=[];
  ps.filter(p=>p.type==='pal').forEach(p=>{const n=manufacturingNeed(s,p.sku);if(n>0)rows.push({p,n,groups:rs.filter(r=>r.sku===p.sku)})});rows.sort((a,b)=>b.n-a.n);
@@ -665,6 +723,7 @@ async function filament(){
 }
 
 async function buildPlatePlanner(){
+ installForgeCloudSyncBadge();
  if(!forgeProductionCloudReady)await hydrateProductionCloud();
  const s=state();
  const ps=await load('products');
@@ -824,8 +883,8 @@ async function buildPlatePlanner(){
    const items=[...s.plates].filter(p=>p.status==='draft'||p.status==='printing').sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
    platesList.innerHTML=items.length?items.map(p=>`<div class="saved-plate"><div class="saved-plate-main"><div><strong>${esc(p.code)} · ${esc(p.name||p.colour)}</strong><div class="small">${esc(p.colour)} · ${esc(printerLabel(p.printer))} · ${plateSummary(p)}</div></div><div>${statusLabel(p.status)}</div></div><div class="saved-plate-items">${(p.items||[]).map(i=>`<span>${esc(i.product_name)} ×${i.qty}</span>`).join('')}</div><div class="plate-actions">${p.status==='draft'?`<button class="btn secondary loadplate" data-id="${p.id}">Edit</button><button class="btn startplate" data-id="${p.id}">Start Print</button>`:''}${p.status==='printing'?`<button class="btn completeplate" data-id="${p.id}">Complete Print</button>`:''}${p.status!=='complete'?`<button class="btn ghost cancelplate" data-id="${p.id}">Cancel</button>`:''}${p.status==='complete'?`<span class="small">Completed ${fmtDate(p.completed_at)}</span>`:''}</div><div class="completion-panel" id="complete-${p.id}"></div></div>`).join(''):'<div class="empty-state">No saved build plates.</div>';
    document.querySelectorAll('.loadplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(!p)return;plateDraft=JSON.parse(JSON.stringify(p));s.plates=s.plates.filter(x=>x.id!==p.id);save(s);colourEl.value=plateDraft.colour;printerEl.value=plateDraft.printer||'';nameEl.value=plateDraft.name||'';drawAll()});
-   document.querySelectorAll('.startplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(p){p.status='printing';p.started_at=new Date().toISOString();save(s);drawAll()}});
-   document.querySelectorAll('.cancelplate').forEach(b=>b.onclick=()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(p){p.status='cancelled';save(s);drawAll()}});
+   document.querySelectorAll('.startplate').forEach(b=>b.onclick=async()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(p){p.status='printing';p.started_at=new Date().toISOString();await save(s);drawAll()}});
+   document.querySelectorAll('.cancelplate').forEach(b=>b.onclick=async()=>{const p=s.plates.find(x=>x.id===b.dataset.id);if(p){p.status='cancelled';await save(s);drawAll()}});
    document.querySelectorAll('.completeplate').forEach(b=>b.onclick=()=>openCompletion(b.dataset.id));
  }
 
@@ -905,10 +964,10 @@ async function buildPlatePlanner(){
      }
    });
 
-   panel.querySelector('.confirmcomplete').onclick=()=>confirmCompletion(id,panel);
+   panel.querySelector('.confirmcomplete').onclick=async()=>await confirmCompletion(id,panel);
  }
 
- function confirmCompletion(id,panel){
+ async function confirmCompletion(id,panel){
    const p=s.plates.find(x=>x.id===id);
    if(!p)return;
 
@@ -1009,19 +1068,27 @@ async function buildPlatePlanner(){
    save(s);
    drawAll();
  }
- function saveDraft(startNow){
+ async function saveDraft(startNow){
    if(!plateDraft.items.length){alert('Add at least one print item to the plate.');return}
    const code=plateDraft.code||`PLATE-${String(s.plateSeq).padStart(4,'0')}`;if(!plateDraft.code)s.plateSeq++;
    const p={...plateDraft,id:plateDraft.id||makeId(),code,status:startNow?'printing':'draft',created_at:plateDraft.created_at||new Date().toISOString()};if(startNow)p.started_at=new Date().toISOString();
-   s.plates.push(JSON.parse(JSON.stringify(p)));save(s);plateDraft={id:null,colour:colourEl.value,printer:printerEl.value,name:'',items:[]};nameEl.value='';drawAll();
+   s.plates.push(JSON.parse(JSON.stringify(p)));
+   try{
+     await save(s);
+     plateDraft={id:null,colour:colourEl.value,printer:printerEl.value,name:'',items:[]};
+     nameEl.value='';
+     drawAll();
+   }catch(e){
+     alert('Build plate could not be saved to Cloudflare. Please check Cloud Sync before continuing.');
+   }
  }
  function drawAll(){plateDraft.colour=String(colourEl.value||plateDraft.colour||'').trim();plateDraft.printer=printerEl.value||'';plateDraft.name=nameEl.value||'';drawColourDemand();drawChecklist();drawCurrent();drawPlates();drawKpis()}
  colourEl.onchange=()=>{plateDraft.colour=String(colourEl.value||'').trim();plateDraft.items=[];drawAll()};
  printerEl.onchange=()=>{plateDraft.printer=printerEl.value||''};
  nameEl.oninput=()=>{plateDraft.name=nameEl.value||''};
  if(checklistSearch)checklistSearch.oninput=()=>drawChecklist();
- document.querySelector('#savePlate').onclick=()=>saveDraft(false);
- document.querySelector('#startPlate').onclick=()=>saveDraft(true);
+ document.querySelector('#savePlate').onclick=async()=>await saveDraft(false);
+ document.querySelector('#startPlate').onclick=async()=>await saveDraft(true);
  drawAll();
 }
 

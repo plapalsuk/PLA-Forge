@@ -1008,3 +1008,20 @@ Installation order:
 1. Run `PLA-FORGE-V099-CLOUD-PRODUCTION.sql` once in the D1 console.
 2. Deploy `pla-forge-api-v3e.js`.
 3. Upload the v0.9.9 Forge frontend files to GitHub Pages.
+
+
+### v0.9.9.1 — Cloud Sync Repair
+
+Fixes:
+- Worker route variables are now initialised before cloud routes use them.
+- Fixes `Cannot access 'm' before initialization`.
+- Fixes target writes failing after Worker v3e.
+- Fixes Production/Build Plate cloud reads silently falling back to browser data.
+- D1 is authoritative for the migrated Build Plate list.
+- Build Plate saves are queued and awaited before the UI confirms success.
+- Start Print, Cancel and Complete Print now wait for D1 persistence.
+- Production Planner and Build Plates show a visible Cloud Sync status.
+- Added Refresh Cloud button.
+- Added `/production/sync-status` diagnostic endpoint.
+
+No additional SQL migration is required if the v0.9.9 Cloud Production SQL has already been run.
