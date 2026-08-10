@@ -1520,7 +1520,15 @@ async function deliveriesPage(){
 
  function consumeDispatchRecords(group,qty){
    let remaining=Math.max(0,Number(qty||0));
-   [...group.records].sort((a,b)=>(a.packed_at||a.created_at||'').localeCompare(b.packed_at||b.created_at||'')).forEach(r=>{
+   const expectedType=group.item_type||'pal';
+   const records=[...(group.records||[])]
+     .filter(r=>(r.item_type||'pal')===expectedType&&r.status==='awaiting_dispatch')
+     .sort((a,b)=>(a.packed_at||a.created_at||'').localeCompare(b.packed_at||b.created_at||''));
+
+   const available=records.reduce((a,r)=>a+Number(r.qty||0),0);
+   if(remaining>available)return false;
+
+   records.forEach(r=>{
      if(remaining<=0)return;
      const used=Math.min(Number(r.qty||0),remaining);
      r.qty=Number(r.qty||0)-used;
@@ -1589,7 +1597,7 @@ async function deliveriesPage(){
      </div>
      <div class="dispatch-allocation-footer">
        <div class="dispatch-allocation-summary" id="summary-${g.sku}"></div>
-       <button class="btn allocateSplit" data-sku="${g.sku}">Confirm Dispatch Allocation</button>
+       <button class="btn allocateSplit" data-key="${esc(g.key)}" data-sku="${g.sku}">Confirm Dispatch Allocation</button>
      </div>
    </div>`;
  }
@@ -1702,7 +1710,7 @@ async function deliveriesPage(){
    }).join(''):'<div class="bench-empty">No stock is awaiting delivery to Cornwall.</div>';
 
    function updateSummary(sku){
-     const g=groups.find(x=>x.sku===sku);if(!g)return;
+     const g=groups.find(x=>x.sku===sku&&(x.item_type||'pal')==='pal'&&!x.locked_destination&&!x.rework_return);if(!g)return;
      const b=Math.max(0,Number(document.querySelector('#boat-'+sku)?.value||0));
      const c=Math.max(0,Number(document.querySelector('#cornwall-'+sku)?.value||0));
      const total=b+c;
@@ -1713,7 +1721,7 @@ async function deliveriesPage(){
    }
 
    document.querySelectorAll('.dispatchBoatQty,.dispatchCornQty').forEach(el=>el.oninput=()=>updateSummary(el.dataset.sku));
-   groups.forEach(g=>updateSummary(g.sku));
+   groups.filter(g=>(g.item_type||'pal')==='pal'&&!g.locked_destination&&!g.rework_return).forEach(g=>updateSummary(g.sku));
 
    document.querySelectorAll('.dispatchCornwallInsertSpare').forEach(btn=>btn.onclick=()=>{
      const g=groups.find(x=>x.key===btn.dataset.key);if(!g)return;
@@ -1749,7 +1757,7 @@ async function deliveriesPage(){
    });
 
    document.querySelectorAll('.allocateSplit').forEach(btn=>btn.onclick=()=>{
-     const g=groups.find(x=>x.sku===btn.dataset.sku);if(!g)return;
+     const g=groups.find(x=>x.key===btn.dataset.key);if(!g)return;
      const boatQty=Math.max(0,Math.floor(Number(document.querySelector('#boat-'+g.sku)?.value||0)));
      const cornQty=Math.max(0,Math.floor(Number(document.querySelector('#cornwall-'+g.sku)?.value||0)));
      const total=boatQty+cornQty;

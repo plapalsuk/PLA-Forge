@@ -534,3 +534,27 @@ After both are Cut & Scored they move through Dispatch to Cornwall.
 When Cornwall confirms receipt, Phoebe's Cornwall Ready Insert stock becomes 2.
 
 Existing operational data is preserved and no reset is triggered.
+
+
+## v0.8.13 — Dispatch Item-Type Isolation Fix
+
+Fixed normal Pal dispatch being incorrectly limited by a Cornwall Spare Insert group sharing the same SKU.
+
+Example:
+- Todd the Turtle finished Pals: 5
+- Todd the Turtle Cornwall spare Inserts: 2
+
+Previous behaviour:
+- Clicking the normal Todd Pal dispatch card could resolve the first Todd group by SKU.
+- If that first group was the 2 spare Inserts, Forge incorrectly reported `Only 2 ready to dispatch`.
+
+New behaviour:
+- Every dispatch card now uses its exact dispatch group key.
+- Normal Pal cards can only resolve normal Pal records.
+- Cornwall Spare Insert cards can only resolve Cornwall Spare Insert records.
+- Rework return cards remain isolated from both.
+- Dispatch record consumption also verifies the item type before reducing quantities.
+
+So 5 Todd Pals and 2 Todd spare Inserts can now be dispatched independently.
+
+Existing operational data is preserved and no reset is triggered.
