@@ -1374,3 +1374,14 @@ Permissions:
 - Completing a Cornwall repair consumes Cornwall spare stock and restores the repaired Pal to Cornwall inventory.
 - Admin factory replacement consumes the required factory components and creates a locked Cornwall return in Dispatch.
 - Rework updates live across devices without localStorage operational state.
+
+
+## v0.12.3 — Retail Staff Rework Navigation
+
+Fixed role-page routing for Retail Staff.
+
+- Retail Staff can now open both `deliveries.html` and `rework.html`.
+- Rework appears in the desktop and mobile role-filtered navigation.
+- Retail Staff still cannot access factory/admin pages.
+- Existing Rework restrictions remain in place: Cornwall-local repair actions are available, factory replacement actions remain Admin-only.
+- No Worker or D1 change is required.

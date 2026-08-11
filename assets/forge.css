@@ -2314,3 +2314,8 @@ body.forge-page-rework button:disabled{
   opacity:.6;
   cursor:wait;
 }
+
+/* v0.12.3 — Retail Staff Rework navigation */
+body.forge-role-retail-staff a[href="rework.html"]{
+  display:inline-flex;
+}
