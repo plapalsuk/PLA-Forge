@@ -1354,3 +1354,23 @@ The Worker only exposes and accepts the operational fields required for:
 - Cornwall spare/rework stock
 
 Retail Staff cannot use the dedicated Dispatch endpoint to alter build plates, printed parts, assembly, consumables, production planning, employees, settings, or product availability.
+
+
+## v0.12.2 — Rework Cloud
+
+Rework is now cloud-only with a dedicated restricted API.
+
+Worker v3l:
+- GET `/rework/state`
+- GET `/rework/sync-status`
+- POST `/rework/:id/complete-cornwall`
+- POST `/rework/:id/send-factory`
+- POST `/rework/cornwall-boxes/adjust`
+- POST `/rework/cornwall-inserts/:sku/adjust`
+
+Permissions:
+- Retail Staff can view Rework, manage Cornwall spare boxes/inserts, and complete Cornwall-local repairs.
+- Factory replacement actions are Admin-only.
+- Completing a Cornwall repair consumes Cornwall spare stock and restores the repaired Pal to Cornwall inventory.
+- Admin factory replacement consumes the required factory components and creates a locked Cornwall return in Dispatch.
+- Rework updates live across devices without localStorage operational state.

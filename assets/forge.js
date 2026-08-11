@@ -526,7 +526,7 @@ function cloudModeBadge(){
 const FORGE_ROLE_PAGES={
  admin:['*'],
  packing:['packing-station.html'],
- retail_staff:['deliveries.html','rework.html']
+ retail_staff:['deliveries.html']
 };
 function forgeCurrentPage(){return location.pathname.split('/').pop()||'index.html'}
 function roleCanOpen(role,page){
@@ -3295,11 +3295,64 @@ function resetForgeData(){
 }
 
 
+
+async function cloudReworkState(){
+ if(!cloudToken())throw new Error('Cloud login required.');
+ return await cloudFetchTimed('/rework/state',{},10000);
+}
+async function cloudReworkStamp(){
+ if(!cloudToken())return null;
+ try{
+   const d=await cloudFetchTimed('/rework/sync-status',{},8000);
+   return d.updated_at||null;
+ }catch(e){return null}
+}
+async function cloudReworkAction(path,body={}){
+ return await cloudFetchTimed(path,{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify(body)
+ },12000);
+}
+function applyReworkCloudState(data,baseState=null){
+ const s=baseState||blankOperationalState();
+ Object.assign(s,JSON.parse(JSON.stringify(data?.state||{})));
+ s.damageReworkJobs=s.damageReworkJobs||[];
+ s.reworkHistory=s.reworkHistory||[];
+ s.awaitingDispatch=s.awaitingDispatch||[];
+ s.cornwallReworkStock=s.cornwallReworkStock||{clear_boxes:0,inserts:{}};
+ s.cornwallReworkStock.inserts=s.cornwallReworkStock.inserts||{};
+ s.cornwallInsertReplenishment=s.cornwallInsertReplenishment||{};
+ s.stock=s.stock||{};
+ s.finishedStock=s.finishedStock||{boat:{},cornwall:{}};
+ s.assembled=s.assembled||{};
+ s.inserts=s.inserts||{};
+ s.consumables=s.consumables||{};
+ return s;
+}
+
 async function reworkPage(){
- const s=state();
+ installForgeCloudSyncBadge();
+
+ let initial;
+ try{
+   initial=await cloudReworkState();
+ }catch(e){
+   showCloudRequiredError(e.message);
+   setForgeCloudSync('error',e.message);
+   return;
+ }
+
+ let s=applyReworkCloudState(initial);
+ let reworkStamp=initial.updated_at||null;
+
  const ps=await load('products');
- const onSale=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).sort((a,b)=>a.name.localeCompare(b.name));
+ const availability=await cloudAvailability();
+ applyCloudAvailability(s,availability);
+ let onSale=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).sort((a,b)=>a.name.localeCompare(b.name));
  ensureCornwallInsertReplenishment(s,ps);
+ const currentRole=currentForgeUser()?.role||'';
+ setForgeCloudSync('synced','Rework synced');
  const q=document.querySelector('#q');
  const activeList=document.querySelector('#activeRework');
  const activeKpi=document.querySelector('#reworkActiveKpi');
@@ -3404,42 +3457,94 @@ async function reworkPage(){
          <div class="small">${inDispatch?'Replacement is waiting in Dispatch for return to Cornwall.':esc(waitingReason(job))}</div>
          ${!inDispatch?(r.route==='cornwall'
            ?`<button class="btn completeLocalRework" data-id="${job.id}" ${ready?'':'disabled'}>Complete Cornwall Repair</button>`
-           :`<button class="btn sendReworkDispatch" data-id="${job.id}" ${ready?'':'disabled'}>Send to Dispatch</button>`):'<a class="btn ghost" href="deliveries.html">Open Dispatch →</a>'}
+           :(currentRole==='admin'
+             ?`<button class="btn sendReworkDispatch" data-id="${job.id}" ${ready?'':'disabled'}>Send to Dispatch</button>`
+             :`<span class="badge warning">FACTORY ACTION · ADMIN</span>`)): '<a class="btn ghost" href="deliveries.html">Open Dispatch →</a>'}
        </div>
      </div>`;
    }).join(''):'<div class="bench-empty">No active rework jobs.</div>';
 
-   document.querySelectorAll('.completeLocalRework').forEach(btn=>btn.onclick=()=>{
-     const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);
-     if(!job||!completeCornwallReworkJob(s,job)){alert('This Cornwall repair is not ready yet.');return}
-     draw();
+   document.querySelectorAll('.completeLocalRework').forEach(btn=>btn.onclick=async()=>{
+     const id=btn.dataset.id;
+     btn.disabled=true;
+     btn.textContent='Saving…';
+     try{
+       const result=await cloudReworkAction(`/rework/${encodeURIComponent(id)}/complete-cornwall`);
+       s=applyReworkCloudState(result,s);
+       reworkStamp=result.updated_at||reworkStamp;
+       draw();
+       setForgeCloudSync('synced','Cornwall repair completed');
+     }catch(e){
+       alert(`Cornwall repair could not be completed: ${e.message}`);
+       const fresh=await cloudReworkState().catch(()=>null);
+       if(fresh){s=applyReworkCloudState(fresh,s);reworkStamp=fresh.updated_at||reworkStamp}
+       draw();
+     }
    });
-   document.querySelectorAll('.sendReworkDispatch').forEach(btn=>btn.onclick=()=>{
-     const job=s.damageReworkJobs.find(x=>x.id===btn.dataset.id);
-     if(!job||!sendFactoryReworkToDispatch(s,job)){alert('The factory replacement is not ready yet.');return}
-     draw();
+   document.querySelectorAll('.sendReworkDispatch').forEach(btn=>btn.onclick=async()=>{
+     const id=btn.dataset.id;
+     btn.disabled=true;
+     btn.textContent='Saving…';
+     try{
+       const result=await cloudReworkAction(`/rework/${encodeURIComponent(id)}/send-factory`);
+       s=applyReworkCloudState(result,s);
+       reworkStamp=result.updated_at||reworkStamp;
+       draw();
+       setForgeCloudSync('synced','Factory rework sent to Dispatch');
+     }catch(e){
+       alert(`Factory rework could not be sent: ${e.message}`);
+       const fresh=await cloudReworkState().catch(()=>null);
+       if(fresh){s=applyReworkCloudState(fresh,s);reworkStamp=fresh.updated_at||reworkStamp}
+       draw();
+     }
    });
  }
 
- document.querySelector('#addCornwallBoxes').onclick=()=>{
+ document.querySelector('#addCornwallBoxes').onclick=async()=>{
    const qty=Math.max(1,Math.floor(Number(document.querySelector('#cornwallBoxAddQty')?.value||1)));
-   s.cornwallReworkStock=s.cornwallReworkStock||{clear_boxes:0,inserts:{}};
-   s.cornwallReworkStock.inserts=s.cornwallReworkStock.inserts||{};
-  s.cornwallInsertReplenishment=s.cornwallInsertReplenishment||{};
-   s.cornwallReworkStock.clear_boxes=cornwallBoxStock(s)+qty;
-   save(s);draw();
+   try{
+     const result=await cloudReworkAction('/rework/cornwall-boxes/adjust',{change:qty});
+     s=applyReworkCloudState(result,s);
+     reworkStamp=result.updated_at||reworkStamp;
+     draw();
+     setForgeCloudSync('synced','Cornwall box stock updated');
+   }catch(e){alert(`Cornwall box stock was not updated: ${e.message}`)}
  };
- document.querySelector('#addCornwallInserts').onclick=()=>{
+ document.querySelector('#addCornwallInserts').onclick=async()=>{
    const sku=localInsertSku.value;if(!sku)return;
    const qty=Math.max(1,Math.floor(Number(localInsertQty.value||1)));
-   s.cornwallReworkStock=s.cornwallReworkStock||{clear_boxes:0,inserts:{}};
-   s.cornwallReworkStock.inserts=s.cornwallReworkStock.inserts||{};
-   s.cornwallReworkStock.inserts[sku]=cornwallInsertStock(s,sku)+qty;
-   save(s);draw();
+   try{
+     const result=await cloudReworkAction(`/rework/cornwall-inserts/${encodeURIComponent(sku)}/adjust`,{change:qty});
+     s=applyReworkCloudState(result,s);
+     reworkStamp=result.updated_at||reworkStamp;
+     draw();
+     setForgeCloudSync('synced','Cornwall insert stock updated');
+   }catch(e){alert(`Cornwall insert stock was not updated: ${e.message}`)}
  };
 
  q.oninput=draw;
  draw();
+
+ window.setInterval(async()=>{
+   if(document.hidden)return;
+   try{
+     const latest=await cloudReworkStamp();
+     if(!latest||latest===reworkStamp)return;
+     const fresh=await cloudReworkState();
+     s=applyReworkCloudState(fresh,s);
+     reworkStamp=fresh.updated_at||latest;
+
+     const avail=await cloudAvailability();
+     applyCloudAvailability(s,avail);
+     onSale=ps.filter(p=>p.type==='pal'&&isOnSale(s,p.sku)).sort((a,b)=>a.name.localeCompare(b.name));
+     localInsertSku.innerHTML=onSale.map(p=>`<option value="${p.sku}">${esc(p.name)} · ${p.sku}</option>`).join('');
+
+     draw();
+     setForgeCloudSync('synced','Rework updated live');
+   }catch(e){
+     setForgeCloudSync('error',e.message||'Rework sync failed');
+   }
+ },2000);
 }
 
 

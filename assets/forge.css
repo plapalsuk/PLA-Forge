@@ -2305,3 +2305,12 @@ body.forge-page-deliveries input:disabled{
 body.forge-page-deliveries .cloud-required-error{
   display:none;
 }
+
+/* v0.12.2 — Rework Cloud */
+body.forge-page-rework .forge-cloud-sync{
+  margin-bottom:10px;
+}
+body.forge-page-rework button:disabled{
+  opacity:.6;
+  cursor:wait;
+}
