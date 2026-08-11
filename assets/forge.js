@@ -185,7 +185,7 @@ window.addEventListener('beforeunload',()=>{
 });
 
 function installForgeCloudSyncBadge(){
- if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html'].includes(forgeCurrentPage()))return;
+ if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html','deliveries.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
  const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
  const wrap=document.createElement('div');
@@ -2723,7 +2723,13 @@ function recoverAwaitingDispatch(s){
 }
 
 async function deliveriesPage(){
- const s=state();
+ installForgeCloudSyncBadge();
+ if(!forgeProductionCloudReady){
+   try{await hydrateProductionCloud()}
+   catch(e){showCloudRequiredError(e.message);return}
+ }
+
+ let s=cloudOperationalState();
  recoverAwaitingDispatch(s);
 
  const unassigned=document.querySelector('#awaitingDispatch');
@@ -2732,6 +2738,22 @@ async function deliveriesPage(){
  const awaitKpi=document.querySelector('#awaitingDeliveryKpi');
  const boatKpi=document.querySelector('#boatFinishedKpi');
  const cornKpi=document.querySelector('#cornwallFinishedKpi');
+
+ async function persistDispatch(message='Dispatch update'){
+   try{
+     await save(s);
+     return true;
+   }catch(e){
+     alert(`${message} could not be saved to Cloudflare: ${e.message}`);
+     try{
+       await hydrateProductionCloud(true);
+       s=cloudOperationalState();
+       recoverAwaitingDispatch(s);
+     }catch(_){}
+     render();
+     return false;
+   }
+ }
 
  function groupedDispatch(){
    const map={};
@@ -2967,7 +2989,7 @@ async function deliveriesPage(){
    document.querySelectorAll('.dispatchBoatQty,.dispatchCornQty').forEach(el=>el.oninput=()=>updateSummary(el.dataset.sku));
    groups.filter(g=>(g.item_type||'pal')==='pal'&&!g.locked_destination&&!g.rework_return).forEach(g=>updateSummary(g.sku));
 
-   document.querySelectorAll('.dispatchCornwallInsertSpare').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.dispatchCornwallInsertSpare').forEach(btn=>btn.onclick=async()=>{
      const g=groups.find(x=>x.key===btn.dataset.key);if(!g)return;
      if(!consumeDispatchRecords(g,g.qty)){alert('Could not dispatch this Cornwall spare insert.');return}
      const now=new Date().toISOString();
@@ -2983,10 +3005,10 @@ async function deliveriesPage(){
        dispatched_at:now,
        received_at:null
      });
-     save(s);render();
+     await persistDispatch('Dispatch update');render();
    });
 
-   document.querySelectorAll('.dispatchReworkCornwall').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.dispatchReworkCornwall').forEach(btn=>btn.onclick=async()=>{
      const g=groups.find(x=>x.key===btn.dataset.key);if(!g)return;
      if(!consumeDispatchRecords(g,g.qty)){alert('Could not dispatch this rework return.');return}
      const now=new Date().toISOString();
@@ -2997,10 +3019,10 @@ async function deliveriesPage(){
        good_qty:null,damaged_qty:null,qcDraftDamaged:0,qcDamagedItems:[],
        rework_return:true,rework_job_id:g.rework_job_id,rework_label:g.rework_label
      });
-     save(s);render();
+     await persistDispatch('Dispatch update');render();
    });
 
-   document.querySelectorAll('.allocateSplit').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.allocateSplit').forEach(btn=>btn.onclick=async()=>{
      const g=groups.find(x=>x.key===btn.dataset.key);if(!g)return;
      const boatQty=Math.max(0,Math.floor(Number(document.querySelector('#boat-'+g.sku)?.value||0)));
      const cornQty=Math.max(0,Math.floor(Number(document.querySelector('#cornwall-'+g.sku)?.value||0)));
@@ -3022,7 +3044,7 @@ async function deliveriesPage(){
          good_qty:null,damaged_qty:null,qcDraftDamaged:0,qcDamagedItems:[]
        });
      }
-     save(s);render();
+     await persistDispatch('Dispatch update');render();
    });
 
    function updateQcSummary(t){
@@ -3041,24 +3063,24 @@ async function deliveriesPage(){
      }
    }
 
-   document.querySelectorAll('.receiveCornwallInsertSpare').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.receiveCornwallInsertSpare').forEach(btn=>btn.onclick=async()=>{
      const t=s.transfers.find(x=>x.id===btn.dataset.id);if(!t)return;
      s.cornwallReworkStock=s.cornwallReworkStock||{clear_boxes:0,inserts:{}};
      s.cornwallReworkStock.inserts=s.cornwallReworkStock.inserts||{};
      s.cornwallReworkStock.inserts[t.sku]=cornwallInsertStock(s,t.sku)+Number(t.qty||0);
      t.status='received';
      t.received_at=new Date().toISOString();
-     save(s);render();
+     await persistDispatch('Dispatch update');render();
    });
 
-   document.querySelectorAll('.damagedQty').forEach(el=>el.onchange=()=>{
+   document.querySelectorAll('.damagedQty').forEach(el=>el.onchange=async()=>{
      const t=s.transfers.find(x=>x.id===el.dataset.id);if(!t)return;
      t.qcDraftDamaged=Math.max(0,Math.min(Number(t.qty||0),Math.floor(Number(el.value||0))));
      normaliseDamageItems(t);
-     save(s);render();
+     await persistDispatch('Dispatch update');render();
    });
 
-   document.querySelectorAll('.damageFault').forEach(el=>el.onchange=()=>{
+   document.querySelectorAll('.damageFault').forEach(el=>el.onchange=async()=>{
      const t=s.transfers.find(x=>x.id===el.dataset.id);if(!t)return;
      const item=(t.qcDamagedItems||[]).find(x=>x.id===el.dataset.item);if(!item)return;
      const field=el.dataset.field;
@@ -3067,12 +3089,12 @@ async function deliveriesPage(){
      // No separate "write off" option. Selecting all three faults automatically
      // becomes a full factory replacement.
      item.writeoff=false;
-     save(s);render();
+     await persistDispatch('Dispatch update');render();
    });
 
    awaitingTransfers.filter(t=>t.transfer_type!=='cornwall_insert_spare').forEach(updateQcSummary);
 
-   document.querySelectorAll('.confirmDeliveryQC').forEach(btn=>btn.onclick=()=>{
+   document.querySelectorAll('.confirmDeliveryQC').forEach(btn=>btn.onclick=async()=>{
      const t=s.transfers.find(x=>x.id===btn.dataset.id);if(!t)return;
 
      s.damageHistory=s.damageHistory||[];
@@ -3167,10 +3189,16 @@ async function deliveriesPage(){
      delete t.qcDraftDamaged;
      delete t.qcDamagedItems;
 
-     save(s);render();
+     await persistDispatch('Dispatch update');render();
    });
  }
  render();
+
+ await startForgeLiveSync(async fresh=>{
+   s=JSON.parse(JSON.stringify(fresh));
+   recoverAwaitingDispatch(s);
+   render();
+ });
 }
 
 function resetForgeData(){
@@ -3798,7 +3826,7 @@ async function employeeAdminPage(){
 })();
 
 document.addEventListener('visibilitychange',async()=>{
- if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html'].includes(forgeCurrentPage())){
+ if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html','deliveries.html'].includes(forgeCurrentPage())){
    const stamp=await forgeCloudStamp();
    if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
      // interval will pick this up immediately on its next tick

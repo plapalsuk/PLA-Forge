@@ -1316,3 +1316,19 @@ Consumables are now part of Forge's global cloud-change signature.
 - Consumables pages update automatically without refresh.
 - Insert Production and Packing Station also receive updated consumable stock automatically while open.
 - No Worker or D1 changes are required for this update.
+
+
+## v0.12.0 — Dispatch Cloud
+
+Dispatch is now part of the cloud-only operational pipeline.
+
+- Awaiting Dispatch reads directly from D1 operational state.
+- Boat / Cornwall split allocations save to D1.
+- Boat stock is updated centrally when dispatched.
+- Cornwall transfers remain Awaiting Delivery until physically received.
+- Cornwall delivery QC, good/damaged quantities and fault selections save to D1.
+- Damage findings create shared Rework jobs in the same cloud state.
+- Cornwall spare inserts and factory rework returns use the same cloud Dispatch queue.
+- Dispatch live-syncs while open on multiple devices.
+- No browser-local operational Dispatch state is used by the page.
+- No Worker or SQL change is required for this migration.

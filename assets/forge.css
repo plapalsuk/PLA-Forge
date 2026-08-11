@@ -2291,3 +2291,12 @@ body.forge-page-consumables input:disabled{
 body.forge-page-consumables .consumable-card{
   transition:border-color .2s ease, box-shadow .2s ease;
 }
+
+/* v0.12.0 — Dispatch Cloud */
+body.forge-page-deliveries .forge-cloud-sync{
+  margin-bottom:10px;
+}
+body.forge-page-deliveries button:disabled,
+body.forge-page-deliveries input:disabled{
+  opacity:.65;
+}
