@@ -2300,3 +2300,8 @@ body.forge-page-deliveries button:disabled,
 body.forge-page-deliveries input:disabled{
   opacity:.65;
 }
+
+/* v0.12.1 — Retail-safe Dispatch cloud */
+body.forge-page-deliveries .cloud-required-error{
+  display:none;
+}

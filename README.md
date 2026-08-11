@@ -1332,3 +1332,25 @@ Dispatch is now part of the cloud-only operational pipeline.
 - Dispatch live-syncs while open on multiple devices.
 - No browser-local operational Dispatch state is used by the page.
 - No Worker or SQL change is required for this migration.
+
+
+## v0.12.1 — Retail Staff Dispatch Permissions
+
+Dispatch no longer requires the Admin-only `/production/state` or `/production/sync-status` endpoints.
+
+Worker v3k adds a restricted Dispatch API:
+- GET `/dispatch/state`
+- PUT `/dispatch/state`
+- GET `/dispatch/sync-status`
+
+Retail Staff receives `dispatch:write` in addition to existing Dispatch/Cornwall/Rework permissions.
+
+The Worker only exposes and accepts the operational fields required for:
+- Awaiting Dispatch
+- Boat/Cornwall allocation
+- Cornwall delivery receipt/QC
+- damaged item classification
+- Rework job creation
+- Cornwall spare/rework stock
+
+Retail Staff cannot use the dedicated Dispatch endpoint to alter build plates, printed parts, assembly, consumables, production planning, employees, settings, or product availability.

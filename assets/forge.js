@@ -185,7 +185,7 @@ window.addEventListener('beforeunload',()=>{
 });
 
 function installForgeCloudSyncBadge(){
- if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html','deliveries.html'].includes(forgeCurrentPage()))return;
+ if(!['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html'].includes(forgeCurrentPage()))return;
  if(document.querySelector('#forgeCloudSyncBadge'))return;
  const host=document.querySelector('.topbar')||document.querySelector('main')||document.body;
  const wrap=document.createElement('div');
@@ -2722,15 +2722,61 @@ function recoverAwaitingDispatch(s){
  save(s);
 }
 
+
+async function cloudDispatchState(){
+ if(!cloudToken())throw new Error('Cloud login required.');
+ return await cloudFetchTimed('/dispatch/state',{},10000);
+}
+async function saveDispatchCloudState(s){
+ if(!cloudToken())throw new Error('Cloud login required.');
+ return await cloudFetchTimed('/dispatch/state',{
+   method:'PUT',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({state:s})
+ },12000);
+}
+async function cloudDispatchStamp(){
+ if(!cloudToken())return null;
+ try{
+   const d=await cloudFetchTimed('/dispatch/sync-status',{},8000);
+   return d.updated_at||null;
+ }catch(e){
+   return null;
+ }
+}
+function applyDispatchCloudState(data){
+ const s=blankOperationalState();
+ Object.assign(s,JSON.parse(JSON.stringify(data?.state||{})));
+ s.targets=s.targets||{};
+ s.awaitingDispatch=s.awaitingDispatch||[];
+ s.transfers=s.transfers||[];
+ s.packingHistory=s.packingHistory||[];
+ s.damageHistory=s.damageHistory||[];
+ s.damageReworkJobs=s.damageReworkJobs||[];
+ s.damageInsertDemand=s.damageInsertDemand||{};
+ s.reworkHistory=s.reworkHistory||[];
+ s.cornwallReworkStock=s.cornwallReworkStock||{clear_boxes:0,inserts:{}};
+ s.cornwallReworkStock.inserts=s.cornwallReworkStock.inserts||{};
+ s.cornwallInsertReplenishment=s.cornwallInsertReplenishment||{};
+ return s;
+}
+
 async function deliveriesPage(){
  installForgeCloudSyncBadge();
- if(!forgeProductionCloudReady){
-   try{await hydrateProductionCloud()}
-   catch(e){showCloudRequiredError(e.message);return}
+
+ let initial;
+ try{
+   initial=await cloudDispatchState();
+ }catch(e){
+   showCloudRequiredError(e.message);
+   setForgeCloudSync('error',e.message);
+   return;
  }
 
- let s=cloudOperationalState();
+ let s=applyDispatchCloudState(initial);
+ let dispatchStamp=initial.updated_at||null;
  recoverAwaitingDispatch(s);
+ setForgeCloudSync('synced','Dispatch synced');
 
  const unassigned=document.querySelector('#awaitingDispatch');
  const awaiting=document.querySelector('#awaitingDeliveries');
@@ -2741,13 +2787,17 @@ async function deliveriesPage(){
 
  async function persistDispatch(message='Dispatch update'){
    try{
-     await save(s);
+     const result=await saveDispatchCloudState(s);
+     dispatchStamp=result.updated_at||dispatchStamp;
+     setForgeCloudSync('synced',message+' saved');
      return true;
    }catch(e){
      alert(`${message} could not be saved to Cloudflare: ${e.message}`);
+     setForgeCloudSync('error',e.message);
      try{
-       await hydrateProductionCloud(true);
-       s=cloudOperationalState();
+       const fresh=await cloudDispatchState();
+       s=applyDispatchCloudState(fresh);
+       dispatchStamp=fresh.updated_at||dispatchStamp;
        recoverAwaitingDispatch(s);
      }catch(_){}
      render();
@@ -3194,11 +3244,23 @@ async function deliveriesPage(){
  }
  render();
 
- await startForgeLiveSync(async fresh=>{
-   s=JSON.parse(JSON.stringify(fresh));
-   recoverAwaitingDispatch(s);
-   render();
- });
+ // Retail-safe Dispatch live sync. This does not call Admin-only production endpoints.
+ window.setInterval(async()=>{
+   if(document.hidden)return;
+   try{
+     const latestStamp=await cloudDispatchStamp();
+     if(!latestStamp||latestStamp===dispatchStamp)return;
+
+     const fresh=await cloudDispatchState();
+     s=applyDispatchCloudState(fresh);
+     dispatchStamp=fresh.updated_at||latestStamp;
+     recoverAwaitingDispatch(s);
+     render();
+     setForgeCloudSync('synced','Dispatch updated live');
+   }catch(e){
+     setForgeCloudSync('error',e.message||'Dispatch sync failed');
+   }
+ },2000);
 }
 
 function resetForgeData(){
@@ -3826,7 +3888,7 @@ async function employeeAdminPage(){
 })();
 
 document.addEventListener('visibilitychange',async()=>{
- if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html','deliveries.html'].includes(forgeCurrentPage())){
+ if(!document.hidden && ['production.html','plates.html','parts.html','assembly.html','pals.html','packing-station.html','packaging.html','availability.html','settings.html','consumables.html'].includes(forgeCurrentPage())){
    const stamp=await forgeCloudStamp();
    if(stamp && forgeLastCloudStamp && stamp!==forgeLastCloudStamp){
      // interval will pick this up immediately on its next tick
