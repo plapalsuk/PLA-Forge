@@ -740,6 +740,518 @@ function forgeLogout() {
     setForgeUser(null);
     location.replace('login.html');
 }
+async function availabilityPage() {
+    installForgeCloudSyncBadge();
+    if (!forgeProductionCloudReady) {
+        try {
+            await hydrateProductionCloud();
+        }
+        catch (e) {
+            showCloudRequiredError(e.message);
+            return;
+        }
+    }
+    let s = cloudOperationalState();
+    const ps = await load('products');
+    const pals = ps.filter(p => p.type === 'pal');
+    const q = document.querySelector('#q');
+    const filter = document.querySelector('#availabilityFilter');
+    const list = document.querySelector('#availabilityList');
+    const saleKpi = document.querySelector('#onSaleKpi');
+    const futureKpi = document.querySelector('#futureKpi');
+    const offKpi = document.querySelector('#offSaleKpi');
+    if (!q || !filter || !list)
+        return;
+    function status(p) {
+        var _a;
+        const rec = ((_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[p.sku]) || {};
+        if (rec.on_sale === true)
+            return 'sale';
+        if (rec.release_date && rec.release_date > new Date().toISOString().slice(0, 10))
+            return 'future';
+        return 'off';
+    }
+    function render() {
+        const text = (q.value || '').toLowerCase();
+        const mode = filter.value;
+        const all = pals.map(p => { var _a; return ({ p, rec: ((_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[p.sku]) || {}, status: status(p) }); });
+        if (saleKpi)
+            saleKpi.textContent = all.filter(x => x.status === 'sale').length;
+        if (futureKpi)
+            futureKpi.textContent = all.filter(x => x.status === 'future').length;
+        if (offKpi)
+            offKpi.textContent = all.filter(x => x.status === 'off').length;
+        const data = all
+            .filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
+            .filter(x => mode === 'all' || x.status === mode)
+            .sort((a, b) => (a.status === 'sale' ? -2 : a.status === 'future' ? -1 : 0) - (b.status === 'sale' ? -2 : b.status === 'future' ? -1 : 0) || a.p.name.localeCompare(b.p.name));
+        list.innerHTML = data.map(x => `
+     <div class="availability-row">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       <div>${x.status === 'sale' ? badge('ON SALE', 'ok') : x.status === 'future' ? badge('FUTURE RELEASE', 'warning') : badge('NOT ON SALE', '')}</div>
+       <label>
+         <span class="small">Release Date</span>
+         <input class="cloudReleaseDate" data-sku="${x.p.sku}" type="date" value="${esc(x.rec.release_date || '')}">
+       </label>
+       <button class="btn ${x.status === 'sale' ? 'ghost' : ''} cloudToggleSale" data-sku="${x.p.sku}">
+         ${x.status === 'sale' ? 'Take Off Sale' : 'Put On Sale'}
+       </button>
+     </div>`).join('') || '<div class="bench-empty">No Pals match this view.</div>';
+        document.querySelectorAll('.cloudToggleSale').forEach(btn => btn.onclick = async () => {
+            var _a;
+            const sku = btn.dataset.sku;
+            const rec = ((_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) || { on_sale: false, release_date: '' };
+            const next = !Boolean(rec.on_sale);
+            const releaseDate = next ? (rec.release_date || new Date().toISOString().slice(0, 10)) : (rec.release_date || null);
+            btn.disabled = true;
+            const oldText = btn.textContent;
+            btn.textContent = 'Saving to Cloud…';
+            try {
+                await cloudFetchTimed(`/products/${encodeURIComponent(sku)}/availability`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ on_sale: next, release_date: releaseDate })
+                }, 10000);
+                // Confirm only the products table. Do not wait for unrelated production endpoints.
+                const availability = await refreshProductAvailabilityFromD1(s);
+                const confirmed = availability.find(p => p.sku === sku);
+                if (!confirmed)
+                    throw new Error(`${sku} was not returned by D1 after the update.`);
+                if (Boolean(confirmed.on_sale) !== next) {
+                    throw new Error(`D1 did not confirm the requested On Sale value for ${sku}.`);
+                }
+                render();
+                setForgeCloudSync('synced', `${sku} ${next ? 'On Sale' : 'Not On Sale'} confirmed by D1`);
+            }
+            catch (e) {
+                btn.disabled = false;
+                btn.textContent = oldText;
+                setForgeCloudSync('error', e.message || 'Availability update failed');
+                alert(`Availability was NOT changed in Cloudflare: ${e.message}`);
+            }
+        });
+        document.querySelectorAll('.cloudReleaseDate').forEach(el => el.onchange = async () => {
+            var _a;
+            const sku = el.dataset.sku;
+            const rec = ((_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) || { on_sale: false, release_date: '' };
+            const nextDate = el.value || null;
+            el.disabled = true;
+            try {
+                await cloudFetchTimed(`/products/${encodeURIComponent(sku)}/availability`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ on_sale: Boolean(rec.on_sale), release_date: nextDate })
+                }, 10000);
+                const availability = await refreshProductAvailabilityFromD1(s);
+                const confirmed = availability.find(p => p.sku === sku);
+                if (!confirmed)
+                    throw new Error(`${sku} was not returned by D1 after the update.`);
+                render();
+                setForgeCloudSync('synced', `${sku} release date confirmed by D1`);
+            }
+            catch (e) {
+                el.disabled = false;
+                render();
+                setForgeCloudSync('error', e.message || 'Release date update failed');
+                alert(`Release date was NOT changed in Cloudflare: ${e.message}`);
+            }
+        });
+    }
+    q.oninput = render;
+    filter.onchange = render;
+    render();
+    await startForgeLiveSync(async (fresh) => {
+        s = JSON.parse(JSON.stringify(fresh));
+        render();
+    });
+}
+
+async function assemblyPage() {
+    installForgeCloudSyncBadge();
+    if (!forgeProductionCloudReady) {
+        try {
+            await hydrateProductionCloud();
+        }
+        catch (e) {
+            showCloudRequiredError(e.message);
+            return;
+        }
+    }
+    let s = cloudOperationalState();
+    const ps = await load('products');
+    const rs = await load('recipes');
+    const pals = ps.filter(p => p.type === 'pal');
+    const q = document.querySelector('#q');
+    const readyBox = document.querySelector('#assemblyReady');
+    const awaitingBox = document.querySelector('#assemblyAwaiting');
+    const inventorySearch = document.querySelector('#assembledInventorySearch');
+    const inventoryBody = document.querySelector('#assembledInventory');
+    const kpiReady = document.querySelector('#assemblyReadyKpi');
+    const kpiAssembled = document.querySelector('#assembledKpi');
+    const kpiWaiting = document.querySelector('#assemblyWaitingKpi');
+    const readySectionCount = document.querySelector('#readySectionCount');
+    const awaitingSectionCount = document.querySelector('#awaitingSectionCount');
+    function recipeGroups(sku) { return rs.filter(r => r.sku === sku); }
+    function assembledQty(sku) { var _a; return Number(((_a = s.assembled) === null || _a === void 0 ? void 0 : _a[sku]) || 0); }
+    function plannerNeed(sku) { return Math.max(0, totalNeed(s, sku) - awaitingDispatchQty(s, sku)); }
+    function remainingAssemblyNeed(sku) {
+        return Math.max(0, plannerNeed(sku) - assembledQty(sku));
+    }
+    function readyQty(p) {
+        const groups = recipeGroups(p.sku);
+        if (!groups.length)
+            return 0;
+        return Math.max(0, Math.min(...groups.map(r => partQty(s, groupKey(r)))));
+    }
+    function groupStock(p) {
+        return recipeGroups(p.sku).map(r => ({
+            r,
+            have: partQty(s, groupKey(r))
+        }));
+    }
+    function readyCard(x) {
+        const maxUseful = Math.max(0, Math.min(x.ready, x.remainingNeed > 0 ? x.remainingNeed : x.ready));
+        return `<div class="assembly-card ready">
+     <div class="assembly-card-head">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       ${badge(`${x.ready} Ready`, 'ok')}
+     </div>
+     <div class="assembly-demand-strip">
+       <span>Production Need <strong>${x.plannerNeed}</strong></span>
+       <span>Already Assembled <strong>${x.assembled}</strong></span>
+       <span>Still Needed <strong>${x.remainingNeed}</strong></span>
+     </div>
+     <div class="assembly-parts">
+       ${x.groups.map(g => `<div class="assembly-part"><span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span><strong>${g.have}</strong></div>`).join('') || '<div class="small">No recipe available.</div>'}
+     </div>
+     <div class="assembly-actions">
+       <label><span class="small">Assemble Qty</span><input class="number assembleQty" id="assemble-${x.p.sku}" type="number" min="1" max="${Math.max(1, maxUseful)}" value="1"></label>
+       <button class="btn assembleBtn" data-sku="${x.p.sku}">Assemble</button>
+     </div>
+   </div>`;
+    }
+    function awaitingCard(x) {
+        return `<div class="assembly-card not-ready">
+     <div class="assembly-card-head">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       ${badge(`NEED ${x.remainingNeed}`, 'warning')}
+     </div>
+     <div class="assembly-demand-strip">
+       <span>Production Need <strong>${x.plannerNeed}</strong></span>
+       <span>Already Assembled <strong>${x.assembled}</strong></span>
+       <span>Still Needed <strong class="accent">${x.remainingNeed}</strong></span>
+     </div>
+     <div class="assembly-parts">
+       ${x.groups.map(g => `<div class="assembly-part ${g.have <= 0 ? 'missing' : ''}"><span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span><strong>${g.have}</strong></div>`).join('') || '<div class="small">No recipe available.</div>'}
+     </div>
+     <div class="awaiting-note"><span class="small">Production Planner still requires ${x.remainingNeed}. Waiting for enough printed parts to assemble more.</span></div>
+   </div>`;
+    }
+    function render() {
+        const text = (q.value || '').toLowerCase();
+        const all = pals.map(p => ({
+            p,
+            ready: readyQty(p),
+            plannerNeed: plannerNeed(p.sku),
+            assembled: assembledQty(p.sku),
+            remainingNeed: remainingAssemblyNeed(p.sku),
+            groups: groupStock(p)
+        })).filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
+        // READY: any Pal for which every required printed colour-group is physically available.
+        // Production demand does not control whether it appears here.
+        const ready = all
+            .filter(x => x.ready > 0)
+            .sort((a, b) => b.ready - a.ready || b.remainingNeed - a.remainingNeed || a.p.name.localeCompare(b.p.name));
+        // AWAITING: demanded by Production Planning but no complete Pal can be assembled yet.
+        const awaiting = all
+            .filter(x => x.remainingNeed > 0 && x.ready <= 0)
+            .sort((a, b) => b.remainingNeed - a.remainingNeed || a.p.name.localeCompare(b.p.name));
+        kpiReady.textContent = ready.reduce((a, x) => a + x.ready, 0);
+        kpiAssembled.textContent = Object.values(s.assembled || {}).reduce((a, b) => a + Number(b || 0), 0);
+        kpiWaiting.textContent = awaiting.reduce((a, x) => a + x.remainingNeed, 0);
+        readySectionCount.textContent = `${ready.length} Ready`;
+        awaitingSectionCount.textContent = `${awaiting.length} Awaiting`;
+        readyBox.innerHTML = ready.length
+            ? ready.map(readyCard).join('')
+            : '<div class="bench-empty">No Pals are ready to assemble yet.</div>';
+        awaitingBox.innerHTML = awaiting.length
+            ? awaiting.map(awaitingCard).join('')
+            : '<div class="bench-empty">Nothing is currently awaiting assembly.</div>';
+        const inventoryText = ((inventorySearch === null || inventorySearch === void 0 ? void 0 : inventorySearch.value) || '').toLowerCase();
+        const assembledRows = pals.map(p => ({
+            p,
+            qty: assembledQty(p.sku)
+        })).filter(x => x.qty > 0)
+            .filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(inventoryText))
+            .sort((a, b) => b.qty - a.qty || a.p.name.localeCompare(b.p.name));
+        inventoryBody.innerHTML = assembledRows.length ? assembledRows.map(x => `<tr>
+     <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
+     <td><strong>${x.qty}</strong></td>
+   </tr>`).join('') : '<tr><td colspan="2">No assembled Pals currently in inventory.</td></tr>';
+        document.querySelectorAll('.assembleBtn').forEach(btn => btn.onclick = async () => {
+            var _a, _b;
+            const sku = btn.dataset.sku;
+            const p = pals.find(x => x.sku === sku);
+            const available = readyQty(p);
+            const stillNeeded = remainingAssemblyNeed(sku);
+            const maxQty = Math.max(1, Math.min(available, stillNeeded > 0 ? stillNeeded : available));
+            const qty = Math.max(1, Math.min(maxQty, Number(((_a = document.querySelector('#assemble-' + sku)) === null || _a === void 0 ? void 0 : _a.value) || 1)));
+            if (!available || qty > available)
+                return;
+            // Snapshot the fields changed by assembly so a failed cloud save can be rolled back safely.
+            const beforeParts = JSON.parse(JSON.stringify(s.parts || {}));
+            const beforeAssembled = JSON.parse(JSON.stringify(s.assembled || {}));
+            const beforeHistory = JSON.parse(JSON.stringify(s.assemblyHistory || []));
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+            recipeGroups(sku).forEach(r => {
+                const key = groupKey(r);
+                s.parts[key] = Math.max(0, partQty(s, key) - qty);
+            });
+            s.assembled[sku] = Number(s.assembled[sku] || 0) + qty;
+            s.assemblyHistory.push({
+                id: makeId(),
+                sku,
+                name: p.name,
+                qty,
+                production_need_before: stillNeeded,
+                production_need_after: Math.max(0, stillNeeded - qty),
+                created_at: new Date().toISOString(),
+                cloud_user: ((_b = currentForgeUser()) === null || _b === void 0 ? void 0 : _b.email) || ''
+            });
+            try {
+                await save(s);
+                render();
+            }
+            catch (e) {
+                s.parts = beforeParts;
+                s.assembled = beforeAssembled;
+                s.assemblyHistory = beforeHistory;
+                render();
+                alert('Assembly could not be saved to Cloudflare. Printed Parts and Assembled Inventory have been rolled back.');
+            }
+        });
+    }
+    q.oninput = render;
+    if (inventorySearch)
+        inventorySearch.oninput = render;
+    render();
+    await startForgeLiveSync(async (fresh) => {
+        // Replace the Bench state reference completely with the D1-hydrated state.
+        s = JSON.parse(JSON.stringify(fresh));
+        render();
+    });
+}
+
+async function insertProductionPage() {
+    installForgeCloudSyncBadge();
+    if (!forgeProductionCloudReady) {
+        try {
+            await hydrateProductionCloud();
+        }
+        catch (e) {
+            showCloudRequiredError(e.message);
+            return;
+        }
+    }
+    let s = cloudOperationalState();
+    const ps = await load('products');
+    const files = await load('insert_files');
+    let pals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku));
+    ensureCornwallInsertReplenishment(s, ps);
+    const q = document.querySelector('#q');
+    const printCards = document.querySelector('#insertPrintCards');
+    const cutCards = document.querySelector('#insertCutCards');
+    const inventory = document.querySelector('#insertInventory');
+    const inventorySearch = document.querySelector('#insertInventorySearch');
+    const readyKpi = document.querySelector('#insertReadyKpi');
+    const cutKpi = document.querySelector('#insertCutKpi');
+    const printKpi = document.querySelector('#insertPrintKpi');
+    const urgentKpi = document.querySelector('#insertUrgentKpi');
+    const printQueueCount = document.querySelector('#printQueueCount');
+    const cutQueueCount = document.querySelector('#cutQueueCount');
+    function rec(sku) {
+        s.inserts[sku] = s.inserts[sku] || { awaiting_cut: 0, ready: 0 };
+        return s.inserts[sku];
+    }
+    function target() { return 10; }
+    function needPrint(sku) {
+        var _a, _b;
+        const r = rec(sku);
+        const damageNeed = Number(((_a = s.damageInsertDemand) === null || _a === void 0 ? void 0 : _a[sku]) || 0);
+        const cornwallNeed = Number(((_b = s.cornwallInsertReplenishment) === null || _b === void 0 ? void 0 : _b[sku]) || 0);
+        return Math.max(0, target() + damageNeed + cornwallNeed - Number(r.ready || 0) - Number(r.awaiting_cut || 0));
+    }
+    function renderPrintCard(x) {
+        var _a;
+        return `<div class="insert-job-card print-job">
+     <div class="assembly-card-head">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       ${Number(((_a = s.cornwallInsertReplenishment) === null || _a === void 0 ? void 0 : _a[x.p.sku]) || 0) > 0 ? badge(`CORNWALL +${Number(s.cornwallInsertReplenishment[x.p.sku] || 0)}`, 'info') : x.r.ready < 4 ? badge('URGENT', 'danger') : badge(`PRINT ${x.need}`, 'warning')}
+     </div>
+     <div class="insert-job-stats">
+       <div><span>Ready</span><strong>${Number(x.r.ready || 0)}</strong></div>
+       <div><span>In Cut & Score</span><strong>${Number(x.r.awaiting_cut || 0)}</strong></div>
+       <div><span>Need Print</span><strong class="accent">${x.need}</strong></div>
+     </div>
+     <div class="insert-file-name">${x.file ? 'PDF linked from Google Drive' : 'No PDF mapped for this SKU'}</div>
+     <div class="insert-action-row">
+       ${x.file ? `<a class="btn secondary" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open / Print PDF</a>` : `<button class="btn secondary" disabled>No PDF</button>`}
+       <label class="compact-label"><span>Qty Printed</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" value="${Math.max(1, x.need || 1)}"></label>
+       <button class="btn markPrinted" data-sku="${x.p.sku}">Mark Printed</button>
+     </div>
+   </div>`;
+    }
+    function renderCutCard(x) {
+        const awaiting = Number(x.r.awaiting_cut || 0);
+        return `<div class="insert-job-card cut-job">
+     <div class="assembly-card-head">
+       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
+       ${badge(`${awaiting} WAITING`, 'warning')}
+     </div>
+     <div class="cut-score-hero">
+       <div class="cut-score-number">${awaiting}</div>
+       <div><strong>Printed Insert${awaiting === 1 ? '' : 's'}</strong><div class="small">ready to cut and score</div></div>
+     </div>
+     <div class="insert-action-row">
+       <label class="compact-label"><span>Qty Completed</span><input class="number cutQty" id="cut-${x.p.sku}" type="number" min="1" max="${awaiting}" value="${awaiting}"></label>
+       <button class="btn completeCut" data-sku="${x.p.sku}">Cut & Score Complete</button>
+     </div>
+   </div>`;
+    }
+    function render() {
+        const text = (q.value || '').toLowerCase();
+        const data = pals.map(p => ({ p, r: rec(p.sku), need: needPrint(p.sku), file: files[p.sku] || null }))
+            .filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
+        const printJobs = data.filter(x => x.need > 0)
+            .sort((a, b) => (a.r.ready < 4 ? -1 : 0) - (b.r.ready < 4 ? -1 : 0) || b.need - a.need || a.p.name.localeCompare(b.p.name));
+        const cutJobs = data.filter(x => Number(x.r.awaiting_cut || 0) > 0)
+            .sort((a, b) => Number(b.r.awaiting_cut || 0) - Number(a.r.awaiting_cut || 0) || a.p.name.localeCompare(b.p.name));
+        readyKpi.textContent = data.reduce((a, x) => a + Number(x.r.ready || 0), 0);
+        cutKpi.textContent = data.reduce((a, x) => a + Number(x.r.awaiting_cut || 0), 0);
+        printKpi.textContent = data.reduce((a, x) => a + x.need, 0);
+        urgentKpi.textContent = data.filter(x => Number(x.r.ready || 0) < 4).length;
+        if (printQueueCount)
+            printQueueCount.textContent = `${printJobs.length} Job${printJobs.length === 1 ? '' : 's'}`;
+        if (cutQueueCount)
+            cutQueueCount.textContent = `${cutJobs.length} Job${cutJobs.length === 1 ? '' : 's'}`;
+        printCards.innerHTML = printJobs.length
+            ? printJobs.map(renderPrintCard).join('')
+            : '<div class="bench-empty">Nothing currently needs printing.</div>';
+        cutCards.innerHTML = cutJobs.length
+            ? cutJobs.map(renderCutCard).join('')
+            : '<div class="bench-empty">Nothing is waiting for Cut & Score.</div>';
+        const inventoryText = ((inventorySearch === null || inventorySearch === void 0 ? void 0 : inventorySearch.value) || '').toLowerCase();
+        const inventoryRows = data
+            .filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(inventoryText))
+            .sort((a, b) => a.p.name.localeCompare(b.p.name));
+        inventory.innerHTML = inventoryRows
+            .map(x => `<tr>
+       <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
+       <td><strong>${Number(x.r.ready || 0)}</strong></td>
+     </tr>`).join('') || '<tr><td colspan="2">No matching On Sale Pals.</td></tr>';
+        document.querySelectorAll('.markPrinted').forEach(btn => btn.onclick = async () => {
+            var _a, _b, _c, _d;
+            const sku = btn.dataset.sku, r = rec(sku);
+            const qty = Math.max(1, Number(((_a = document.querySelector('#printed-' + sku)) === null || _a === void 0 ? void 0 : _a.value) || 1));
+            const cardStock = Number(((_c = (_b = s.consumables) === null || _b === void 0 ? void 0 : _b.card_210gsm) === null || _c === void 0 ? void 0 : _c.stock) || 0);
+            if (cardStock < qty) {
+                alert(`Not enough 210gsm Card. Need ${qty} sheet${qty === 1 ? '' : 's'}, but only ${cardStock} available.`);
+                return;
+            }
+            const before = JSON.parse(JSON.stringify(s));
+            s.consumables.card_210gsm.stock = cardStock - qty;
+            s.consumableHistory = s.consumableHistory || [];
+            s.consumableHistory.push({
+                id: makeId(),
+                key: 'card_210gsm',
+                name: '210gsm Card',
+                qty: -qty,
+                reason: `Insert printed · ${sku}`,
+                created_at: new Date().toISOString(),
+                updated_by: ((_d = currentForgeUser()) === null || _d === void 0 ? void 0 : _d.email) || ''
+            });
+            r.awaiting_cut = Number(r.awaiting_cut || 0) + qty;
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+            try {
+                await save(s);
+                render();
+            }
+            catch (e) {
+                s = before;
+                render();
+                alert('Printed inserts could not be saved to Cloudflare. Card stock and Cut & Score quantities have been rolled back.');
+            }
+        });
+        document.querySelectorAll('.completeCut').forEach(btn => btn.onclick = async () => {
+            var _a, _b, _c, _d;
+            const sku = btn.dataset.sku, r = rec(sku);
+            const available = Number(r.awaiting_cut || 0);
+            const qty = Math.max(1, Math.min(available, Number(((_a = document.querySelector('#cut-' + sku)) === null || _a === void 0 ? void 0 : _a.value) || 1)));
+            if (available <= 0)
+                return;
+            const before = JSON.parse(JSON.stringify(s));
+            r.awaiting_cut = available - qty;
+            let remaining = qty;
+            // First satisfy full-factory damage replacement insert demand.
+            const damageNeed = Number(((_b = s.damageInsertDemand) === null || _b === void 0 ? void 0 : _b[sku]) || 0);
+            const damageUsed = Math.min(remaining, damageNeed);
+            if (damageUsed > 0) {
+                r.ready = Number(r.ready || 0) + damageUsed;
+                s.damageInsertDemand[sku] = Math.max(0, damageNeed - damageUsed);
+                remaining -= damageUsed;
+            }
+            // Then route Cornwall spare replenishment directly into Dispatch.
+            const cornwallNeed = Number(((_c = s.cornwallInsertReplenishment) === null || _c === void 0 ? void 0 : _c[sku]) || 0);
+            const cornwallUsed = Math.min(remaining, cornwallNeed);
+            if (cornwallUsed > 0) {
+                const p = pals.find(x => x.sku === sku);
+                const now = new Date().toISOString();
+                s.awaitingDispatch = s.awaitingDispatch || [];
+                s.awaitingDispatch.push({
+                    id: makeId(),
+                    item_type: 'cornwall_insert_spare',
+                    sku,
+                    name: (p === null || p === void 0 ? void 0 : p.name) || sku,
+                    qty: cornwallUsed,
+                    status: 'awaiting_dispatch',
+                    packed_at: now,
+                    locked_destination: 'cornwall',
+                    supply_label: 'Cornwall Spare Insert',
+                    created_by: ((_d = currentForgeUser()) === null || _d === void 0 ? void 0 : _d.email) || ''
+                });
+                s.cornwallInsertReplenishment[sku] = Math.max(0, cornwallNeed - cornwallUsed);
+                remaining -= cornwallUsed;
+            }
+            // Any normal insert production becomes factory Ready Insert stock.
+            if (remaining > 0)
+                r.ready = Number(r.ready || 0) + remaining;
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+            try {
+                await save(s);
+                render();
+            }
+            catch (e) {
+                s = before;
+                render();
+                alert('Cut & Score completion could not be saved to Cloudflare. Insert stock has been rolled back.');
+            }
+        });
+    }
+    q.oninput = render;
+    if (inventorySearch)
+        inventorySearch.oninput = render;
+    render();
+    await startForgeLiveSync(async (fresh) => {
+        s = JSON.parse(JSON.stringify(fresh));
+        pals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku));
+        ensureCornwallInsertReplenishment(s, ps);
+        render();
+    });
+}
+
 async function dashboard() {
     installForgeCloudSyncBadge();
 
@@ -760,7 +1272,7 @@ async function dashboard() {
             load('products'),
             load('recipes'),
             load('mismatches'),
-            cloudFilaments().catch(() => ({filaments:[],history:[]}))
+            cloudFetch('/filaments').catch(() => ({filaments:[],history:[]}))
         ]);
     }
     catch (e) {

@@ -1579,3 +1579,13 @@ Forge Control is now a complete live operations dashboard.
 - Rework completions
 
 No Worker or D1 schema change is required.
+
+
+## v0.18.1 — Page Startup Regression Fix
+
+- Restored the missing `assemblyPage()` controller used by The Bench.
+- Restored the missing `availabilityPage()` controller.
+- Restored the missing `insertProductionPage()` controller.
+- Fixed the Dashboard filament request; it now reads `/filaments` through the existing cloud API rather than calling an undefined `cloudFilaments()` helper.
+- Audited every HTML `forgeBoot()` startup call against the functions actually present in `forge.js`.
+- No Worker or D1 changes required.
