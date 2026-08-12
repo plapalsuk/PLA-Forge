@@ -2389,3 +2389,28 @@ body.forge-protected:not(.forge-auth-ready)::after{
   .filament-stock-actions .number,
   .filament-stock-actions .btn{width:100%;max-width:none}
 }
+
+/* v0.14.0 — Recipe Cloud Editor */
+.recipe-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.recipe-editor-head{display:flex;justify-content:space-between;align-items:center;margin:16px 0 10px}
+.recipe-edit-rows{display:grid;gap:10px}
+.recipe-edit-row{
+  display:grid;
+  grid-template-columns:1fr 1.2fr 1.2fr 1.2fr 90px 110px 40px;
+  gap:8px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)
+}
+.recipe-edit-row label{display:grid;gap:5px}
+.recipe-edit-row label span{font-size:11px;color:var(--muted)}
+.recipe-edit-row input{width:100%;box-sizing:border-box}
+.recipe-editor-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.recipeSaveStatus{margin-top:8px}
+@media(max-width:900px){
+ .recipe-edit-row{grid-template-columns:1fr 1fr}
+ .recipe-edit-row .recipe-small{min-width:0}
+ .recipe-edit-row .recipeRemove{align-self:end}
+}
+@media(max-width:600px){
+ .recipe-card-head{flex-direction:column}
+ .recipe-edit-row{grid-template-columns:1fr}
+ .recipe-editor-actions .btn{width:100%}
+}

@@ -1420,3 +1420,16 @@ Filament is now cloud-authoritative.
 ### Build Plate filament deduction
 
 When `Complete Print` is confirmed, Forge first saves the completed production state to D1. It then sends the plate ID, filament colour and calculated gram usage to the Worker. The Worker records `plate:<plate-id>` in filament history, preventing the same plate from being deducted twice.
+
+
+## v0.14.0 — Recipes Cloud
+
+Recipes are now editable directly against D1.
+
+- Existing `recipes` remains the authoritative recipe table.
+- Admin users can replace all colour-group rows for a Pal in one cloud transaction.
+- Recipe edits include filament, parts/group, grouped STL, individual STLs, part count and weight.
+- Recipe changes live-refresh across open devices when no editor is active.
+- Every save records an audit snapshot in `recipe_history`.
+- Build Plates continue to load recipe rows from the cloud, so new plate calculations use the latest saved weights and filament colours.
+- No operational recipe edits are stored in browser localStorage.

@@ -406,19 +406,24 @@ function recoveryKey(sku, file) { return `recovery|${sku}|${file}`; }
 function partQty(s, key) { return Number(s.parts[key] || 0); }
 function activePlateQty(s, key) { return (s.plates || []).filter(p => !['complete', 'cancelled'].includes(p.status)).reduce((sum, p) => sum + (p.items || []).filter(i => i.inventory_key === key).reduce((a, i) => a + Number(i.qty || 0), 0), 0); }
 function statusLabel(st) { const m = { draft: ['Draft', 'info'], printing: ['Printing', 'warning'], complete: ['Complete', 'ok'], cancelled: ['Cancelled', 'danger'] }; const x = m[st] || [st, 'info']; return badge(x[0], x[1]); }
-function fmtDate(v) { if (!v)
-    return '—'; try {
-    return new Date(v).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+function fmtDate(v) {
+    if (!v)
+        return '—';
+    try {
+        return new Date(v).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+    catch (e) {
+        return v;
+    }
 }
-catch (e) {
-    return v;
-} }
 function makeId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function cloudToken() { return localStorage.getItem('plaForgeCloudToken') || ''; }
-function setCloudToken(v) { if (v)
-    localStorage.setItem('plaForgeCloudToken', v);
-else
-    localStorage.removeItem('plaForgeCloudToken'); }
+function setCloudToken(v) {
+    if (v)
+        localStorage.setItem('plaForgeCloudToken', v);
+    else
+        localStorage.removeItem('plaForgeCloudToken');
+}
 const FORGE_API_URL = 'https://pla-forge-api.plapalsuk.workers.dev';
 function cloudApiBase() { return FORGE_API_URL; }
 async function cloudFetch(path, options = {}) {
@@ -548,10 +553,12 @@ function currentForgeUser() {
         return null;
     }
 }
-function setForgeUser(user) { if (user)
-    localStorage.setItem('plaForgeUser', JSON.stringify(user));
-else
-    localStorage.removeItem('plaForgeUser'); }
+function setForgeUser(user) {
+    if (user)
+        localStorage.setItem('plaForgeUser', JSON.stringify(user));
+    else
+        localStorage.removeItem('plaForgeUser');
+}
 async function forgeRequireLogin() {
     if (forgeCurrentPage() === 'login.html')
         return true;
@@ -807,14 +814,140 @@ async function inventory(type) {
     });
 }
 async function recipes() {
-    await syncCloudCoreState();
-    const ps = await load('products'), rs = await load('recipes'), q = document.querySelector('#q'), box = document.querySelector('#cards');
+    installForgeCloudSyncBadge();
+    const q = document.querySelector('#q');
+    const box = document.querySelector('#cards');
+    let ps = [];
+    let rs = [];
+    async function refresh() {
+        const core = await Promise.all([cloudFetch('/products'), cloudFetch('/recipes')]);
+        ps = core[0].products || [];
+        rs = (core[1].recipes || []).map(normaliseCloudRecipe);
+    }
+    try {
+        await refresh();
+        setForgeCloudSync('synced', 'Recipes synced');
+    }
+    catch (e) {
+        showCloudRequiredError(e.message);
+        setForgeCloudSync('error', e.message);
+        return;
+    }
+    function recipeRowsFor(sku) {
+        return rs.filter(r => r.sku === sku).sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+    }
+    function editorRow(r, i) {
+        return `<div class="recipe-edit-row" data-i="${i}">
+          <label><span>Filament</span><input data-k="filament" value="${esc(r.filament || '')}"></label>
+          <label><span>Parts / Colour Group</span><input data-k="parts" value="${esc(r.parts || '')}"></label>
+          <label><span>Grouped STL</span><input data-k="grouped_stl" value="${esc(r.grouped_stl || '')}"></label>
+          <label><span>Individual STL(s)</span><input data-k="separate_stls" value="${esc(r.separate_stls || '')}"></label>
+          <label class="recipe-small"><span>Parts</span><input class="number" type="number" min="1" data-k="part_count" value="${Number(r.part_count || 1)}"></label>
+          <label class="recipe-small"><span>Weight (g)</span><input class="number" type="number" min="0" step="0.01" data-k="weight_g" value="${Number(r.weight_g || 0)}"></label>
+          <button class="iconbtn recipeRemove" type="button" title="Remove row">×</button>
+        </div>`;
+    }
+    function openEditor(sku) {
+        const p = ps.find(x => x.sku === sku);
+        if (!p)
+            return;
+        const card = document.querySelector(`.recipe-card[data-sku="${sku}"]`);
+        if (!card)
+            return;
+        let draft = recipeRowsFor(sku).map(r => ({
+            id: r.id, filament: r.filament || '', parts: r.parts || '',
+            grouped_stl: r.grouped_stl || '', separate_stls: r.separate_stls || '',
+            part_count: Number(r.part_count || 1), weight_g: Number(r.weight_g || 0)
+        }));
+        if (!draft.length)
+            draft = [{ filament: '', parts: 'Body', grouped_stl: '', separate_stls: '', part_count: 1, weight_g: 0 }];
+        const host = card.querySelector('.recipeEditor');
+        function drawEditor() {
+            host.innerHTML = `<div class="recipe-editor-head"><strong>Edit ${esc(p.name)}</strong><span class="sku">${esc(sku)}</span></div>
+              <div class="recipe-edit-rows">${draft.map(editorRow).join('')}</div>
+              <div class="recipe-editor-actions">
+                <button class="btn ghost recipeAddRow" type="button">＋ Add Colour Group</button>
+                <button class="btn recipeSave" type="button">Save Recipe to Cloud</button>
+                <button class="btn ghost recipeCancel" type="button">Cancel</button>
+              </div>
+              <div class="small recipeSaveStatus"></div>`;
+            host.querySelectorAll('.recipe-edit-row').forEach((row, i) => {
+                row.querySelectorAll('[data-k]').forEach(el => el.oninput = () => {
+                    const k = el.dataset.k;
+                    draft[i][k] = ['part_count', 'weight_g'].includes(k) ? Number(el.value || 0) : el.value;
+                });
+                row.querySelector('.recipeRemove').onclick = () => {
+                    if (draft.length <= 1)
+                        return alert('A recipe must contain at least one colour group.');
+                    draft.splice(i, 1);
+                    drawEditor();
+                };
+            });
+            host.querySelector('.recipeAddRow').onclick = () => {
+                draft.push({ filament: '', parts: 'Body', grouped_stl: '', separate_stls: '', part_count: 1, weight_g: 0 });
+                drawEditor();
+            };
+            host.querySelector('.recipeCancel').onclick = () => { host.innerHTML = ''; };
+            host.querySelector('.recipeSave').onclick = async () => {
+                const status = host.querySelector('.recipeSaveStatus');
+                const btn = host.querySelector('.recipeSave');
+                btn.disabled = true;
+                status.textContent = 'Saving to cloud…';
+                try {
+                    await cloudFetch(`/recipes/${encodeURIComponent(sku)}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ recipes: draft })
+                    });
+                    await refresh();
+                    setForgeCloudSync('synced', 'Recipe saved');
+                    draw();
+                }
+                catch (e) {
+                    btn.disabled = false;
+                    status.textContent = 'Save failed: ' + (e.message || e);
+                    setForgeCloudSync('error', e.message || 'Recipe save failed');
+                }
+            };
+        }
+        drawEditor();
+    }
     function draw() {
-        const text = (q.value || '').toLowerCase(), filtered = ps.filter(p => p.type === 'pal' && `${p.sku} ${p.name} ${(p.filaments || []).join(' ')}`.toLowerCase().includes(text));
-        box.innerHTML = filtered.map(p => { const rr = rs.filter(r => r.sku === p.sku); return `<div class="card recipe-card"><h3>${esc(p.name)}</h3><span class="sku">${p.sku}</span><div class="small">${rr.length} colour group(s) · ${p.recipe_weight_g || 0}g total</div>${rr.map(r => `<div class="listitem" style="margin-top:9px"><div class="colour">${esc(r.filament)}</div><strong>${esc(r.parts)}</strong><div>${r.weight_g}g · ${r.part_count} part(s)</div><code>${esc(r.grouped_stl)}</code></div>`).join('') || '<div class="listitem" style="margin-top:9px">No recipe entered yet.</div>'}</div>`; }).join('');
+        const text = (q.value || '').toLowerCase();
+        const filtered = ps.filter(p => p.type === 'pal' && `${p.sku} ${p.name} ${(p.filaments || []).join(' ')}`.toLowerCase().includes(text));
+        box.innerHTML = filtered.map(p => {
+            const rr = recipeRowsFor(p.sku);
+            const total = rr.reduce((a, r) => a + Number(r.weight_g || 0), 0);
+            return `<div class="card recipe-card" data-sku="${esc(p.sku)}">
+              <div class="recipe-card-head"><div><h3>${esc(p.name)}</h3><span class="sku">${esc(p.sku)}</span></div><button class="btn ghost recipeEdit" data-sku="${esc(p.sku)}">Edit Recipe</button></div>
+              <div class="small">${rr.length} colour group(s) · ${total.toFixed(1)}g total</div>
+              ${rr.map(r => `<div class="listitem" style="margin-top:9px"><div class="colour">${esc(r.filament)}</div><strong>${esc(r.parts)}</strong><div>${Number(r.weight_g || 0)}g · ${Number(r.part_count || 1)} part(s)</div><code>${esc(r.grouped_stl || '')}</code>${r.separate_stls ? `<div class="small">Individual: ${esc(r.separate_stls)}</div>` : ''}</div>`).join('') || '<div class="listitem" style="margin-top:9px">No recipe entered yet.</div>'}
+              <div class="recipeEditor"></div>
+            </div>`;
+        }).join('') || '<div class="card">No matching Pals.</div>';
+        document.querySelectorAll('.recipeEdit').forEach(b => b.onclick = () => openEditor(b.dataset.sku));
     }
     q.oninput = draw;
     draw();
+    let stamp = JSON.stringify(rs.map(r => [r.id, r.sku, r.filament, r.parts, r.grouped_stl, r.separate_stls, r.weight_g, r.part_count]));
+    window.setInterval(async () => {
+        if (document.hidden || document.querySelector('.recipeEditor .recipe-edit-row'))
+            return;
+        try {
+            const d = await cloudFetch('/recipes');
+            const fresh = (d.recipes || []).map(normaliseCloudRecipe);
+            const next = JSON.stringify(fresh.map(r => [r.id, r.sku, r.filament, r.parts, r.grouped_stl, r.separate_stls, r.weight_g, r.part_count]));
+            if (next === stamp)
+                return;
+            rs = fresh;
+            stamp = next;
+            draw();
+            setForgeCloudSync('synced', 'Recipes updated live');
+        }
+        catch (e) {
+            setForgeCloudSync('error', e.message || 'Recipe sync failed');
+        }
+    }, 2000);
 }
 async function production() {
     installForgeCloudSyncBadge();
@@ -831,8 +964,11 @@ async function production() {
     let s = cloudOperationalState();
     function drawProduction() {
         const rows = [];
-        ps.filter(p => p.type === 'pal').forEach(p => { const n = manufacturingNeed(s, p.sku); if (n > 0)
-            rows.push({ p, n, groups: rs.filter(r => r.sku === p.sku) }); });
+        ps.filter(p => p.type === 'pal').forEach(p => {
+            const n = manufacturingNeed(s, p.sku);
+            if (n > 0)
+                rows.push({ p, n, groups: rs.filter(r => r.sku === p.sku) });
+        });
         rows.sort((a, b) => b.n - a.n);
         body.innerHTML = rows.map(x => `<tr><td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td><td>${x.n}</td><td>${x.groups.length}</td><td>${(x.groups.reduce((a, r) => a + r.weight_g, 0) * x.n).toFixed(1)}g</td><td>${x.groups.map(r => esc(r.filament)).join(', ')}</td></tr>`).join('') || '<tr><td colspan="5">No Pal manufacturing currently required.</td></tr>';
         const damage = document.querySelector('#damageProduction');
@@ -1273,8 +1409,12 @@ async function buildPlatePlanner() {
     function drawCurrent() {
         current.innerHTML = plateDraft.items.length ? plateDraft.items.map(i => `<div class="plate-line"><div><strong>${esc(i.product_name)}</strong><div class="small">${i.kind === 'group' ? 'Required print' : i.kind === 'extra' ? 'Extra grouped set' : 'Exact recovery part'} · ${esc(i.label)}</div><code>${esc(i.file)}</code></div><div class="plate-line-right"><input class="number lineqty" data-id="${i.id}" type="number" min="1" value="${i.qty}"><span>${(Number(i.weight_each || 0) * Number(i.qty || 0)).toFixed(1)}g</span><button class="iconbtn removeitem" data-id="${i.id}">×</button></div></div>`).join('') : '<div class="empty-state">Add required, extra or exact parts from the checklist.</div>';
         document.querySelectorAll('.removeitem').forEach(b => b.onclick = () => { plateDraft.items = plateDraft.items.filter(i => i.id !== b.dataset.id); drawAll(); });
-        document.querySelectorAll('.lineqty').forEach(el => el.onchange = () => { const i = plateDraft.items.find(i => i.id === el.dataset.id); if (i)
-            i.qty = Math.max(1, Number(el.value || 1)); drawAll(); });
+        document.querySelectorAll('.lineqty').forEach(el => el.onchange = () => {
+            const i = plateDraft.items.find(i => i.id === el.dataset.id);
+            if (i)
+                i.qty = Math.max(1, Number(el.value || 1));
+            drawAll();
+        });
         const grams = plateDraft.items.reduce((a, i) => a + Number(i.weight_each || 0) * Number(i.qty || 0), 0);
         currentTotal.textContent = `${plateDraft.items.reduce((a, i) => a + Number(i.qty || 0), 0)} print set(s) · ${grams.toFixed(1)}g`;
     }
@@ -1290,19 +1430,35 @@ async function buildPlatePlanner() {
     function drawPlates() {
         const items = [...s.plates].filter(p => p.status === 'draft' || p.status === 'printing').sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
         platesList.innerHTML = items.length ? items.map(p => `<div class="saved-plate"><div class="saved-plate-main"><div><strong>${esc(p.code)} · ${esc(p.name || p.colour)}</strong><div class="small">${esc(p.colour)} · ${esc(printerLabel(p.printer))} · ${plateSummary(p)}</div></div><div>${statusLabel(p.status)}</div></div><div class="saved-plate-items">${(p.items || []).map(i => `<span>${esc(i.product_name)} ×${i.qty}</span>`).join('')}</div><div class="plate-actions">${p.status === 'draft' ? `<button class="btn secondary loadplate" data-id="${p.id}">Edit</button><button class="btn startplate" data-id="${p.id}">Start Print</button>` : ''}${p.status === 'printing' ? `<button class="btn completeplate" data-id="${p.id}">Complete Print</button>` : ''}${p.status !== 'complete' ? `<button class="btn ghost cancelplate" data-id="${p.id}">Cancel</button>` : ''}${p.status === 'complete' ? `<span class="small">Completed ${fmtDate(p.completed_at)}</span>` : ''}</div><div class="completion-panel" id="complete-${p.id}"></div></div>`).join('') : '<div class="empty-state">No saved build plates.</div>';
-        document.querySelectorAll('.loadplate').forEach(b => b.onclick = () => { const p = s.plates.find(x => x.id === b.dataset.id); if (!p)
-            return; plateDraft = JSON.parse(JSON.stringify(p)); s.plates = s.plates.filter(x => x.id !== p.id); save(s); colourEl.value = plateDraft.colour; printerEl.value = plateDraft.printer || ''; nameEl.value = plateDraft.name || ''; drawAll(); });
-        document.querySelectorAll('.startplate').forEach(b => b.onclick = async () => { const p = s.plates.find(x => x.id === b.dataset.id); if (p) {
-            p.status = 'printing';
-            p.started_at = new Date().toISOString();
-            await save(s);
+        document.querySelectorAll('.loadplate').forEach(b => b.onclick = () => {
+            const p = s.plates.find(x => x.id === b.dataset.id);
+            if (!p)
+                return;
+            plateDraft = JSON.parse(JSON.stringify(p));
+            s.plates = s.plates.filter(x => x.id !== p.id);
+            save(s);
+            colourEl.value = plateDraft.colour;
+            printerEl.value = plateDraft.printer || '';
+            nameEl.value = plateDraft.name || '';
             drawAll();
-        } });
-        document.querySelectorAll('.cancelplate').forEach(b => b.onclick = async () => { const p = s.plates.find(x => x.id === b.dataset.id); if (p) {
-            p.status = 'cancelled';
-            await save(s);
-            drawAll();
-        } });
+        });
+        document.querySelectorAll('.startplate').forEach(b => b.onclick = async () => {
+            const p = s.plates.find(x => x.id === b.dataset.id);
+            if (p) {
+                p.status = 'printing';
+                p.started_at = new Date().toISOString();
+                await save(s);
+                drawAll();
+            }
+        });
+        document.querySelectorAll('.cancelplate').forEach(b => b.onclick = async () => {
+            const p = s.plates.find(x => x.id === b.dataset.id);
+            if (p) {
+                p.status = 'cancelled';
+                await save(s);
+                drawAll();
+            }
+        });
         document.querySelectorAll('.completeplate').forEach(b => b.onclick = () => openCompletion(b.dataset.id));
     }
     function recipeForPlateItem(item) {
@@ -1474,13 +1630,11 @@ async function buildPlatePlanner() {
         s.plates = s.plates.filter(x => x.id !== p.id);
         try {
             await save(s);
-
             // Every item already carries the per-set calculated recipe weight.
             const usedG = (p.items || []).reduce((sum, item) => {
                 return sum + (Number(item.weight_each || 0) * Number(item.qty || 0));
             }, 0);
             const filamentName = String(p.colour || ((p.items || [])[0] || {}).filament || '').trim();
-
             if (usedG > 0 && filamentName) {
                 await cloudFetch('/filaments/consume-plate', {
                     method: 'POST',
@@ -1492,15 +1646,16 @@ async function buildPlatePlanner() {
                     })
                 });
             }
-
             drawAll();
-        } catch (e) {
+        }
+        catch (e) {
             alert('Print completion could not be fully saved to Cloudflare: ' + (e.message || e));
             try {
                 const fresh = await hydrateProductionCloud(true);
                 Object.keys(s).forEach(k => delete s[k]);
                 Object.assign(s, fresh);
-            } catch (_) {}
+            }
+            catch (_) { }
             drawAll();
         }
     }
@@ -1652,8 +1807,10 @@ async function settingsPage() {
         if (!msg)
             return;
         msg.innerHTML = badge(text, kind);
-        setTimeout(() => { if (msg)
-            msg.innerHTML = ''; }, 2400);
+        setTimeout(() => {
+            if (msg)
+                msg.innerHTML = '';
+        }, 2400);
     }
     function nextPrinterId() {
         let n = 1;
@@ -1714,8 +1871,10 @@ async function settingsPage() {
         if (!s.siteSettings.defaultPrinter)
             s.siteSettings.defaultPrinter = printer.id;
         save(s);
-        [name, model, nozzle, buildX, buildY, buildZ].forEach(el => { if (el)
-            el.value = ''; });
+        [name, model, nozzle, buildX, buildY, buildZ].forEach(el => {
+            if (el)
+                el.value = '';
+        });
         render();
         flash(`${printer.name} added`, 'ok');
     });
@@ -2519,13 +2678,16 @@ function code128BSvg(text) {
     vals.push(checksum % 103, 106);
     const quiet = 10, module = 1, total = vals.reduce((a, v) => a + [...patterns[v]].reduce((s, n) => s + Number(n), 0), 0) + quiet * 2;
     let x = quiet, bars = "";
-    vals.forEach(v => { let black = true; for (const d of patterns[v]) {
-        const w = Number(d);
-        if (black)
-            bars += `<rect x="${x}" y="0" width="${w}" height="30"/>`;
-        x += w;
-        black = !black;
-    } });
+    vals.forEach(v => {
+        let black = true;
+        for (const d of patterns[v]) {
+            const w = Number(d);
+            if (black)
+                bars += `<rect x="${x}" y="0" width="${w}" height="30"/>`;
+            x += w;
+            black = !black;
+        }
+    });
     return `<svg class="barcode-svg" viewBox="0 0 ${total} 30" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
 }
 function getBarcodePrinterName() {
@@ -2602,12 +2764,20 @@ async function packingStationPage() {
     function ins(sku) { var _a, _b; return Number(((_b = (_a = s.inserts) === null || _a === void 0 ? void 0 : _a[sku]) === null || _b === void 0 ? void 0 : _b.ready) || 0); }
     function cs(k) { var _a, _b; return Number(((_b = (_a = s.consumables) === null || _a === void 0 ? void 0 : _a[k]) === null || _b === void 0 ? void 0 : _b.stock) || 0); }
     function maxBatch(p) { return Math.max(0, Math.min(assembled(p.sku), ins(p.sku), cs('clear_boxes'), cs('bottom_cards'), cs('stickers'))); }
-    function blockers(p) { const b = []; if (assembled(p.sku) <= 0)
-        b.push('Awaiting assembled Pal'); if (ins(p.sku) <= 0)
-        b.push('Awaiting ready insert'); if (cs('clear_boxes') <= 0)
-        b.push('Need clear boxes'); if (cs('bottom_cards') <= 0)
-        b.push('Need bottom card squares'); if (cs('stickers') <= 0)
-        b.push('Need stickers'); return b; }
+    function blockers(p) {
+        const b = [];
+        if (assembled(p.sku) <= 0)
+            b.push('Awaiting assembled Pal');
+        if (ins(p.sku) <= 0)
+            b.push('Awaiting ready insert');
+        if (cs('clear_boxes') <= 0)
+            b.push('Need clear boxes');
+        if (cs('bottom_cards') <= 0)
+            b.push('Need bottom card squares');
+        if (cs('stickers') <= 0)
+            b.push('Need stickers');
+        return b;
+    }
     function stockStrip(p) { return `<div class="packing-checks"><span class="${assembled(p.sku) > 0 ? 'stock-good' : 'stock-bad'}">${assembled(p.sku)} Assembled</span><span class="${ins(p.sku) > 0 ? 'stock-good' : 'stock-bad'}">${ins(p.sku)} Inserts</span><span>${cs('clear_boxes')} Clear Boxes</span><span>${cs('bottom_cards')} Bottom Cards</span><span>${cs('stickers')} Stickers</span></div>`; }
     const steps = ['Fold Clear Boxes', 'Fold Printed Inserts', 'Place Bottom Cards', 'Place Stickers', 'Put Printed Inserts In', 'Place Pals', 'Close Boxes', 'Print & Apply Barcodes'];
     function reworkRequirements(job) {
@@ -4081,10 +4251,14 @@ async function cloudMigrationPanel() {
     function apiBase() {
         return String(apiInput.value || '').trim().replace(/\/+$/, '');
     }
-    function setSummary(html) { if (summaryEl)
-        summaryEl.innerHTML = html; }
-    function setHealth(text, cls = 'info') { if (healthEl)
-        healthEl.innerHTML = badge(text, cls); }
+    function setSummary(html) {
+        if (summaryEl)
+            summaryEl.innerHTML = html;
+    }
+    function setHealth(text, cls = 'info') {
+        if (healthEl)
+            healthEl.innerHTML = badge(text, cls);
+    }
     async function localPayload() {
         const products = await load('products');
         const recipes = await load('recipes');
@@ -4283,8 +4457,10 @@ async function forgeLoginPage() {
             btn.disabled = false;
         }
     };
-    pass.addEventListener('keydown', e => { if (e.key === 'Enter')
-        btn.click(); });
+    pass.addEventListener('keydown', e => {
+        if (e.key === 'Enter')
+            btn.click();
+    });
 }
 async function employeeAdminPage() {
     const user = currentForgeUser();
@@ -4311,8 +4487,13 @@ async function employeeAdminPage() {
         host.querySelector('#addEmployee').onclick = () => showCreate();
         host.querySelectorAll('.empRole').forEach(el => el.onchange = async () => { await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: el.value }) }); await loadUsers(); });
         host.querySelectorAll('.empActive input').forEach(el => el.onchange = async () => { await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: el.checked }) }); await loadUsers(); });
-        host.querySelectorAll('.resetEmpPassword').forEach(el => el.onclick = async () => { const pw = prompt('Enter a new password (minimum 8 characters):'); if (!pw)
-            return; await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) }); alert('Password updated.'); });
+        host.querySelectorAll('.resetEmpPassword').forEach(el => el.onclick = async () => {
+            const pw = prompt('Enter a new password (minimum 8 characters):');
+            if (!pw)
+                return;
+            await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+            alert('Password updated.');
+        });
     }
     function showCreate() {
         const name = prompt('Employee name:');
