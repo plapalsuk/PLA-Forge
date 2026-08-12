@@ -1470,3 +1470,30 @@ Cloud recipes and cloud product records remain authoritative for operational dat
 - Barcode/label printer selection is stored in `forge_settings`.
 - Settings and printer pages live-refresh across open devices.
 - These settings no longer use local browser state for operational configuration.
+
+
+## v0.16.0 — Complete Settings Cloud Integration
+
+The full Settings section is now cloud-authoritative.
+
+### General / Printers
+- D1-backed printer register, default printer and default location.
+- Build Plates now hydrate the shared printer register and defaults directly from `/settings`.
+
+### Labels & Printing
+- Pal barcode label printer and size are stored in `forge_settings`.
+- Filament/RFID spool label printer and size are stored in `forge_settings`.
+- Live updates across open devices.
+
+### Employees
+- User creation, roles, activation and password resets remain Cloudflare-backed.
+- Employees page now live-refreshes and uses an inline creation form.
+
+### System & Data
+- Reset is now a Worker/D1 operation, not a localStorage reset.
+- Requires Admin role plus the exact confirmation phrase `RESET FORGE`.
+- Preserves products, recipes, users, printers, settings and master definitions.
+- Resets production workflow, plates/history, targets, finished/assembled/insert stock,
+  filament stock/history and consumable stock/history for every device.
+
+No new D1 tables are required for v0.16.0.

@@ -203,12 +203,13 @@ async function hydrateProductionCloud(force = false) {
         throw new Error('Cloud login required.');
     setForgeCloudSync('syncing', 'Loading live state from Cloudflare D1');
     try {
-        const [st, bp, targetData, availabilityData, consumableData] = await Promise.all([
+        const [st, bp, targetData, availabilityData, consumableData, settingsData] = await Promise.all([
             cloudFetch('/production/state'),
             cloudFetch('/build-plates'),
             cloudFetch('/targets'),
             cloudAvailability(),
-            cloudConsumables()
+            cloudConsumables(),
+            cloudFetch('/settings')
         ]);
         const s = emptyCloudWorkingState();
         const cloudState = (st === null || st === void 0 ? void 0 : st.state) || {};
@@ -227,6 +228,16 @@ async function hydrateProductionCloud(force = false) {
         applyCloudAvailability(s, availabilityData);
         // Consumables are also authoritative from D1.
         applyCloudConsumables(s, consumableData);
+        // Shared settings are authoritative from D1 too.
+        s.printers = (settingsData.printers || []).map(p => Object.assign({}, p));
+        s.siteSettings = Object.assign({}, s.siteSettings || {}, {
+            defaultPrinter: String((settingsData.settings || {}).default_printer || ''),
+            defaultLocation: String((settingsData.settings || {}).default_location || 'boat')
+        });
+        s.printerRoles = Object.assign({}, s.printerRoles || {}, {
+            barcode: String((settingsData.settings || {}).barcode_printer || ''),
+            filament_label: String((settingsData.settings || {}).filament_label_printer || '')
+        });
         s.plates = ((bp === null || bp === void 0 ? void 0 : bp.plates) || []).map(p => ({
             id: p.id, code: p.code, name: p.name || '', colour: p.colour || '', printer: p.printer || '',
             status: p.status || 'draft', items: p.items || [], created_at: p.created_at,
@@ -1846,8 +1857,10 @@ async function settingsPage() {
         if (!msg)
             return;
         msg.innerHTML = badge(text, kind);
-        setTimeout(() => { if (msg)
-            msg.innerHTML = ''; }, 2200);
+        setTimeout(() => {
+            if (msg)
+                msg.innerHTML = '';
+        }, 2200);
     }
     function render() {
         const printers = data.printers || [];
@@ -1927,8 +1940,10 @@ async function settingsPage() {
                     build_z: Number((buildZ === null || buildZ === void 0 ? void 0 : buildZ.value) || 0)
                 })
             });
-            [name, model].forEach(el => { if (el)
-                el.value = ''; });
+            [name, model].forEach(el => {
+                if (el)
+                    el.value = '';
+            });
             if (nozzle)
                 nozzle.value = '0.4mm';
             if (buildX)
@@ -2538,41 +2553,111 @@ async function barcodePrinterSettings() {
     const host = document.querySelector('#barcodePrinterSettings');
     if (!host)
         return;
-    async function draw() {
-        const data = await cloudFetch('/settings');
+    let data;
+    async function refresh() {
+        data = await cloudFetch('/settings');
+        return data;
+    }
+    function printerOptions(current) {
         const printers = (data.printers || []).filter(p => p.active !== false);
-        const current = String((data.settings || {}).barcode_printer || '');
-        host.innerHTML = `<div class="card"><div class="section-title"><div><h2>Barcode / Label Printer</h2><div class="small">Used for the 50 × 30 mm Pal barcode label at Packing Station step 8.</div></div><span class="badge info">50 × 30 mm</span></div>
-        <div class="printer-role-row"><label><span>Label Printer</span><select id="barcodePrinterSelect"><option value="">Choose printer…</option>${printers.map(p => `<option value="${esc(p.id)}" ${current === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="__manual" ${current && !printers.some(p => p.id === current) ? 'selected' : ''}>Other / Manual…</option></select></label>
-        <label id="barcodeManualWrap" style="${current && !printers.some(p => p.id === current) ? '' : 'display:none'}"><span>Printer Name</span><input id="barcodePrinterManual" value="${current && !printers.some(p => p.id === current) ? esc(current) : ''}" placeholder="e.g. Zebra / Brother Label Printer"></label>
-        <button class="btn" id="saveBarcodePrinter">Save Barcode Printer</button></div>
-        <div class="small" style="margin-top:8px">Browsers cannot silently choose a physical printer. Forge remembers the intended printer; select it in the system print dialog.</div></div>`;
-        const sel = document.querySelector('#barcodePrinterSelect');
-        const mw = document.querySelector('#barcodeManualWrap');
-        sel.onchange = () => mw.style.display = sel.value === '__manual' ? '' : 'none';
-        document.querySelector('#saveBarcodePrinter').onclick = async () => {
-            const val = sel.value === '__manual' ? document.querySelector('#barcodePrinterManual').value.trim() : sel.value;
+        return '<option value="">Choose printer…</option>' +
+            printers.map(p => `<option value="${esc(p.id)}" ${current === p.id ? 'selected' : ''}>${esc(p.name)}${p.model ? ` · ${esc(p.model)}` : ''}</option>`).join('') +
+            `<option value="__manual" ${current && !printers.some(p => p.id === current) ? 'selected' : ''}>Other / Manual…</option>`;
+    }
+    function printerControl(key, title, help, defaultW, defaultH) {
+        const settings = data.settings || {};
+        const current = String(settings[key + '_printer'] || '');
+        const width = Number(settings[key + '_width_mm'] || defaultW);
+        const height = Number(settings[key + '_height_mm'] || defaultH);
+        const printers = (data.printers || []).filter(p => p.active !== false);
+        const manual = current && !printers.some(p => p.id === current);
+        return `<div class="card label-setting-card">
+          <div class="section-title"><div><h2>${esc(title)}</h2><div class="small">${esc(help)}</div></div><span class="badge info">${width} × ${height} mm</span></div>
+          <div class="label-settings-grid">
+            <label><span>Printer</span><select class="labelPrinterSelect" data-key="${key}">${printerOptions(current)}</select></label>
+            <label class="labelManualWrap" data-key="${key}" style="${manual ? '' : 'display:none'}"><span>Manual Printer Name</span><input class="labelManual" data-key="${key}" value="${manual ? esc(current) : ''}"></label>
+            <label><span>Width (mm)</span><input class="number labelWidth" data-key="${key}" type="number" min="10" step="1" value="${width}"></label>
+            <label><span>Height (mm)</span><input class="number labelHeight" data-key="${key}" type="number" min="10" step="1" value="${height}"></label>
+            <button class="btn saveLabelSetting" data-key="${key}">Save to Cloud</button>
+          </div>
+        </div>`;
+    }
+    function bind() {
+        host.querySelectorAll('.labelPrinterSelect').forEach(sel => {
+            sel.onchange = () => {
+                const key = sel.dataset.key;
+                const wrap = host.querySelector(`.labelManualWrap[data-key="${key}"]`);
+                if (wrap)
+                    wrap.style.display = sel.value === '__manual' ? '' : 'none';
+            };
+        });
+        host.querySelectorAll('.saveLabelSetting').forEach(btn => btn.onclick = async () => {
+            const key = btn.dataset.key;
+            const sel = host.querySelector(`.labelPrinterSelect[data-key="${key}"]`);
+            const manual = host.querySelector(`.labelManual[data-key="${key}"]`);
+            const width = host.querySelector(`.labelWidth[data-key="${key}"]`);
+            const height = host.querySelector(`.labelHeight[data-key="${key}"]`);
+            const printer = sel.value === '__manual' ? String((manual === null || manual === void 0 ? void 0 : manual.value) || '').trim() : sel.value;
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
             try {
-                await cloudFetch('/settings/barcode_printer', {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ value: val })
-                });
-                alert(val ? 'Barcode printer saved to cloud.' : 'Barcode printer selection cleared.');
-                await draw();
+                await Promise.all([
+                    cloudFetch(`/settings/${encodeURIComponent(key + '_printer')}`, {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: printer })
+                    }),
+                    cloudFetch(`/settings/${encodeURIComponent(key + '_width_mm')}`, {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: Number(width.value || 0) })
+                    }),
+                    cloudFetch(`/settings/${encodeURIComponent(key + '_height_mm')}`, {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: Number(height.value || 0) })
+                    })
+                ]);
+                await refresh();
+                render();
+                setForgeCloudSync('synced', 'Label settings saved');
             }
             catch (e) {
-                alert('Barcode printer was not saved: ' + e.message);
+                alert('Label settings were not saved: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = 'Save to Cloud';
             }
-        };
+        });
+    }
+    function render() {
+        host.innerHTML =
+            printerControl('barcode', 'Pal Barcode Label', 'Used at Packing Station for the Pal barcode label.', 50, 30) +
+                printerControl('filament_label', 'Filament / RFID Spool Label', 'Reserved for the filament intake and RFID workflow.', 50, 30) +
+                `<div class="card" style="margin-top:14px"><strong>Browser printing</strong><div class="small" style="margin-top:5px">PLA Forge stores the intended printer and label size in Cloudflare. The browser still requires the physical printer to be selected in the operating-system print dialog.</div></div>`;
+        bind();
     }
     try {
-        await draw();
+        await refresh();
+        render();
         setForgeCloudSync('synced', 'Label settings synced');
     }
     catch (e) {
         showCloudRequiredError(e.message);
         setForgeCloudSync('error', e.message);
+        return;
     }
+    let stamp = JSON.stringify(data);
+    window.setInterval(async () => {
+        if (document.hidden)
+            return;
+        try {
+            const fresh = await cloudFetch('/settings');
+            const next = JSON.stringify(fresh);
+            if (next === stamp)
+                return;
+            data = fresh;
+            stamp = next;
+            render();
+            setForgeCloudSync('synced', 'Label settings updated live');
+        }
+        catch (e) {
+            setForgeCloudSync('error', e.message || 'Label settings sync failed');
+        }
+    }, 2000);
 }
 function addForgeInventory(s, sku, loc, qty) {
     qty = Number(qty || 0);
@@ -3295,33 +3380,42 @@ async function deliveriesPage() {
         }
     }, 2000);
 }
-function resetForgeData() {
-    if (!confirm('Reset Forge operational data to zero? Your cloud catalogue, recipes, employee accounts, permissions and master configuration will be kept.'))
+async function resetForgeData() {
+    const user = currentForgeUser();
+    if (!user || user.role !== 'admin')
+        return alert('Only an Admin can reset PLA Forge operational data.');
+    if (!confirm('Reset ALL operational workflow and stock data in Cloudflare D1? Products, recipes, users, printers and settings will be kept.'))
         return;
-    if (!confirm('This will permanently clear LOCAL production queues, build plates, print history, parts, assembly, inserts, packing, dispatch, rework, stock counts and consumable quantities on this browser. Continue?'))
+    const phrase = prompt('This affects every PLA Forge device. Type RESET FORGE exactly to continue:');
+    if (phrase !== 'RESET FORGE') {
+        if (phrase !== null)
+            alert('Reset cancelled — confirmation text did not match.');
         return;
-    const current = state();
-    const clean = blankOperationalState();
-    // Preserve local master/configuration data. Cloudflare D1 itself is never deleted by this reset.
-    clean.targets = current.targets || {};
-    clean.printers = current.printers || [];
-    clean.printerRoles = current.printerRoles || {};
-    clean.siteSettings = current.siteSettings || clean.siteSettings;
-    clean.productAvailability = current.productAvailability || {};
-    clean.customData = current.customData || clean.customData;
-    clean.shopifyProducts = current.shopifyProducts || {};
-    clean.cloudCore = current.cloudCore || current.cloudCore;
-    // Preserve consumable definitions/reorder levels, but zero physical stock.
-    if (current.consumables) {
-        clean.consumables = {};
-        Object.entries(current.consumables).forEach(([key, item]) => {
-            clean.consumables[key] = Object.assign(Object.assign({}, item), { stock: 0 });
-        });
     }
-    localStorage.setItem(STORE, JSON.stringify(clean));
-    localStorage.setItem('plaForgeLastReset', new Date().toISOString());
-    alert('Operational browser data has been reset to zero. Cloudflare D1, employee accounts, permissions and master data were not deleted.');
-    window.location.href = 'index.html';
+    const btn = document.querySelector('.resetForgeButton');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Resetting Cloud…';
+    }
+    try {
+        const result = await cloudFetch('/system/reset-operational', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmation: 'RESET FORGE' })
+        });
+        forgeCloudOperationalState = null;
+        forgeProductionCloudReady = false;
+        alert('PLA Forge operational data has been reset in Cloudflare D1 for all devices.');
+        location.href = 'index.html';
+        return result;
+    }
+    catch (e) {
+        alert('Cloud reset failed. Nothing should be assumed reset: ' + e.message);
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Reset Everything to Zero';
+        }
+    }
 }
 async function cloudReworkState() {
     if (!cloudToken())
@@ -4031,55 +4125,129 @@ async function forgeLoginPage() {
     });
 }
 async function employeeAdminPage() {
+    installForgeCloudSyncBadge();
     const user = currentForgeUser();
     if (!user || user.role !== 'admin')
         return;
     const host = document.querySelector('#employeeAdmin');
     if (!host)
         return;
-    async function loadUsers() {
+    let rows = [];
+    async function refresh() {
         const d = await cloudFetch('/users');
-        const rows = d.users || [];
-        host.innerHTML = `<div class="section-title"><div><h2>Employee Accounts</h2><div class="small">Create employees and control which parts of Forge they can access.</div></div><button class="btn" id="addEmployee">+ Add Employee</button></div>
-   <div class="employee-role-help">
-    <div><strong>Admin</strong><span>Everything, including employees and product availability.</span></div>
-    <div><strong>Packing</strong><span>Packing Station only.</span></div>
-    <div><strong>Retail Staff</strong><span>Awaiting Cornwall Delivery plus Cornwall Box and Insert rework.</span></div>
-   </div>
-   <div class="employee-list">${rows.map(x => `<div class="employee-row">
-      <div><strong>${esc(x.name || x.email)}</strong><div class="small">${esc(x.email)}</div></div>
-      <select class="empRole" data-id="${x.id}"><option value="admin" ${x.role === 'admin' ? 'selected' : ''}>Admin</option><option value="packing" ${x.role === 'packing' ? 'selected' : ''}>Packing</option><option value="retail_staff" ${x.role === 'retail_staff' ? 'selected' : ''}>Retail Staff</option></select>
-      <label class="empActive"><input type="checkbox" data-id="${x.id}" ${Number(x.active) === 1 ? 'checked' : ''}> Active</label>
-      <button class="btn ghost resetEmpPassword" data-id="${x.id}">Reset Password</button>
-   </div>`).join('')}</div>`;
-        host.querySelector('#addEmployee').onclick = () => showCreate();
-        host.querySelectorAll('.empRole').forEach(el => el.onchange = async () => { await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: el.value }) }); await loadUsers(); });
-        host.querySelectorAll('.empActive input').forEach(el => el.onchange = async () => { await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: el.checked }) }); await loadUsers(); });
+        rows = d.users || [];
+    }
+    function render() {
+        host.innerHTML = `<div class="section-title"><div><h2>Employee Accounts</h2><div class="small">All accounts and permissions are stored in Cloudflare.</div></div><span class="badge info">Cloud Users</span></div>
+        <div class="employee-create-card">
+          <h3>Add Employee</h3>
+          <div class="employee-create-grid">
+            <label><span>Name</span><input id="newEmpName"></label>
+            <label><span>Email</span><input id="newEmpEmail" type="email"></label>
+            <label><span>Temporary Password</span><input id="newEmpPassword" type="password" minlength="8"></label>
+            <label><span>Role</span><select id="newEmpRole"><option value="packing">Packing</option><option value="retail_staff">Retail Staff</option><option value="admin">Admin</option></select></label>
+            <button class="btn" id="addEmployee">+ Add Employee</button>
+          </div>
+        </div>
+        <div class="employee-role-help">
+          <div><strong>Admin</strong><span>Full PLA Forge access and administration.</span></div>
+          <div><strong>Packing</strong><span>Packing Station only.</span></div>
+          <div><strong>Retail Staff</strong><span>Dispatch/Cornwall delivery and authorised rework tools.</span></div>
+        </div>
+        <div class="employee-list">${rows.map(x => `<div class="employee-row">
+          <div><strong>${esc(x.name || x.email)}</strong><div class="small">${esc(x.email)}</div></div>
+          <select class="empRole" data-id="${esc(x.id)}"><option value="admin" ${x.role === 'admin' ? 'selected' : ''}>Admin</option><option value="packing" ${x.role === 'packing' ? 'selected' : ''}>Packing</option><option value="retail_staff" ${x.role === 'retail_staff' ? 'selected' : ''}>Retail Staff</option></select>
+          <label class="empActive"><input type="checkbox" data-id="${esc(x.id)}" ${Number(x.active) === 1 ? 'checked' : ''}> Active</label>
+          <button class="btn ghost resetEmpPassword" data-id="${esc(x.id)}">Reset Password</button>
+        </div>`).join('')}</div>`;
+        host.querySelector('#addEmployee').onclick = async () => {
+            const name = host.querySelector('#newEmpName').value.trim();
+            const email = host.querySelector('#newEmpEmail').value.trim();
+            const password = host.querySelector('#newEmpPassword').value;
+            const role = host.querySelector('#newEmpRole').value;
+            if (!name || !email || password.length < 8)
+                return alert('Enter a name, email and a temporary password of at least 8 characters.');
+            const btn = host.querySelector('#addEmployee');
+            btn.disabled = true;
+            try {
+                await cloudFetch('/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password, role }) });
+                await refresh();
+                render();
+                setForgeCloudSync('synced', 'Employee created');
+            }
+            catch (e) {
+                alert(e.message);
+                btn.disabled = false;
+            }
+        };
+        host.querySelectorAll('.empRole').forEach(el => el.onchange = async () => {
+            try {
+                await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: el.value }) });
+                await refresh();
+                render();
+            }
+            catch (e) {
+                alert(e.message);
+                await refresh();
+                render();
+            }
+        });
+        host.querySelectorAll('.empActive input').forEach(el => el.onchange = async () => {
+            try {
+                await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: el.checked }) });
+                await refresh();
+                render();
+            }
+            catch (e) {
+                alert(e.message);
+                await refresh();
+                render();
+            }
+        });
         host.querySelectorAll('.resetEmpPassword').forEach(el => el.onclick = async () => {
             const pw = prompt('Enter a new password (minimum 8 characters):');
             if (!pw)
                 return;
-            await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
-            alert('Password updated.');
+            if (pw.length < 8)
+                return alert('Password must be at least 8 characters.');
+            try {
+                await cloudFetch('/users/' + encodeURIComponent(el.dataset.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+                alert('Password updated in Cloudflare.');
+            }
+            catch (e) {
+                alert(e.message);
+            }
         });
     }
-    function showCreate() {
-        const name = prompt('Employee name:');
-        if (name === null)
-            return;
-        const email = prompt('Employee email:');
-        if (!email)
-            return;
-        const password = prompt('Temporary password (minimum 8 characters):');
-        if (!password)
-            return;
-        const role = prompt('Role: admin, packing or retail_staff', 'packing');
-        if (!role)
-            return;
-        cloudFetch('/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password, role }) })
-            .then(loadUsers).catch(e => alert(e.message));
+    try {
+        await refresh();
+        render();
+        setForgeCloudSync('synced', 'Employees synced');
     }
-    await loadUsers();
+    catch (e) {
+        showCloudRequiredError(e.message);
+        setForgeCloudSync('error', e.message);
+        return;
+    }
+    let stamp = JSON.stringify(rows.map(x => [x.id, x.name, x.email, x.role, x.active]));
+    window.setInterval(async () => {
+        if (document.hidden)
+            return;
+        try {
+            const d = await cloudFetch('/users');
+            const fresh = d.users || [];
+            const next = JSON.stringify(fresh.map(x => [x.id, x.name, x.email, x.role, x.active]));
+            if (next === stamp)
+                return;
+            rows = fresh;
+            stamp = next;
+            render();
+            setForgeCloudSync('synced', 'Employees updated live');
+        }
+        catch (e) {
+            setForgeCloudSync('error', e.message || 'Employee sync failed');
+        }
+    }, 2000);
 }
 async function generalSettingsPage() {
     installForgeCloudSyncBadge();
@@ -4095,8 +4263,10 @@ async function generalSettingsPage() {
         if (!msg)
             return;
         msg.innerHTML = badge(text, kind);
-        setTimeout(() => { if (msg)
-            msg.innerHTML = ''; }, 2200);
+        setTimeout(() => {
+            if (msg)
+                msg.innerHTML = '';
+        }, 2200);
     }
     function render() {
         const printers = (data.printers || []).filter(p => p.active !== false);
