@@ -1,6 +1,5 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Keyrings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0143"></head>
-<body class="forge-protected"><div class="app">
-<aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0143"></head>
+<body class="forge-protected"><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <nav class="nav">
   <div class="navgroup">Forge Control</div>
@@ -24,7 +23,19 @@
   <a href="settings-employees.html">♙ Employees</a>
   <a href="settings-system.html">! System &amp; Data</a>
  </nav>
-</aside>
-<main><div class="topbar"><div class="pageTitle"><h1>Keyrings</h1><div class="small">Set independent targets for Kitsune Boat and Kitsune Cornwall.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="toolbar"><input id="q" class="search" placeholder="Search SKU or product"></div><div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Product</th><th>Recipe</th><th>Boat Stock</th><th>Boat Target</th><th>Cornwall Stock</th><th>Cornwall Target</th><th>Need</th></tr></thead><tbody id="rows"></tbody></table></div><div class="footer-note">PLA Forge v0.14.4 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=0144"></script><script>forgeBoot(async function(){
-inventory('keyring')
-})</script></body></html>
+</aside><main><div class="topbar"><div class="pageTitle"><h1>System & Data</h1><div class="small">Administrative controls for PLA Forge.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Configure once. Use everywhere.</div></div></div></div><div class="card danger-zone-card" style="margin-top:14px">
+ <div class="section-title">
+  <div>
+   <h2>Reset PLA Forge Data</h2>
+   <div class="small">Clears all operational stock and workflow data and returns Forge to zero.</div>
+  </div>
+  <span class="badge danger">Danger Zone</span>
+ </div>
+ <div class="reset-data-row">
+  <div>
+   <strong>Reset all operational data</strong>
+   <div class="small">Products, recipes and production PDF mappings are not deleted. Stock, targets, WIP, assembly, consumables, packing and dispatch are reset.</div>
+  </div>
+  <button class="btn danger resetForgeButton" type="button" onclick="resetForgeData()">Reset Everything to Zero</button>
+ </div>
+</div><div class="footer-note">PLA Forge v0.14.4 · Manufacturing &amp; Inventory System</div></main></div><script src="assets/forge.js?v=0144"></script><script>forgeBoot(async function(){})</script></body></html>

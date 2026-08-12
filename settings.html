@@ -14,101 +14,19 @@
   <a href="filament.html">≋ Filament</a><a href="recipes.html">⌘ Recipes</a><a href="parts.html">◫ Printed Parts</a><a href="consumables.html">▤ Consumables</a>
   <div class="navgroup">Administration</div>
   <a href="new-pal.html">＋ New Pal Setup</a>
-  <a href="data-health.html">! Data Health</a><a href="settings.html">⚙ Settings</a>
+  <a href="data-health.html">! Data Health</a>
+  <div class="navgroup">Settings</div>
+  <a href="settings.html">⚙ General</a>
+  <a href="settings-printers.html">▱ Printers</a>
+  <a href="settings-availability.html">◉ Product Availability</a>
+  <a href="settings-labels.html">▤ Labels &amp; Printing</a>
+  <a href="settings-employees.html">♙ Employees</a>
+  <a href="settings-system.html">! System &amp; Data</a>
  </nav>
-</aside><main><div class="topbar"><div class="pageTitle"><h1>Settings</h1><div class="small">Site-wide configuration for PLA Forge.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Configure once. Use everywhere.</div></div></div></div>
-<div class="printer-help"><strong>Printers are shared settings for PLA Forge.</strong><div class="small">Add each physical printer once here. The Build Plate Planner will then use this list automatically.</div></div><div class="settings-grid">
-  <div class="card">
-    <div class="section-title"><h2>Printers</h2><span class="small">Site-wide printer register</span></div>
-    <div class="settings-form">
-      <div><label class="small">Printer name</label><input id="printerName" placeholder="e.g. P1S #1"></div>
-      <div><label class="small">Model</label><input id="printerModel" placeholder="e.g. Bambu Lab P1S"></div>
-      <div><label class="small">Nozzle</label><input id="printerNozzle" placeholder="0.4mm" value="0.4mm"></div>
-      <div><label class="small">Build X (mm)</label><input id="printerBuildX" type="number" placeholder="256" value="256"></div>
-      <div><label class="small">Build Y (mm)</label><input id="printerBuildY" type="number" placeholder="256" value="256"></div>
-      <div><label class="small">Build Z (mm)</label><input id="printerBuildZ" type="number" placeholder="256" value="256"></div>
-      <div class="wide"><button type="button" class="btn" id="addPrinter">Add Printer</button><div id="settingsMessage" class="settings-message"></div></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="section-title"><h2>Defaults</h2><span class="small">Used across PLA Forge</span></div>
-    <label class="small">Default printer</label>
-    <select id="defaultPrinter" class="select" style="width:100%;margin-top:6px"></select>
-    <div class="listitem" style="margin-top:14px">
-      <strong>Future settings</strong>
-      <span class="muted">Locations, filament defaults, packaging levels, Shopify connection and user permissions will live here too.</span>
-    </div>
-  </div>
-</div>
-
-<div class="card" style="padding:0;overflow:auto;margin-top:14px">
-  <table>
-    <thead><tr><th>Printer</th><th>Model</th><th>Nozzle</th><th>Build Volume</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody id="printerRows"></tbody>
-  </table>
-</div>
-
-<div class="card settings-availability" style="margin-top:14px">
-  <div class="section-title">
-    <div>
-      <h2>Product Availability</h2>
-      <div class="small">Choose which Pals are currently on sale and should participate in production planning.</div>
-    </div>
-    <span class="badge ok">Release Control</span>
-  </div>
-
-  <div class="grid kpis bench-kpis settings-availability-kpis">
-    <div class="card kpi nested-kpi">
-      <div class="label">On Sale</div>
-      <div class="value accent" id="settingsOnSaleKpi">0</div>
-      <div class="small">active released Pals</div>
-    </div>
-    <div class="card kpi nested-kpi">
-      <div class="label">Future Releases</div>
-      <div class="value" id="settingsFutureKpi">0</div>
-      <div class="small">release date set</div>
-    </div>
-    <div class="card kpi nested-kpi">
-      <div class="label">Not On Sale</div>
-      <div class="value" id="settingsOffSaleKpi">0</div>
-      <div class="small">excluded from production</div>
-    </div>
-  </div>
-
-  <div class="toolbar availability-toolbar">
-    <input id="settingsAvailabilitySearch" class="search" placeholder="Search Pal or SKU">
-    <select id="settingsAvailabilityFilter">
-      <option value="all">All Pals</option>
-      <option value="sale">On Sale</option>
-      <option value="future">Future Releases</option>
-      <option value="off">Not On Sale</option>
-    </select>
-  </div>
-
-  <div id="settingsAvailabilityList" class="availability-list"></div>
-</div>
-
-<div id="barcodePrinterSettings" style="margin-top:14px"></div>
-<div class="card danger-zone-card" style="margin-top:14px">
- <div class="section-title">
-  <div>
-   <h2>Reset PLA Forge Data</h2>
-   <div class="small">Clears all operational stock and workflow data and returns Forge to zero.</div>
-  </div>
-  <span class="badge danger">Danger Zone</span>
- </div>
- <div class="reset-data-row">
-  <div>
-   <strong>Reset all operational data</strong>
-   <div class="small">Products, recipes and production PDF mappings are not deleted. Stock, targets, WIP, assembly, consumables, packing and dispatch are reset.</div>
-  </div>
-  <button class="btn danger resetForgeButton" type="button" onclick="resetForgeData()">Reset Everything to Zero</button>
- </div>
-</div>
-
-<div class="card" id="employeeAdmin" style="margin-top:14px"></div><div class="footer-note">PLA Forge v0.14.3 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=0143"></script><script>forgeBoot(async function(){
-settingsPage(); settingsAvailabilityPage();
-barcodePrinterSettings()
-employeeAdminPage()
-})</script></body></html>
+</aside><main><div class="topbar"><div class="pageTitle"><h1>General Settings</h1><div class="small">Site-wide defaults and configuration for PLA Forge.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Configure once. Use everywhere.</div></div></div></div><div class="card"><div class="section-title"><div><h2>Defaults</h2><div class="small">Used across PLA Forge.</div></div><span class="badge info">General</span></div><label class="small">Default printer</label><select id="defaultPrinter" class="select" style="width:100%;margin-top:6px"></select><div id="settingsMessage" class="settings-message"></div></div>
+<div class="settings-hub-grid">
+<a class="card settings-hub-link" href="settings-printers.html"><strong>▱ Printers</strong><span class="small">Manage the physical printer register.</span></a>
+<a class="card settings-hub-link" href="settings-availability.html"><strong>◉ Product Availability</strong><span class="small">Control releases and production eligibility.</span></a>
+<a class="card settings-hub-link" href="settings-labels.html"><strong>▤ Labels &amp; Printing</strong><span class="small">Barcode and label printing settings.</span></a>
+<a class="card settings-hub-link" href="settings-employees.html"><strong>♙ Employees</strong><span class="small">Manage Forge users and permissions.</span></a>
+<a class="card settings-hub-link" href="settings-system.html"><strong>! System &amp; Data</strong><span class="small">Administrative and reset controls.</span></a></div><div class="footer-note">PLA Forge v0.14.4 · Manufacturing &amp; Inventory System</div></main></div><script src="assets/forge.js?v=0144"></script><script>forgeBoot(async function(){generalSettingsPage();})</script></body></html>

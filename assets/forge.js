@@ -4552,6 +4552,16 @@ async function employeeAdminPage() {
     }
     await loadUsers();
 }
+
+function generalSettingsPage(){
+    const s=state();
+    const el=document.getElementById('defaultPrinter');
+    if(!el) return;
+    const printers=(s.printers||[]).filter(p=>p.active!==false);
+    el.innerHTML='<option value="">No default</option>'+printers.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.model?` · ${esc(p.model)}`:''}</option>`).join('');
+    el.value=(s.siteSettings&&s.siteSettings.defaultPrinter)||'';
+    el.onchange=()=>{s.siteSettings=s.siteSettings||{};s.siteSettings.defaultPrinter=el.value;save(s);};
+}
 (function () {
     const page = (location.pathname.split('/').pop() || 'index.html').replace('.html', '').replace(/[^a-z0-9_-]/gi, '-');
     document.body.classList.add('forge-page-' + page);

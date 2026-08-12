@@ -2414,3 +2414,19 @@ body.forge-protected:not(.forge-auth-ready)::after{
  .recipe-edit-row{grid-template-columns:1fr}
  .recipe-editor-actions .btn{width:100%}
 }
+
+/* v0.14.4 Settings section */
+.settings-hub-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.settings-hub-link{display:flex;flex-direction:column;gap:7px;text-decoration:none;color:inherit;transition:border-color .15s ease,transform .15s ease}.settings-hub-link:hover{border-color:var(--accent);transform:translateY(-1px)}.settings-hub-link strong{font-size:18px}body[data-settings-section="general"] .nav a[href="settings.html"],body[data-settings-section="printers"] .nav a[href="settings-printers.html"],body[data-settings-section="availability"] .nav a[href="settings-availability.html"],body[data-settings-section="labels"] .nav a[href="settings-labels.html"],body[data-settings-section="employees"] .nav a[href="settings-employees.html"],body[data-settings-section="system"] .nav a[href="settings-system.html"]{background:rgba(255,102,0,.09);color:var(--accent)}@media(max-width:700px){.settings-hub-grid{grid-template-columns:1fr}}
+
+/* v0.14.4 Settings section */
+.settings-hub-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.settings-hub-link{display:flex;flex-direction:column;gap:7px;text-decoration:none;color:inherit;transition:border-color .15s ease,transform .15s ease}
+.settings-hub-link:hover{border-color:var(--accent);transform:translateY(-1px)}
+.settings-hub-link strong{font-size:18px}
+body[data-settings-section="general"] .nav a[href="settings.html"],
+body[data-settings-section="printers"] .nav a[href="settings-printers.html"],
+body[data-settings-section="availability"] .nav a[href="settings-availability.html"],
+body[data-settings-section="labels"] .nav a[href="settings-labels.html"],
+body[data-settings-section="employees"] .nav a[href="settings-employees.html"],
+body[data-settings-section="system"] .nav a[href="settings-system.html"]{background:rgba(255,102,0,.09);color:var(--accent)}
+@media(max-width:700px){.settings-hub-grid{grid-template-columns:1fr}}
