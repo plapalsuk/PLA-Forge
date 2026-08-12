@@ -836,6 +836,26 @@ async function recipes() {
     function recipeRowsFor(sku) {
         return rs.filter(r => r.sku === sku).sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
     }
+    function productDisplayName(p, sku) {
+        const direct = [
+            p && p.name,
+            p && p.product_name,
+            p && p.title,
+            p && p.display_name,
+            p && p.product_title,
+            p && p.animal
+        ].map(v=>String(v||'').trim()).find(Boolean);
+        if(direct)return direct;
+
+        const rr = rs.find(r=>r.sku===sku);
+        const fromRecipe = [
+            rr && rr.product_name,
+            rr && rr.name,
+            rr && rr.animal
+        ].map(v=>String(v||'').trim()).find(Boolean);
+        return fromRecipe || sku;
+    }
+
     function editorRow(r, i) {
         return `<div class="recipe-edit-row" data-i="${i}">
           <label><span>Filament</span><input data-k="filament" value="${esc(r.filament || '')}"></label>
@@ -914,17 +934,17 @@ async function recipes() {
     }
     function draw() {
         const text = (q.value || '').toLowerCase();
-        const filtered = ps.filter(p => p.type === 'pal' && `${p.sku} ${p.name} ${(p.filaments || []).join(' ')}`.toLowerCase().includes(text));
+        const filtered = ps.filter(p => p.type === 'pal' && `${p.sku} ${productDisplayName(p,p.sku)} ${(p.filaments || []).join(' ')}`.toLowerCase().includes(text));
         const productSkus = new Set(filtered.map(p => String(p.sku || '')));
         const recipeOnlyProducts = [...new Set(rs.map(r => r.sku).filter(Boolean))]
             .filter(sku => !productSkus.has(String(sku)))
             .map(sku => ({ sku, name: (rs.find(r => r.sku === sku) || {}).name || sku, type: 'pal' }));
-        const displayProducts = [...filtered, ...recipeOnlyProducts.filter(p => `${p.sku} ${p.name}`.toLowerCase().includes(text))];
+        const displayProducts = [...filtered, ...recipeOnlyProducts.filter(p => `${p.sku} ${productDisplayName(p,p.sku)}`.toLowerCase().includes(text))];
         box.innerHTML = displayProducts.map(p => {
             const rr = recipeRowsFor(p.sku);
             const total = rr.reduce((a, r) => a + Number(r.weight_g || 0), 0);
             return `<div class="card recipe-card" data-sku="${esc(p.sku)}">
-              <div class="recipe-card-head"><div><h3>${esc(p.name)}</h3><span class="sku">${esc(p.sku)}</span></div><button class="btn ghost recipeEdit" data-sku="${esc(p.sku)}">Edit Recipe</button></div>
+              <div class="recipe-card-head"><div><h3>${esc(productDisplayName(p,p.sku))}</h3><span class="sku">${esc(p.sku)}</span></div><button class="btn ghost recipeEdit" data-sku="${esc(p.sku)}">Edit Recipe</button></div>
               <div class="small">${rr.length} colour group(s) · ${total.toFixed(1)}g total</div>
               ${rr.map(r => `<div class="listitem" style="margin-top:9px"><div class="colour">${esc(r.filament)}</div><strong>${esc(r.parts)}</strong><div>${Number(r.weight_g || 0)}g · ${Number(r.part_count || 1)} part(s)</div><code>${esc(r.grouped_stl || '')}</code>${r.separate_stls ? `<div class="small">Individual: ${esc(r.separate_stls)}</div>` : ''}</div>`).join('') || '<div class="listitem" style="margin-top:9px">No recipe entered yet.</div>'}
               <div class="recipeEditor"></div>

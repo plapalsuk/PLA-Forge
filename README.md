@@ -1443,3 +1443,10 @@ Fixes the Recipes page incorrectly showing “No matching Pals” when the cloud
 - Existing recipe rows can render even when a corresponding product record is missing or shaped differently.
 - No D1 recipe data is changed or re-imported.
 - Recipe editing and cloud saving remain unchanged.
+
+
+## v0.14.2 — Recipe Product Name Fix
+
+Recipe cards now resolve the Pal name from multiple cloud product fields (`name`, `product_name`, `title`, `display_name`, `product_title`, `animal`) before falling back to the SKU.
+
+This fixes recipe cards showing `PLA001`, `PLA002`, etc. as the product name when the cloud product response uses a different name field.
