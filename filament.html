@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Filament | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0125"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Filament | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0130"></head>
 <body class="forge-protected"><div class="app">
 <aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
@@ -18,6 +18,21 @@
   <a href="data-health.html">! Data Health</a><a href="settings.html">⚙ Settings</a>
  </nav>
 </aside>
-<main><div class="topbar"><div class="pageTitle"><h1>Filament</h1><div class="small">Default reorder threshold: 250g.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Filament</th><th>Available (g)</th><th>Reorder At (g)</th><th>Status</th></tr></thead><tbody id="fil"></tbody></table></div><div class="footer-note">PLA Forge v0.12.5 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=0125"></script><script>forgeBoot(async function(){
+<main><div class="topbar"><div class="pageTitle"><h1>Filament</h1><div class="small">Default reorder threshold: 250g.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="card" style="padding:0;overflow:auto">
+<div class="grid kpis bench-kpis" style="margin-bottom:14px">
+ <div class="card kpi"><div class="label">Total Filament</div><div class="value accent" id="filamentTotalKpi">0g</div><div class="small">live stock</div></div>
+ <div class="card kpi"><div class="label">Low Stock</div><div class="value" id="filamentLowKpi">0</div><div class="small">at/below reorder</div></div>
+ <div class="card kpi"><div class="label">Colours</div><div class="value" id="filamentColoursKpi">0</div><div class="small">active colours</div></div>
+</div>
+<div class="toolbar"><input id="q" class="search" placeholder="Search filament colour or material"></div>
+<table><thead><tr><th>Filament</th><th>Available (g)</th><th>Reorder At (g)</th><th>Status</th></tr></thead><tbody id="fil"></tbody></table></div>
+<div class="card" style="margin-top:14px">
+ <div class="section-title"><div><h2>Filament History</h2><div class="small">Restocks, adjustments and completed print usage.</div></div><span class="badge info">Live History</span></div>
+ <div style="overflow:auto"><table>
+  <thead><tr><th>Date</th><th>Filament</th><th>Movement</th><th>Qty</th><th>Reason</th></tr></thead>
+  <tbody id="filamentHistory"></tbody>
+ </table></div>
+</div>
+<div class="footer-note">PLA Forge v0.13.0 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=0130"></script><script>forgeBoot(async function(){
 filament()
 })</script></body></html>

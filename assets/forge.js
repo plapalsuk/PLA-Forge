@@ -883,67 +883,158 @@ async function dataHealth() {
     body.innerHTML = rows.map(x => `<tr><td>${badge(x.issue, x.level)}</td><td>${esc(x.item)}</td><td>${esc(x.detail)}</td></tr>`).join('') || '<tr><td colspan="3">No data issues detected.</td></tr>';
 }
 async function filament() {
-    const s = state(), body = document.querySelector('#fil');
-    let cloudRows = null;
-    if (cloudToken()) {
-        try {
-            const d = await cloudFetch('/filaments');
-            cloudRows = d.filaments || [];
-            cloudRows.forEach(f => {
-                s.filament[f.name] = {
-                    grams: Number(f.grams_in_stock || 0),
-                    reorder: Number(f.reorder_level_g || 250)
-                };
-            });
-            save(s);
-        }
-        catch (e) {
-            console.warn('Filament cloud read failed; using local fallback.', e);
-        }
+    installForgeCloudSyncBadge();
+    const body = document.querySelector('#fil');
+    const history = document.querySelector('#filamentHistory');
+    const q = document.querySelector('#q');
+    const totalKpi = document.querySelector('#filamentTotalKpi');
+    const lowKpi = document.querySelector('#filamentLowKpi');
+    const coloursKpi = document.querySelector('#filamentColoursKpi');
+    let data;
+    async function loadCloud() {
+        data = await cloudFetch('/filaments');
+        return data;
     }
-    const rs = await load('recipes');
-    const colours = [...new Set([
-            ...rs.map(r => r.filament).filter(Boolean),
-            ...Object.keys(s.filament || {})
-        ])].sort();
-    colours.forEach(c => {
-        if (!s.filament[c])
-            s.filament[c] = { grams: 0, reorder: 250 };
-    });
-    save(s);
+    try {
+        await loadCloud();
+        setForgeCloudSync('synced', 'Filament synced');
+    }
+    catch (e) {
+        showCloudRequiredError(e.message);
+        setForgeCloudSync('error', e.message);
+        return;
+    }
+    function rows() {
+        const text = String((q === null || q === void 0 ? void 0 : q.value) || '').toLowerCase();
+        return (data.filaments || [])
+            .filter(x => `${x.name} ${x.material || ''} ${x.colour || ''}`.toLowerCase().includes(text))
+            .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    }
     function draw() {
-        body.innerHTML = colours.map(c => {
-            const x = s.filament[c], low = Number(x.grams) <= Number(x.reorder);
+        const all = data.filaments || [];
+        const low = all.filter(x => Number(x.grams_in_stock || 0) <= Number(x.reorder_level_g || 0));
+        if (totalKpi)
+            totalKpi.textContent = Math.round(all.reduce((a, x) => a + Number(x.grams_in_stock || 0), 0)) + 'g';
+        if (lowKpi)
+            lowKpi.textContent = low.length;
+        if (coloursKpi)
+            coloursKpi.textContent = all.length;
+        body.innerHTML = rows().map(x => {
+            const grams = Number(x.grams_in_stock || 0);
+            const reorder = Number(x.reorder_level_g || 250);
+            const spool = Number(x.spool_size_g || 1000);
+            const lowStock = grams <= reorder;
             return `<tr>
-       <td><strong>${esc(c)}</strong><div class="small">${cloudToken() ? 'Cloud backed' : 'Local fallback'}</div></td>
-       <td><input class="number fg" data-c="${esc(c)}" data-k="grams" type="number" min="0" value="${x.grams}"></td>
-       <td><input class="number fg" data-c="${esc(c)}" data-k="reorder" type="number" min="0" value="${x.reorder}"></td>
-       <td>${low ? badge('Order', 'danger') : badge('OK', 'ok')}</td>
+       <td>
+         <strong>${esc(x.name)}</strong>
+         <div class="small">${esc(x.material || 'PLA')} · ${esc(x.colour || x.name)}</div>
+       </td>
+       <td><strong>${Math.round(grams)}g</strong><div class="small">${(grams / spool).toFixed(1)} spool equivalent</div></td>
+       <td><input class="number filReorder" data-name="${esc(x.name)}" type="number" min="0" step="50" value="${Math.round(reorder)}"></td>
+       <td><input class="number filSpool" data-name="${esc(x.name)}" type="number" min="1" step="50" value="${Math.round(spool)}"></td>
+       <td>${lowStock ? badge('Order', 'danger') : badge('OK', 'ok')}</td>
+       <td>
+         <div class="filament-stock-actions">
+           <input class="number filAddQty" id="fil-add-${cssSafe(x.name)}" type="number" min="1" step="50" value="${Math.round(spool)}">
+           <button class="btn filAdd" data-name="${esc(x.name)}">Add Stock</button>
+           <button class="btn ghost filMinus" data-name="${esc(x.name)}">−100g</button>
+         </div>
+       </td>
      </tr>`;
-        }).join('');
-        document.querySelectorAll('.fg').forEach(el => el.onchange = async () => {
-            const c = el.dataset.c;
-            s.filament[c][el.dataset.k] = Number(el.value || 0);
-            save(s);
-            draw();
-            if (cloudToken()) {
-                try {
-                    await cloudFetch(`/filaments/${encodeURIComponent(c)}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            grams_in_stock: Number(s.filament[c].grams || 0),
-                            reorder_level_g: Number(s.filament[c].reorder || 250)
-                        })
-                    });
-                }
-                catch (e) {
-                    alert(`Filament saved locally, but cloud update failed: ${e.message}`);
-                }
+        }).join('') || '<tr><td colspan="6">No filament colours are configured.</td></tr>';
+        if (history) {
+            history.innerHTML = (data.history || []).slice(0, 100).map(h => `<tr>
+       <td>${fmtDate(h.created_at)}</td>
+       <td><strong>${esc(h.name)}</strong></td>
+       <td>${esc(h.type || 'adjustment')}</td>
+       <td><strong>${Number(h.change_g) > 0 ? '+' : ''}${Math.round(Number(h.change_g || 0))}g</strong></td>
+       <td>${esc(h.reason || '')}</td>
+     </tr>`).join('') || '<tr><td colspan="5">No filament movements recorded yet.</td></tr>';
+        }
+        document.querySelectorAll('.filReorder').forEach(el => el.onchange = async () => {
+            try {
+                await cloudFetch(`/filaments/${encodeURIComponent(el.dataset.name)}`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reorder_level_g: Number(el.value || 0) })
+                });
+                await loadCloud();
+                draw();
+            }
+            catch (e) {
+                alert(`Reorder level was not saved: ${e.message}`);
+                draw();
+            }
+        });
+        document.querySelectorAll('.filSpool').forEach(el => el.onchange = async () => {
+            try {
+                await cloudFetch(`/filaments/${encodeURIComponent(el.dataset.name)}`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spool_size_g: Number(el.value || 1000) })
+                });
+                await loadCloud();
+                draw();
+            }
+            catch (e) {
+                alert(`Spool size was not saved: ${e.message}`);
+                draw();
+            }
+        });
+        document.querySelectorAll('.filAdd').forEach(btn => btn.onclick = async () => {
+            var _a;
+            const name = btn.dataset.name;
+            const qty = Math.max(1, Number(((_a = document.querySelector('#fil-add-' + cssSafe(name))) === null || _a === void 0 ? void 0 : _a.value) || 1000));
+            btn.disabled = true;
+            try {
+                await cloudFetch(`/filaments/${encodeURIComponent(name)}/adjust`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ change_g: qty, type: 'restock', reason: 'Filament added in Forge' })
+                });
+                await loadCloud();
+                draw();
+            }
+            catch (e) {
+                alert(`Filament stock was not added: ${e.message}`);
+                draw();
+            }
+        });
+        document.querySelectorAll('.filMinus').forEach(btn => btn.onclick = async () => {
+            btn.disabled = true;
+            try {
+                await cloudFetch(`/filaments/${encodeURIComponent(btn.dataset.name)}/adjust`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ change_g: -100, type: 'adjustment', reason: 'Manual filament adjustment' })
+                });
+                await loadCloud();
+                draw();
+            }
+            catch (e) {
+                alert(`Filament stock was not adjusted: ${e.message}`);
+                draw();
             }
         });
     }
+    function cssSafe(v) { return String(v).replace(/[^a-z0-9_-]/gi, '_'); }
+    if (q)
+        q.oninput = draw;
     draw();
+    let stamp = JSON.stringify((data.filaments || []).map(x => [x.name, x.grams_in_stock, x.reorder_level_g, x.updated_at]));
+    window.setInterval(async () => {
+        if (document.hidden)
+            return;
+        try {
+            const fresh = await cloudFetch('/filaments');
+            const next = JSON.stringify((fresh.filaments || []).map(x => [x.name, x.grams_in_stock, x.reorder_level_g, x.updated_at]));
+            if (next === stamp)
+                return;
+            data = fresh;
+            stamp = next;
+            draw();
+            setForgeCloudSync('synced', 'Filament updated live');
+        }
+        catch (e) {
+            setForgeCloudSync('error', e.message || 'Filament sync failed');
+        }
+    }, 2000);
 }
 async function buildPlatePlanner() {
     var _a;
@@ -1381,8 +1472,37 @@ async function buildPlatePlanner() {
             result: results
         });
         s.plates = s.plates.filter(x => x.id !== p.id);
-        save(s);
-        drawAll();
+        try {
+            await save(s);
+
+            // Every item already carries the per-set calculated recipe weight.
+            const usedG = (p.items || []).reduce((sum, item) => {
+                return sum + (Number(item.weight_each || 0) * Number(item.qty || 0));
+            }, 0);
+            const filamentName = String(p.colour || ((p.items || [])[0] || {}).filament || '').trim();
+
+            if (usedG > 0 && filamentName) {
+                await cloudFetch('/filaments/consume-plate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        plate_id: p.id,
+                        filament: filamentName,
+                        grams: usedG
+                    })
+                });
+            }
+
+            drawAll();
+        } catch (e) {
+            alert('Print completion could not be fully saved to Cloudflare: ' + (e.message || e));
+            try {
+                const fresh = await hydrateProductionCloud(true);
+                Object.keys(s).forEach(k => delete s[k]);
+                Object.assign(s, fresh);
+            } catch (_) {}
+            drawAll();
+        }
     }
     async function saveDraft(startNow) {
         if (!plateDraft.items.length) {

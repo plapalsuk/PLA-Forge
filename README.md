@@ -1403,15 +1403,20 @@ Authentication boot order has been rebuilt across all protected pages.
 - No Worker or D1 change is required.
 
 
-## v0.12.5 — Legacy iPad / Safari Compatibility
+## v0.13.0 — Filament Cloud
 
-The fail-closed authentication gate from v0.12.4 is retained.
+Filament is now cloud-authoritative.
 
-The shared Forge JavaScript bundle is now transpiled to ES2017-compatible syntax so Safari 12
-(the newest Safari available on the original iPad Air) can parse and execute it.
+- Existing D1 `filaments` stock table is retained.
+- `filament_meta` adds material, display colour and spool size without destructively changing the existing table.
+- `filament_history` records restocks, adjustments and print usage.
+- Stock changes live-sync while the Filament page is open.
+- Completed Build Plates call a de-duplicated Worker endpoint so filament is deducted once per plate.
+- Reorder levels and spool sizes are cloud-backed.
+- Operational browser-local filament fallback has been removed from the Filament page.
+- Structure is ready for future RFID spool intake.
 
-Specifically, newer syntax such as optional chaining and nullish coalescing is removed from the
-deployed bundle while preserving the current cloud authentication, role permissions, Dispatch,
-Rework and live-sync behaviour.
 
-No Worker or D1 changes are required.
+### Build Plate filament deduction
+
+When `Complete Print` is confirmed, Forge first saves the completed production state to D1. It then sends the plate ID, filament colour and calculated gram usage to the Worker. The Worker records `plate:<plate-id>` in filament history, preventing the same plate from being deducted twice.

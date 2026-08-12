@@ -2376,8 +2376,16 @@ body.forge-protected:not(.forge-auth-ready)::after{
   gap:12px;
 }
 
-
-/* v0.12.5 — Original iPad Air / Safari 12 compatibility */
-body.forge-protected:not(.forge-auth-ready)::after{
-  content:"Connecting to Forge…\A Checking secure session";
+/* v0.13.0 — Filament Cloud */
+.filament-stock-actions{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.filament-stock-actions .number{max-width:110px}
+@media(max-width:700px){
+  .filament-stock-actions{align-items:stretch}
+  .filament-stock-actions .number,
+  .filament-stock-actions .btn{width:100%;max-width:none}
 }
