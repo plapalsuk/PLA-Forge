@@ -1497,3 +1497,11 @@ The full Settings section is now cloud-authoritative.
   filament stock/history and consumable stock/history for every device.
 
 No new D1 tables are required for v0.16.0.
+
+## v0.16.1 — 3D Printers + Box / Document Printer
+
+- Settings `Printers` renamed to `3D Printers`.
+- Added cloud-backed `Box / Document Printer` under Labels & Printing.
+- Stores printer, paper size and orientation using the existing settings API.
+- Defaults: A4, Portrait.
+- No Worker or D1 migration required.

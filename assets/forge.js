@@ -236,7 +236,12 @@ async function hydrateProductionCloud(force = false) {
         });
         s.printerRoles = Object.assign({}, s.printerRoles || {}, {
             barcode: String((settingsData.settings || {}).barcode_printer || ''),
-            filament_label: String((settingsData.settings || {}).filament_label_printer || '')
+            filament_label: String((settingsData.settings || {}).filament_label_printer || ''),
+            box_document: String((settingsData.settings || {}).box_document_printer || '')
+        });
+        s.siteSettings = Object.assign({}, s.siteSettings || {}, {
+            boxDocumentPaperSize: String((settingsData.settings || {}).box_document_paper_size || 'A4'),
+            boxDocumentOrientation: String((settingsData.settings || {}).box_document_orientation || 'portrait')
         });
         s.plates = ((bp === null || bp === void 0 ? void 0 : bp.plates) || []).map(p => ({
             id: p.id, code: p.code, name: p.name || '', colour: p.colour || '', printer: p.printer || '',
@@ -2582,7 +2587,55 @@ async function barcodePrinterSettings() {
           </div>
         </div>`;
     }
+    function documentPrinterControl() {
+        const settings = data.settings || {};
+        const current = String(settings.box_document_printer || '');
+        const printers = (data.printers || []).filter(p => p.active !== false);
+        const manual = current && !printers.some(p => p.id === current);
+        const paper = String(settings.box_document_paper_size || 'A4');
+        const orientation = String(settings.box_document_orientation || 'portrait');
+        return `<div class="card label-setting-card">
+          <div class="section-title"><div><h2>Box / Document Printer</h2><div class="small">Normal printer used for printing box paperwork and packaging printouts.</div></div><span class="badge info">${esc(paper)} · ${esc(orientation)}</span></div>
+          <div class="label-settings-grid document-printer-grid">
+            <label><span>Printer</span><select id="boxDocumentPrinter">${printerOptions(current)}</select></label>
+            <label id="boxDocumentManualWrap" style="${manual ? '' : 'display:none'}"><span>Manual Printer Name</span><input id="boxDocumentManual" value="${manual ? esc(current) : ''}" placeholder="e.g. Office HP / Canon Printer"></label>
+            <label><span>Paper Size</span><select id="boxDocumentPaper"><option value="A4" ${paper === 'A4' ? 'selected' : ''}>A4</option><option value="A5" ${paper === 'A5' ? 'selected' : ''}>A5</option><option value="Letter" ${paper === 'Letter' ? 'selected' : ''}>Letter</option></select></label>
+            <label><span>Orientation</span><select id="boxDocumentOrientation"><option value="portrait" ${orientation === 'portrait' ? 'selected' : ''}>Portrait</option><option value="landscape" ${orientation === 'landscape' ? 'selected' : ''}>Landscape</option></select></label>
+            <button class="btn" id="saveBoxDocumentPrinter">Save to Cloud</button>
+          </div>
+        </div>`;
+    }
     function bind() {
+        const boxSel = host.querySelector('#boxDocumentPrinter');
+        const boxManualWrap = host.querySelector('#boxDocumentManualWrap');
+        if (boxSel)
+            boxSel.onchange = () => { if (boxManualWrap)
+                boxManualWrap.style.display = boxSel.value === '__manual' ? '' : 'none'; };
+        const boxSave = host.querySelector('#saveBoxDocumentPrinter');
+        if (boxSave)
+            boxSave.onclick = async () => {
+                const manual = host.querySelector('#boxDocumentManual');
+                const paper = host.querySelector('#boxDocumentPaper');
+                const orientation = host.querySelector('#boxDocumentOrientation');
+                const printer = boxSel.value === '__manual' ? String((manual === null || manual === void 0 ? void 0 : manual.value) || '').trim() : boxSel.value;
+                boxSave.disabled = true;
+                boxSave.textContent = 'Saving…';
+                try {
+                    await Promise.all([
+                        cloudFetch('/settings/box_document_printer', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: printer }) }),
+                        cloudFetch('/settings/box_document_paper_size', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: paper.value }) }),
+                        cloudFetch('/settings/box_document_orientation', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: orientation.value }) })
+                    ]);
+                    await refresh();
+                    render();
+                    setForgeCloudSync('synced', 'Box printer settings saved');
+                }
+                catch (e) {
+                    alert('Box printer settings were not saved: ' + e.message);
+                    boxSave.disabled = false;
+                    boxSave.textContent = 'Save to Cloud';
+                }
+            };
         host.querySelectorAll('.labelPrinterSelect').forEach(sel => {
             sel.onchange = () => {
                 const key = sel.dataset.key;
@@ -2627,6 +2680,7 @@ async function barcodePrinterSettings() {
         host.innerHTML =
             printerControl('barcode', 'Pal Barcode Label', 'Used at Packing Station for the Pal barcode label.', 50, 30) +
                 printerControl('filament_label', 'Filament / RFID Spool Label', 'Reserved for the filament intake and RFID workflow.', 50, 30) +
+            documentPrinterControl() +
                 `<div class="card" style="margin-top:14px"><strong>Browser printing</strong><div class="small" style="margin-top:5px">PLA Forge stores the intended printer and label size in Cloudflare. The browser still requires the physical printer to be selected in the operating-system print dialog.</div></div>`;
         bind();
     }
