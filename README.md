@@ -1606,3 +1606,15 @@ No Worker or D1 schema change is required.
 - Re-audited secure boot hooks on every protected page.
 - Added a 15-second legacy boot failsafe so older Safari no longer remains indefinitely on the secure-session splash if startup fails.
 - No Worker or D1 changes required.
+
+
+## v0.18.4 — Upcoming Releases
+
+- Added an `Upcoming Releases` section to the Dashboard.
+- Uses the existing cloud Product Availability `release_date` data.
+- Shows only future-dated Pals that are not already on sale.
+- Sorted by nearest release date first.
+- Shows Pal name, SKU, release date and countdown.
+- The next scheduled launch is highlighted.
+- Links directly to Product Availability for release management.
+- No Worker or D1 changes required.

@@ -1544,6 +1544,61 @@ async function dashboard() {
         </a>`;
     }
     // ---------------------------------------------------------------
+    // Upcoming Releases
+    // ---------------------------------------------------------------
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const upcomingReleases = pals.map(p => {
+        const rec = (s.productAvailability || {})[p.sku] || {};
+        const releaseDate = String(rec.release_date || '').trim();
+        return {
+            p,
+            releaseDate,
+            onSale: rec.on_sale === true
+        };
+    }).filter(x => x.releaseDate && x.releaseDate > todayIso && !x.onSale)
+        .sort((a, b) => a.releaseDate.localeCompare(b.releaseDate) || a.p.name.localeCompare(b.p.name));
+    const upcomingHost = document.getElementById('dashUpcomingReleases');
+    if (upcomingHost) {
+        function releaseCountdown(dateStr) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const release = new Date(dateStr + 'T00:00:00');
+            const days = Math.max(0, Math.ceil((release.getTime() - today.getTime()) / 86400000));
+            if (days === 0)
+                return 'Today';
+            if (days === 1)
+                return 'Tomorrow';
+            return `${days} days`;
+        }
+        function releaseDateLabel(dateStr) {
+            try {
+                return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', {
+                    weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
+                });
+            }
+            catch (e) {
+                return dateStr;
+            }
+        }
+        upcomingHost.innerHTML = upcomingReleases.length
+            ? upcomingReleases.slice(0, 12).map((x, idx) => `
+              <a href="settings-availability.html" class="upcoming-release-row ${idx === 0 ? 'next-release' : ''}">
+                <div class="release-date-block">
+                  <strong>${esc(releaseCountdown(x.releaseDate))}</strong>
+                  <span>${esc(releaseDateLabel(x.releaseDate))}</span>
+                </div>
+                <div class="release-pal">
+                  <strong>${esc(x.p.name)}</strong>
+                  <span class="sku">${esc(x.p.sku)}</span>
+                </div>
+                <div class="release-status">
+                  ${idx === 0 ? badge('NEXT RELEASE', 'warning') : badge('SCHEDULED', 'info')}
+                </div>
+                <span class="release-arrow">→</span>
+              </a>`).join('')
+            : `<div class="dashboard-clear-state"><strong>No upcoming releases scheduled.</strong><span>Add a future release date in Product Availability.</span></div>`;
+    }
+    // ---------------------------------------------------------------
     // Recent activity
     // ---------------------------------------------------------------
     const activity = [];
