@@ -824,10 +824,11 @@ async function recipes() {
         const core = await Promise.all([
             cloudFetch('/products'),
             cloudFetch('/recipes'),
-            fetch('data/products.json', {cache:'no-store'}).then(r=>{
-                if(!r.ok)throw new Error('Product reference catalogue unavailable.');
+            fetch('data/products.json', { cache: 'no-store' }).then(r => {
+                if (!r.ok)
+                    throw new Error('Product reference catalogue unavailable.');
                 return r.json();
-            }).catch(()=>[])
+            }).catch(() => [])
         ]);
         ps = core[0].products || [];
         rs = (core[1].recipes || []).map(normaliseCloudRecipe);
@@ -846,10 +847,10 @@ async function recipes() {
         return rs.filter(r => r.sku === sku).sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
     }
     function productDisplayName(p, sku) {
-        const ref = productReference.find(x=>String(x.sku||'').trim()===String(sku||'').trim());
-        const referenceName = String((ref||{}).name||'').trim();
-        if(referenceName && referenceName.toUpperCase()!==String(sku||'').toUpperCase())return referenceName;
-
+        const ref = productReference.find(x => String(x.sku || '').trim() === String(sku || '').trim());
+        const referenceName = String((ref || {}).name || '').trim();
+        if (referenceName && referenceName.toUpperCase() !== String(sku || '').toUpperCase())
+            return referenceName;
         const direct = [
             p && p.product_name,
             p && p.title,
@@ -857,19 +858,17 @@ async function recipes() {
             p && p.product_title,
             p && p.animal,
             p && p.name
-        ].map(v=>String(v||'').trim()).find(v=>v && v.toUpperCase()!==String(sku||'').toUpperCase());
-        if(direct)return direct;
-
-        const rr = rs.find(r=>r.sku===sku);
+        ].map(v => String(v || '').trim()).find(v => v && v.toUpperCase() !== String(sku || '').toUpperCase());
+        if (direct)
+            return direct;
+        const rr = rs.find(r => r.sku === sku);
         const fromRecipe = [
             rr && rr.product_name,
             rr && rr.name,
             rr && rr.animal
-        ].map(v=>String(v||'').trim()).find(v=>v && v.toUpperCase()!==String(sku||'').toUpperCase());
-
+        ].map(v => String(v || '').trim()).find(v => v && v.toUpperCase() !== String(sku || '').toUpperCase());
         return fromRecipe || sku;
     }
-
     function editorRow(r, i) {
         return `<div class="recipe-edit-row" data-i="${i}">
           <label><span>Filament</span><input data-k="filament" value="${esc(r.filament || '')}"></label>
@@ -948,17 +947,17 @@ async function recipes() {
     }
     function draw() {
         const text = (q.value || '').toLowerCase();
-        const filtered = ps.filter(p => p.type === 'pal' && `${p.sku} ${productDisplayName(p,p.sku)} ${(p.filaments || []).join(' ')}`.toLowerCase().includes(text));
+        const filtered = ps.filter(p => p.type === 'pal' && `${p.sku} ${productDisplayName(p, p.sku)} ${(p.filaments || []).join(' ')}`.toLowerCase().includes(text));
         const productSkus = new Set(filtered.map(p => String(p.sku || '')));
         const recipeOnlyProducts = [...new Set(rs.map(r => r.sku).filter(Boolean))]
             .filter(sku => !productSkus.has(String(sku)))
             .map(sku => ({ sku, name: (rs.find(r => r.sku === sku) || {}).name || sku, type: 'pal' }));
-        const displayProducts = [...filtered, ...recipeOnlyProducts.filter(p => `${p.sku} ${productDisplayName(p,p.sku)}`.toLowerCase().includes(text))];
+        const displayProducts = [...filtered, ...recipeOnlyProducts.filter(p => `${p.sku} ${productDisplayName(p, p.sku)}`.toLowerCase().includes(text))];
         box.innerHTML = displayProducts.map(p => {
             const rr = recipeRowsFor(p.sku);
             const total = rr.reduce((a, r) => a + Number(r.weight_g || 0), 0);
             return `<div class="card recipe-card" data-sku="${esc(p.sku)}">
-              <div class="recipe-card-head"><div><h3>${esc(productDisplayName(p,p.sku))}</h3><span class="sku">${esc(p.sku)}</span></div><button class="btn ghost recipeEdit" data-sku="${esc(p.sku)}">Edit Recipe</button></div>
+              <div class="recipe-card-head"><div><h3>${esc(productDisplayName(p, p.sku))}</h3><span class="sku">${esc(p.sku)}</span></div><button class="btn ghost recipeEdit" data-sku="${esc(p.sku)}">Edit Recipe</button></div>
               <div class="small">${rr.length} colour group(s) · ${total.toFixed(1)}g total</div>
               ${rr.map(r => `<div class="listitem" style="margin-top:9px"><div class="colour">${esc(r.filament)}</div><strong>${esc(r.parts)}</strong><div>${Number(r.weight_g || 0)}g · ${Number(r.part_count || 1)} part(s)</div><code>${esc(r.grouped_stl || '')}</code>${r.separate_stls ? `<div class="small">Individual: ${esc(r.separate_stls)}</div>` : ''}</div>`).join('') || '<div class="listitem" style="margin-top:9px">No recipe entered yet.</div>'}
               <div class="recipeEditor"></div>
@@ -1833,626 +1832,138 @@ async function printedParts() {
     });
 }
 async function settingsPage() {
-    const s = state();
+    installForgeCloudSyncBadge();
     const $ = id => document.getElementById(id);
     const rows = $('printerRows'), name = $('printerName'), model = $('printerModel'), nozzle = $('printerNozzle');
     const buildX = $('printerBuildX'), buildY = $('printerBuildY'), buildZ = $('printerBuildZ');
-    const addBtn = $('addPrinter'), defaultPrinter = $('defaultPrinter'), msg = $('settingsMessage');
-    if (!rows || !name || !addBtn || !defaultPrinter) {
-        console.error('PLA Forge Settings: required controls missing');
-        return;
+    const addBtn = $('addPrinter'), msg = $('settingsMessage');
+    let data;
+    async function refresh() {
+        data = await cloudFetch('/settings');
+        return data;
     }
     function flash(text, kind = 'ok') {
         if (!msg)
             return;
         msg.innerHTML = badge(text, kind);
-        setTimeout(() => {
-            if (msg)
-                msg.innerHTML = '';
-        }, 2400);
-    }
-    function nextPrinterId() {
-        let n = 1;
-        const used = new Set((s.printers || []).map(p => p.id));
-        while (used.has('PRN-' + String(n).padStart(3, '0')))
-            n++;
-        return 'PRN-' + String(n).padStart(3, '0');
+        setTimeout(() => { if (msg)
+            msg.innerHTML = ''; }, 2200);
     }
     function render() {
-        const printers = s.printers || [];
+        const printers = data.printers || [];
         rows.innerHTML = printers.length ? printers.map(p => `
-     <tr>
-       <td><strong>${esc(p.name)}</strong><br><span class="sku">${esc(p.id)}</span></td>
-       <td>${esc(p.model || '—')}</td>
-       <td>${esc(p.nozzle || '—')}</td>
-       <td>${p.build_x || '—'} × ${p.build_y || '—'} × ${p.build_z || '—'} mm</td>
-       <td>${p.active !== false ? badge('Active', 'ok') : badge('Disabled', 'danger')}</td>
-       <td><button type="button" class="iconbtn togglePrinter" data-id="${p.id}">${p.active !== false ? 'Disable' : 'Enable'}</button> <button type="button" class="iconbtn deletePrinter" data-id="${p.id}">Delete</button></td>
-     </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state">No printers yet. Add your first printer above.</div></td></tr>`;
-        const active = printers.filter(p => p.active !== false);
-        defaultPrinter.innerHTML = '<option value="">No default</option>' + active.map(p => `<option value="${p.id}">${esc(p.name)}${p.model ? ` · ${esc(p.model)}` : ''}</option>`).join('');
-        defaultPrinter.value = s.siteSettings.defaultPrinter || '';
-        document.querySelectorAll('.togglePrinter').forEach(b => b.addEventListener('click', () => {
-            const p = s.printers.find(x => x.id === b.dataset.id);
+          <tr>
+            <td><strong>${esc(p.name)}</strong><br><span class="sku">${esc(p.id)}</span></td>
+            <td>${esc(p.model || '—')}</td>
+            <td>${esc(p.nozzle || '—')}</td>
+            <td>${p.build_x || '—'} × ${p.build_y || '—'} × ${p.build_z || '—'} mm</td>
+            <td>${p.active !== false ? badge('Active', 'ok') : badge('Disabled', 'danger')}</td>
+            <td><button type="button" class="iconbtn togglePrinter" data-id="${esc(p.id)}">${p.active !== false ? 'Disable' : 'Enable'}</button> <button type="button" class="iconbtn deletePrinter" data-id="${esc(p.id)}">Delete</button></td>
+          </tr>`).join('') : `<tr><td colspan="6"><div class="empty-state">No printers yet. Add your first printer above.</div></td></tr>`;
+        document.querySelectorAll('.togglePrinter').forEach(btn => btn.onclick = async () => {
+            const p = printers.find(x => x.id === btn.dataset.id);
             if (!p)
                 return;
-            p.active = p.active === false;
-            save(s);
-            render();
-        }));
-        document.querySelectorAll('.deletePrinter').forEach(b => b.addEventListener('click', () => {
-            const p = s.printers.find(x => x.id === b.dataset.id);
+            btn.disabled = true;
+            try {
+                await cloudFetch('/printers/' + encodeURIComponent(p.id), {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active: !p.active })
+                });
+                await refresh();
+                render();
+            }
+            catch (e) {
+                flash('Printer was not updated: ' + e.message, 'danger');
+                render();
+            }
+        });
+        document.querySelectorAll('.deletePrinter').forEach(btn => btn.onclick = async () => {
+            const p = printers.find(x => x.id === btn.dataset.id);
             if (!p)
                 return;
             if (!confirm(`Delete ${p.name}?`))
                 return;
-            s.printers = s.printers.filter(x => x.id !== b.dataset.id);
-            if (s.siteSettings.defaultPrinter === b.dataset.id)
-                s.siteSettings.defaultPrinter = '';
-            save(s);
-            render();
-            flash('Printer deleted', 'warning');
-        }));
+            btn.disabled = true;
+            try {
+                await cloudFetch('/printers/' + encodeURIComponent(p.id), { method: 'DELETE' });
+                await refresh();
+                render();
+                flash('Printer deleted', 'warning');
+            }
+            catch (e) {
+                flash('Printer was not deleted: ' + e.message, 'danger');
+                render();
+            }
+        });
     }
-    addBtn.type = 'button';
-    addBtn.addEventListener('click', () => {
+    try {
+        await refresh();
+        render();
+        setForgeCloudSync('synced', 'Printers synced');
+    }
+    catch (e) {
+        showCloudRequiredError(e.message);
+        setForgeCloudSync('error', e.message);
+        return;
+    }
+    addBtn.onclick = async () => {
         const n = (name.value || '').trim();
         if (!n) {
             flash('Enter a printer name', 'danger');
             name.focus();
             return;
         }
-        const printer = {
-            id: nextPrinterId(), name: n, model: ((model === null || model === void 0 ? void 0 : model.value) || '').trim(), nozzle: ((nozzle === null || nozzle === void 0 ? void 0 : nozzle.value) || '0.4mm').trim() || '0.4mm',
-            build_x: Number((buildX === null || buildX === void 0 ? void 0 : buildX.value) || 0), build_y: Number((buildY === null || buildY === void 0 ? void 0 : buildY.value) || 0), build_z: Number((buildZ === null || buildZ === void 0 ? void 0 : buildZ.value) || 0), active: true
-        };
-        s.printers.push(printer);
-        if (!s.siteSettings.defaultPrinter)
-            s.siteSettings.defaultPrinter = printer.id;
-        save(s);
-        [name, model, nozzle, buildX, buildY, buildZ].forEach(el => {
-            if (el)
-                el.value = '';
-        });
-        render();
-        flash(`${printer.name} added`, 'ok');
-    });
-    defaultPrinter.addEventListener('change', () => { s.siteSettings.defaultPrinter = defaultPrinter.value; save(s); flash('Default printer updated', 'ok'); });
-    render();
-}
-async function assemblyPage() {
-    installForgeCloudSyncBadge();
-    if (!forgeProductionCloudReady) {
+        addBtn.disabled = true;
         try {
-            await hydrateProductionCloud();
+            await cloudFetch('/printers', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: n,
+                    model: ((model === null || model === void 0 ? void 0 : model.value) || '').trim(),
+                    nozzle: ((nozzle === null || nozzle === void 0 ? void 0 : nozzle.value) || '0.4mm').trim() || '0.4mm',
+                    build_x: Number((buildX === null || buildX === void 0 ? void 0 : buildX.value) || 0),
+                    build_y: Number((buildY === null || buildY === void 0 ? void 0 : buildY.value) || 0),
+                    build_z: Number((buildZ === null || buildZ === void 0 ? void 0 : buildZ.value) || 0)
+                })
+            });
+            [name, model].forEach(el => { if (el)
+                el.value = ''; });
+            if (nozzle)
+                nozzle.value = '0.4mm';
+            if (buildX)
+                buildX.value = '256';
+            if (buildY)
+                buildY.value = '256';
+            if (buildZ)
+                buildZ.value = '256';
+            await refresh();
+            render();
+            flash('Printer added', 'ok');
         }
         catch (e) {
-            showCloudRequiredError(e.message);
-            return;
+            flash('Printer was not added: ' + e.message, 'danger');
         }
-    }
-    let s = cloudOperationalState();
-    const ps = await load('products');
-    const rs = await load('recipes');
-    const pals = ps.filter(p => p.type === 'pal');
-    const q = document.querySelector('#q');
-    const readyBox = document.querySelector('#assemblyReady');
-    const awaitingBox = document.querySelector('#assemblyAwaiting');
-    const inventorySearch = document.querySelector('#assembledInventorySearch');
-    const inventoryBody = document.querySelector('#assembledInventory');
-    const kpiReady = document.querySelector('#assemblyReadyKpi');
-    const kpiAssembled = document.querySelector('#assembledKpi');
-    const kpiWaiting = document.querySelector('#assemblyWaitingKpi');
-    const readySectionCount = document.querySelector('#readySectionCount');
-    const awaitingSectionCount = document.querySelector('#awaitingSectionCount');
-    function recipeGroups(sku) { return rs.filter(r => r.sku === sku); }
-    function assembledQty(sku) { var _a; return Number(((_a = s.assembled) === null || _a === void 0 ? void 0 : _a[sku]) || 0); }
-    function plannerNeed(sku) { return Math.max(0, totalNeed(s, sku) - awaitingDispatchQty(s, sku)); }
-    function remainingAssemblyNeed(sku) {
-        return Math.max(0, plannerNeed(sku) - assembledQty(sku));
-    }
-    function readyQty(p) {
-        const groups = recipeGroups(p.sku);
-        if (!groups.length)
-            return 0;
-        return Math.max(0, Math.min(...groups.map(r => partQty(s, groupKey(r)))));
-    }
-    function groupStock(p) {
-        return recipeGroups(p.sku).map(r => ({
-            r,
-            have: partQty(s, groupKey(r))
-        }));
-    }
-    function readyCard(x) {
-        const maxUseful = Math.max(0, Math.min(x.ready, x.remainingNeed > 0 ? x.remainingNeed : x.ready));
-        return `<div class="assembly-card ready">
-     <div class="assembly-card-head">
-       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${badge(`${x.ready} Ready`, 'ok')}
-     </div>
-     <div class="assembly-demand-strip">
-       <span>Production Need <strong>${x.plannerNeed}</strong></span>
-       <span>Already Assembled <strong>${x.assembled}</strong></span>
-       <span>Still Needed <strong>${x.remainingNeed}</strong></span>
-     </div>
-     <div class="assembly-parts">
-       ${x.groups.map(g => `<div class="assembly-part"><span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span><strong>${g.have}</strong></div>`).join('') || '<div class="small">No recipe available.</div>'}
-     </div>
-     <div class="assembly-actions">
-       <label><span class="small">Assemble Qty</span><input class="number assembleQty" id="assemble-${x.p.sku}" type="number" min="1" max="${Math.max(1, maxUseful)}" value="1"></label>
-       <button class="btn assembleBtn" data-sku="${x.p.sku}">Assemble</button>
-     </div>
-   </div>`;
-    }
-    function awaitingCard(x) {
-        return `<div class="assembly-card not-ready">
-     <div class="assembly-card-head">
-       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${badge(`NEED ${x.remainingNeed}`, 'warning')}
-     </div>
-     <div class="assembly-demand-strip">
-       <span>Production Need <strong>${x.plannerNeed}</strong></span>
-       <span>Already Assembled <strong>${x.assembled}</strong></span>
-       <span>Still Needed <strong class="accent">${x.remainingNeed}</strong></span>
-     </div>
-     <div class="assembly-parts">
-       ${x.groups.map(g => `<div class="assembly-part ${g.have <= 0 ? 'missing' : ''}"><span>${esc(g.r.filament)} · ${esc(g.r.parts)}</span><strong>${g.have}</strong></div>`).join('') || '<div class="small">No recipe available.</div>'}
-     </div>
-     <div class="awaiting-note"><span class="small">Production Planner still requires ${x.remainingNeed}. Waiting for enough printed parts to assemble more.</span></div>
-   </div>`;
-    }
-    function render() {
-        const text = (q.value || '').toLowerCase();
-        const all = pals.map(p => ({
-            p,
-            ready: readyQty(p),
-            plannerNeed: plannerNeed(p.sku),
-            assembled: assembledQty(p.sku),
-            remainingNeed: remainingAssemblyNeed(p.sku),
-            groups: groupStock(p)
-        })).filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
-        // READY: any Pal for which every required printed colour-group is physically available.
-        // Production demand does not control whether it appears here.
-        const ready = all
-            .filter(x => x.ready > 0)
-            .sort((a, b) => b.ready - a.ready || b.remainingNeed - a.remainingNeed || a.p.name.localeCompare(b.p.name));
-        // AWAITING: demanded by Production Planning but no complete Pal can be assembled yet.
-        const awaiting = all
-            .filter(x => x.remainingNeed > 0 && x.ready <= 0)
-            .sort((a, b) => b.remainingNeed - a.remainingNeed || a.p.name.localeCompare(b.p.name));
-        kpiReady.textContent = ready.reduce((a, x) => a + x.ready, 0);
-        kpiAssembled.textContent = Object.values(s.assembled || {}).reduce((a, b) => a + Number(b || 0), 0);
-        kpiWaiting.textContent = awaiting.reduce((a, x) => a + x.remainingNeed, 0);
-        readySectionCount.textContent = `${ready.length} Ready`;
-        awaitingSectionCount.textContent = `${awaiting.length} Awaiting`;
-        readyBox.innerHTML = ready.length
-            ? ready.map(readyCard).join('')
-            : '<div class="bench-empty">No Pals are ready to assemble yet.</div>';
-        awaitingBox.innerHTML = awaiting.length
-            ? awaiting.map(awaitingCard).join('')
-            : '<div class="bench-empty">Nothing is currently awaiting assembly.</div>';
-        const inventoryText = ((inventorySearch === null || inventorySearch === void 0 ? void 0 : inventorySearch.value) || '').toLowerCase();
-        const assembledRows = pals.map(p => ({
-            p,
-            qty: assembledQty(p.sku)
-        })).filter(x => x.qty > 0)
-            .filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(inventoryText))
-            .sort((a, b) => b.qty - a.qty || a.p.name.localeCompare(b.p.name));
-        inventoryBody.innerHTML = assembledRows.length ? assembledRows.map(x => `<tr>
-     <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
-     <td><strong>${x.qty}</strong></td>
-   </tr>`).join('') : '<tr><td colspan="2">No assembled Pals currently in inventory.</td></tr>';
-        document.querySelectorAll('.assembleBtn').forEach(btn => btn.onclick = async () => {
-            var _a, _b;
-            const sku = btn.dataset.sku;
-            const p = pals.find(x => x.sku === sku);
-            const available = readyQty(p);
-            const stillNeeded = remainingAssemblyNeed(sku);
-            const maxQty = Math.max(1, Math.min(available, stillNeeded > 0 ? stillNeeded : available));
-            const qty = Math.max(1, Math.min(maxQty, Number(((_a = document.querySelector('#assemble-' + sku)) === null || _a === void 0 ? void 0 : _a.value) || 1)));
-            if (!available || qty > available)
-                return;
-            // Snapshot the fields changed by assembly so a failed cloud save can be rolled back safely.
-            const beforeParts = JSON.parse(JSON.stringify(s.parts || {}));
-            const beforeAssembled = JSON.parse(JSON.stringify(s.assembled || {}));
-            const beforeHistory = JSON.parse(JSON.stringify(s.assemblyHistory || []));
-            btn.disabled = true;
-            btn.textContent = 'Saving…';
-            recipeGroups(sku).forEach(r => {
-                const key = groupKey(r);
-                s.parts[key] = Math.max(0, partQty(s, key) - qty);
-            });
-            s.assembled[sku] = Number(s.assembled[sku] || 0) + qty;
-            s.assemblyHistory.push({
-                id: makeId(),
-                sku,
-                name: p.name,
-                qty,
-                production_need_before: stillNeeded,
-                production_need_after: Math.max(0, stillNeeded - qty),
-                created_at: new Date().toISOString(),
-                cloud_user: ((_b = currentForgeUser()) === null || _b === void 0 ? void 0 : _b.email) || ''
-            });
-            try {
-                await save(s);
-                render();
-            }
-            catch (e) {
-                s.parts = beforeParts;
-                s.assembled = beforeAssembled;
-                s.assemblyHistory = beforeHistory;
-                render();
-                alert('Assembly could not be saved to Cloudflare. Printed Parts and Assembled Inventory have been rolled back.');
-            }
-        });
-    }
-    q.oninput = render;
-    if (inventorySearch)
-        inventorySearch.oninput = render;
-    render();
-    await startForgeLiveSync(async (fresh) => {
-        // Replace the Bench state reference completely with the D1-hydrated state.
-        s = JSON.parse(JSON.stringify(fresh));
-        render();
-    });
-}
-function pendingCornwallInsertSupply(s, sku) {
-    var _a;
-    const planned = Number(((_a = s.cornwallInsertReplenishment) === null || _a === void 0 ? void 0 : _a[sku]) || 0);
-    const dispatch = (s.awaitingDispatch || [])
-        .filter(x => x.item_type === 'cornwall_insert_spare' && x.sku === sku && x.status === 'awaiting_dispatch')
-        .reduce((a, x) => a + Number(x.qty || 0), 0);
-    const transit = (s.transfers || [])
-        .filter(x => x.transfer_type === 'cornwall_insert_spare' && x.sku === sku && x.status === 'awaiting_delivery')
-        .reduce((a, x) => a + Number(x.qty || 0), 0);
-    return planned + dispatch + transit;
-}
-function ensureCornwallInsertReplenishment(s, products) {
-    s.cornwallInsertReplenishment = s.cornwallInsertReplenishment || {};
-    (products || []).filter(p => p.type === 'pal' && isOnSale(s, p.sku)).forEach(p => {
-        const have = cornwallInsertStock(s, p.sku);
-        const pending = pendingCornwallInsertSupply(s, p.sku);
-        const target = cornwallInsertTarget();
-        const required = Math.max(0, target - have - pending);
-        // Keep the factory replenishment quantity aligned to the amount still
-        // required to restore Cornwall spare Insert stock back to Target 2.
-        const currentlyPlanned = Number(s.cornwallInsertReplenishment[p.sku] || 0);
-        const downstreamPending = Math.max(0, pending - currentlyPlanned);
-        s.cornwallInsertReplenishment[p.sku] = Math.max(0, target - have - downstreamPending);
-    });
-}
-async function insertProductionPage() {
-    installForgeCloudSyncBadge();
-    if (!forgeProductionCloudReady) {
+        addBtn.disabled = false;
+    };
+    let stamp = JSON.stringify(data);
+    window.setInterval(async () => {
+        if (document.hidden)
+            return;
         try {
-            await hydrateProductionCloud();
+            const fresh = await cloudFetch('/settings');
+            const next = JSON.stringify(fresh);
+            if (next === stamp)
+                return;
+            data = fresh;
+            stamp = next;
+            render();
+            setForgeCloudSync('synced', 'Printers updated live');
         }
         catch (e) {
-            showCloudRequiredError(e.message);
-            return;
+            setForgeCloudSync('error', e.message || 'Printer sync failed');
         }
-    }
-    let s = cloudOperationalState();
-    const ps = await load('products');
-    const files = await load('insert_files');
-    let pals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku));
-    ensureCornwallInsertReplenishment(s, ps);
-    const q = document.querySelector('#q');
-    const printCards = document.querySelector('#insertPrintCards');
-    const cutCards = document.querySelector('#insertCutCards');
-    const inventory = document.querySelector('#insertInventory');
-    const inventorySearch = document.querySelector('#insertInventorySearch');
-    const readyKpi = document.querySelector('#insertReadyKpi');
-    const cutKpi = document.querySelector('#insertCutKpi');
-    const printKpi = document.querySelector('#insertPrintKpi');
-    const urgentKpi = document.querySelector('#insertUrgentKpi');
-    const printQueueCount = document.querySelector('#printQueueCount');
-    const cutQueueCount = document.querySelector('#cutQueueCount');
-    function rec(sku) {
-        s.inserts[sku] = s.inserts[sku] || { awaiting_cut: 0, ready: 0 };
-        return s.inserts[sku];
-    }
-    function target() { return 10; }
-    function needPrint(sku) {
-        var _a, _b;
-        const r = rec(sku);
-        const damageNeed = Number(((_a = s.damageInsertDemand) === null || _a === void 0 ? void 0 : _a[sku]) || 0);
-        const cornwallNeed = Number(((_b = s.cornwallInsertReplenishment) === null || _b === void 0 ? void 0 : _b[sku]) || 0);
-        return Math.max(0, target() + damageNeed + cornwallNeed - Number(r.ready || 0) - Number(r.awaiting_cut || 0));
-    }
-    function renderPrintCard(x) {
-        var _a;
-        return `<div class="insert-job-card print-job">
-     <div class="assembly-card-head">
-       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${Number(((_a = s.cornwallInsertReplenishment) === null || _a === void 0 ? void 0 : _a[x.p.sku]) || 0) > 0 ? badge(`CORNWALL +${Number(s.cornwallInsertReplenishment[x.p.sku] || 0)}`, 'info') : x.r.ready < 4 ? badge('URGENT', 'danger') : badge(`PRINT ${x.need}`, 'warning')}
-     </div>
-     <div class="insert-job-stats">
-       <div><span>Ready</span><strong>${Number(x.r.ready || 0)}</strong></div>
-       <div><span>In Cut & Score</span><strong>${Number(x.r.awaiting_cut || 0)}</strong></div>
-       <div><span>Need Print</span><strong class="accent">${x.need}</strong></div>
-     </div>
-     <div class="insert-file-name">${x.file ? 'PDF linked from Google Drive' : 'No PDF mapped for this SKU'}</div>
-     <div class="insert-action-row">
-       ${x.file ? `<a class="btn secondary" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open / Print PDF</a>` : `<button class="btn secondary" disabled>No PDF</button>`}
-       <label class="compact-label"><span>Qty Printed</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" value="${Math.max(1, x.need || 1)}"></label>
-       <button class="btn markPrinted" data-sku="${x.p.sku}">Mark Printed</button>
-     </div>
-   </div>`;
-    }
-    function renderCutCard(x) {
-        const awaiting = Number(x.r.awaiting_cut || 0);
-        return `<div class="insert-job-card cut-job">
-     <div class="assembly-card-head">
-       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       ${badge(`${awaiting} WAITING`, 'warning')}
-     </div>
-     <div class="cut-score-hero">
-       <div class="cut-score-number">${awaiting}</div>
-       <div><strong>Printed Insert${awaiting === 1 ? '' : 's'}</strong><div class="small">ready to cut and score</div></div>
-     </div>
-     <div class="insert-action-row">
-       <label class="compact-label"><span>Qty Completed</span><input class="number cutQty" id="cut-${x.p.sku}" type="number" min="1" max="${awaiting}" value="${awaiting}"></label>
-       <button class="btn completeCut" data-sku="${x.p.sku}">Cut & Score Complete</button>
-     </div>
-   </div>`;
-    }
-    function render() {
-        const text = (q.value || '').toLowerCase();
-        const data = pals.map(p => ({ p, r: rec(p.sku), need: needPrint(p.sku), file: files[p.sku] || null }))
-            .filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(text));
-        const printJobs = data.filter(x => x.need > 0)
-            .sort((a, b) => (a.r.ready < 4 ? -1 : 0) - (b.r.ready < 4 ? -1 : 0) || b.need - a.need || a.p.name.localeCompare(b.p.name));
-        const cutJobs = data.filter(x => Number(x.r.awaiting_cut || 0) > 0)
-            .sort((a, b) => Number(b.r.awaiting_cut || 0) - Number(a.r.awaiting_cut || 0) || a.p.name.localeCompare(b.p.name));
-        readyKpi.textContent = data.reduce((a, x) => a + Number(x.r.ready || 0), 0);
-        cutKpi.textContent = data.reduce((a, x) => a + Number(x.r.awaiting_cut || 0), 0);
-        printKpi.textContent = data.reduce((a, x) => a + x.need, 0);
-        urgentKpi.textContent = data.filter(x => Number(x.r.ready || 0) < 4).length;
-        if (printQueueCount)
-            printQueueCount.textContent = `${printJobs.length} Job${printJobs.length === 1 ? '' : 's'}`;
-        if (cutQueueCount)
-            cutQueueCount.textContent = `${cutJobs.length} Job${cutJobs.length === 1 ? '' : 's'}`;
-        printCards.innerHTML = printJobs.length
-            ? printJobs.map(renderPrintCard).join('')
-            : '<div class="bench-empty">Nothing currently needs printing.</div>';
-        cutCards.innerHTML = cutJobs.length
-            ? cutJobs.map(renderCutCard).join('')
-            : '<div class="bench-empty">Nothing is waiting for Cut & Score.</div>';
-        const inventoryText = ((inventorySearch === null || inventorySearch === void 0 ? void 0 : inventorySearch.value) || '').toLowerCase();
-        const inventoryRows = data
-            .filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(inventoryText))
-            .sort((a, b) => a.p.name.localeCompare(b.p.name));
-        inventory.innerHTML = inventoryRows
-            .map(x => `<tr>
-       <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
-       <td><strong>${Number(x.r.ready || 0)}</strong></td>
-     </tr>`).join('') || '<tr><td colspan="2">No matching On Sale Pals.</td></tr>';
-        document.querySelectorAll('.markPrinted').forEach(btn => btn.onclick = async () => {
-            var _a, _b, _c, _d;
-            const sku = btn.dataset.sku, r = rec(sku);
-            const qty = Math.max(1, Number(((_a = document.querySelector('#printed-' + sku)) === null || _a === void 0 ? void 0 : _a.value) || 1));
-            const cardStock = Number(((_c = (_b = s.consumables) === null || _b === void 0 ? void 0 : _b.card_210gsm) === null || _c === void 0 ? void 0 : _c.stock) || 0);
-            if (cardStock < qty) {
-                alert(`Not enough 210gsm Card. Need ${qty} sheet${qty === 1 ? '' : 's'}, but only ${cardStock} available.`);
-                return;
-            }
-            const before = JSON.parse(JSON.stringify(s));
-            s.consumables.card_210gsm.stock = cardStock - qty;
-            s.consumableHistory = s.consumableHistory || [];
-            s.consumableHistory.push({
-                id: makeId(),
-                key: 'card_210gsm',
-                name: '210gsm Card',
-                qty: -qty,
-                reason: `Insert printed · ${sku}`,
-                created_at: new Date().toISOString(),
-                updated_by: ((_d = currentForgeUser()) === null || _d === void 0 ? void 0 : _d.email) || ''
-            });
-            r.awaiting_cut = Number(r.awaiting_cut || 0) + qty;
-            btn.disabled = true;
-            btn.textContent = 'Saving…';
-            try {
-                await save(s);
-                render();
-            }
-            catch (e) {
-                s = before;
-                render();
-                alert('Printed inserts could not be saved to Cloudflare. Card stock and Cut & Score quantities have been rolled back.');
-            }
-        });
-        document.querySelectorAll('.completeCut').forEach(btn => btn.onclick = async () => {
-            var _a, _b, _c, _d;
-            const sku = btn.dataset.sku, r = rec(sku);
-            const available = Number(r.awaiting_cut || 0);
-            const qty = Math.max(1, Math.min(available, Number(((_a = document.querySelector('#cut-' + sku)) === null || _a === void 0 ? void 0 : _a.value) || 1)));
-            if (available <= 0)
-                return;
-            const before = JSON.parse(JSON.stringify(s));
-            r.awaiting_cut = available - qty;
-            let remaining = qty;
-            // First satisfy full-factory damage replacement insert demand.
-            const damageNeed = Number(((_b = s.damageInsertDemand) === null || _b === void 0 ? void 0 : _b[sku]) || 0);
-            const damageUsed = Math.min(remaining, damageNeed);
-            if (damageUsed > 0) {
-                r.ready = Number(r.ready || 0) + damageUsed;
-                s.damageInsertDemand[sku] = Math.max(0, damageNeed - damageUsed);
-                remaining -= damageUsed;
-            }
-            // Then route Cornwall spare replenishment directly into Dispatch.
-            const cornwallNeed = Number(((_c = s.cornwallInsertReplenishment) === null || _c === void 0 ? void 0 : _c[sku]) || 0);
-            const cornwallUsed = Math.min(remaining, cornwallNeed);
-            if (cornwallUsed > 0) {
-                const p = pals.find(x => x.sku === sku);
-                const now = new Date().toISOString();
-                s.awaitingDispatch = s.awaitingDispatch || [];
-                s.awaitingDispatch.push({
-                    id: makeId(),
-                    item_type: 'cornwall_insert_spare',
-                    sku,
-                    name: (p === null || p === void 0 ? void 0 : p.name) || sku,
-                    qty: cornwallUsed,
-                    status: 'awaiting_dispatch',
-                    packed_at: now,
-                    locked_destination: 'cornwall',
-                    supply_label: 'Cornwall Spare Insert',
-                    created_by: ((_d = currentForgeUser()) === null || _d === void 0 ? void 0 : _d.email) || ''
-                });
-                s.cornwallInsertReplenishment[sku] = Math.max(0, cornwallNeed - cornwallUsed);
-                remaining -= cornwallUsed;
-            }
-            // Any normal insert production becomes factory Ready Insert stock.
-            if (remaining > 0)
-                r.ready = Number(r.ready || 0) + remaining;
-            btn.disabled = true;
-            btn.textContent = 'Saving…';
-            try {
-                await save(s);
-                render();
-            }
-            catch (e) {
-                s = before;
-                render();
-                alert('Cut & Score completion could not be saved to Cloudflare. Insert stock has been rolled back.');
-            }
-        });
-    }
-    q.oninput = render;
-    if (inventorySearch)
-        inventorySearch.oninput = render;
-    render();
-    await startForgeLiveSync(async (fresh) => {
-        s = JSON.parse(JSON.stringify(fresh));
-        pals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku));
-        ensureCornwallInsertReplenishment(s, ps);
-        render();
-    });
-}
-async function availabilityPage() {
-    installForgeCloudSyncBadge();
-    if (!forgeProductionCloudReady) {
-        try {
-            await hydrateProductionCloud();
-        }
-        catch (e) {
-            showCloudRequiredError(e.message);
-            return;
-        }
-    }
-    let s = cloudOperationalState();
-    const ps = await load('products');
-    const pals = ps.filter(p => p.type === 'pal');
-    const q = document.querySelector('#q');
-    const filter = document.querySelector('#availabilityFilter');
-    const list = document.querySelector('#availabilityList');
-    const saleKpi = document.querySelector('#onSaleKpi');
-    const futureKpi = document.querySelector('#futureKpi');
-    const offKpi = document.querySelector('#offSaleKpi');
-    if (!q || !filter || !list)
-        return;
-    function status(p) {
-        var _a;
-        const rec = ((_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[p.sku]) || {};
-        if (rec.on_sale === true)
-            return 'sale';
-        if (rec.release_date && rec.release_date > new Date().toISOString().slice(0, 10))
-            return 'future';
-        return 'off';
-    }
-    function render() {
-        const text = (q.value || '').toLowerCase();
-        const mode = filter.value;
-        const all = pals.map(p => { var _a; return ({ p, rec: ((_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[p.sku]) || {}, status: status(p) }); });
-        if (saleKpi)
-            saleKpi.textContent = all.filter(x => x.status === 'sale').length;
-        if (futureKpi)
-            futureKpi.textContent = all.filter(x => x.status === 'future').length;
-        if (offKpi)
-            offKpi.textContent = all.filter(x => x.status === 'off').length;
-        const data = all
-            .filter(x => `${x.p.name} ${x.p.sku}`.toLowerCase().includes(text))
-            .filter(x => mode === 'all' || x.status === mode)
-            .sort((a, b) => (a.status === 'sale' ? -2 : a.status === 'future' ? -1 : 0) - (b.status === 'sale' ? -2 : b.status === 'future' ? -1 : 0) || a.p.name.localeCompare(b.p.name));
-        list.innerHTML = data.map(x => `
-     <div class="availability-row">
-       <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
-       <div>${x.status === 'sale' ? badge('ON SALE', 'ok') : x.status === 'future' ? badge('FUTURE RELEASE', 'warning') : badge('NOT ON SALE', '')}</div>
-       <label>
-         <span class="small">Release Date</span>
-         <input class="cloudReleaseDate" data-sku="${x.p.sku}" type="date" value="${esc(x.rec.release_date || '')}">
-       </label>
-       <button class="btn ${x.status === 'sale' ? 'ghost' : ''} cloudToggleSale" data-sku="${x.p.sku}">
-         ${x.status === 'sale' ? 'Take Off Sale' : 'Put On Sale'}
-       </button>
-     </div>`).join('') || '<div class="bench-empty">No Pals match this view.</div>';
-        document.querySelectorAll('.cloudToggleSale').forEach(btn => btn.onclick = async () => {
-            var _a;
-            const sku = btn.dataset.sku;
-            const rec = ((_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) || { on_sale: false, release_date: '' };
-            const next = !Boolean(rec.on_sale);
-            const releaseDate = next ? (rec.release_date || new Date().toISOString().slice(0, 10)) : (rec.release_date || null);
-            btn.disabled = true;
-            const oldText = btn.textContent;
-            btn.textContent = 'Saving to Cloud…';
-            try {
-                await cloudFetchTimed(`/products/${encodeURIComponent(sku)}/availability`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ on_sale: next, release_date: releaseDate })
-                }, 10000);
-                // Confirm only the products table. Do not wait for unrelated production endpoints.
-                const availability = await refreshProductAvailabilityFromD1(s);
-                const confirmed = availability.find(p => p.sku === sku);
-                if (!confirmed)
-                    throw new Error(`${sku} was not returned by D1 after the update.`);
-                if (Boolean(confirmed.on_sale) !== next) {
-                    throw new Error(`D1 did not confirm the requested On Sale value for ${sku}.`);
-                }
-                render();
-                setForgeCloudSync('synced', `${sku} ${next ? 'On Sale' : 'Not On Sale'} confirmed by D1`);
-            }
-            catch (e) {
-                btn.disabled = false;
-                btn.textContent = oldText;
-                setForgeCloudSync('error', e.message || 'Availability update failed');
-                alert(`Availability was NOT changed in Cloudflare: ${e.message}`);
-            }
-        });
-        document.querySelectorAll('.cloudReleaseDate').forEach(el => el.onchange = async () => {
-            var _a;
-            const sku = el.dataset.sku;
-            const rec = ((_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) || { on_sale: false, release_date: '' };
-            const nextDate = el.value || null;
-            el.disabled = true;
-            try {
-                await cloudFetchTimed(`/products/${encodeURIComponent(sku)}/availability`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ on_sale: Boolean(rec.on_sale), release_date: nextDate })
-                }, 10000);
-                const availability = await refreshProductAvailabilityFromD1(s);
-                const confirmed = availability.find(p => p.sku === sku);
-                if (!confirmed)
-                    throw new Error(`${sku} was not returned by D1 after the update.`);
-                render();
-                setForgeCloudSync('synced', `${sku} release date confirmed by D1`);
-            }
-            catch (e) {
-                el.disabled = false;
-                render();
-                setForgeCloudSync('error', e.message || 'Release date update failed');
-                alert(`Release date was NOT changed in Cloudflare: ${e.message}`);
-            }
-        });
-    }
-    q.oninput = render;
-    filter.onchange = render;
-    render();
-    await startForgeLiveSync(async (fresh) => {
-        s = JSON.parse(JSON.stringify(fresh));
-        render();
-    });
+    }, 2000);
 }
 async function settingsAvailabilityPage() {
     installForgeCloudSyncBadge();
@@ -3022,28 +2533,46 @@ async function packingStationPage() {
         render();
     });
 }
-function barcodePrinterSettings() {
-    var _a;
-    const s = state();
+async function barcodePrinterSettings() {
+    installForgeCloudSyncBadge();
     const host = document.querySelector('#barcodePrinterSettings');
     if (!host)
         return;
-    const printers = (s.printers || []).map((p, i) => ({ id: p.id || p.name || String(i), name: p.name || p.label || p.model || ('Printer ' + (i + 1)) }));
-    const current = ((_a = s.printerRoles) === null || _a === void 0 ? void 0 : _a.barcode) || '';
-    host.innerHTML = `<div class="card"><div class="section-title"><div><h2>Barcode / Label Printer</h2><div class="small">Used for the 50 × 30 mm Pal barcode label at Packing Station step 8.</div></div><span class="badge info">50 × 30 mm</span></div>
- <div class="printer-role-row"><label><span>Label Printer</span><select id="barcodePrinterSelect"><option value="">Choose printer…</option>${printers.map(p => `<option value="${esc(p.name)}" ${current === p.name ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="__manual" ${current && !printers.some(p => p.name === current) ? 'selected' : ''}>Other / Manual…</option></select></label>
- <label id="barcodeManualWrap" style="${current && !printers.some(p => p.name === current) ? '' : 'display:none'}"><span>Printer Name</span><input id="barcodePrinterManual" value="${current && !printers.some(p => p.name === current) ? esc(current) : ''}" placeholder="e.g. Zebra / Brother Label Printer"></label>
- <button class="btn" id="saveBarcodePrinter">Save Barcode Printer</button></div>
- <div class="small" style="margin-top:8px">Browsers cannot silently choose a physical printer. Forge will format the label correctly and remember which printer you intend to use; select that printer in the system print dialog.</div></div>`;
-    const sel = document.querySelector('#barcodePrinterSelect'), mw = document.querySelector('#barcodeManualWrap');
-    sel.onchange = () => mw.style.display = sel.value === '__manual' ? '' : 'none';
-    document.querySelector('#saveBarcodePrinter').onclick = () => {
-        const val = sel.value === '__manual' ? document.querySelector('#barcodePrinterManual').value.trim() : sel.value;
-        s.printerRoles = s.printerRoles || {};
-        s.printerRoles.barcode = val;
-        save(s);
-        alert(val ? `Barcode printer saved: ${val}` : 'Barcode printer selection cleared.');
-    };
+    async function draw() {
+        const data = await cloudFetch('/settings');
+        const printers = (data.printers || []).filter(p => p.active !== false);
+        const current = String((data.settings || {}).barcode_printer || '');
+        host.innerHTML = `<div class="card"><div class="section-title"><div><h2>Barcode / Label Printer</h2><div class="small">Used for the 50 × 30 mm Pal barcode label at Packing Station step 8.</div></div><span class="badge info">50 × 30 mm</span></div>
+        <div class="printer-role-row"><label><span>Label Printer</span><select id="barcodePrinterSelect"><option value="">Choose printer…</option>${printers.map(p => `<option value="${esc(p.id)}" ${current === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="__manual" ${current && !printers.some(p => p.id === current) ? 'selected' : ''}>Other / Manual…</option></select></label>
+        <label id="barcodeManualWrap" style="${current && !printers.some(p => p.id === current) ? '' : 'display:none'}"><span>Printer Name</span><input id="barcodePrinterManual" value="${current && !printers.some(p => p.id === current) ? esc(current) : ''}" placeholder="e.g. Zebra / Brother Label Printer"></label>
+        <button class="btn" id="saveBarcodePrinter">Save Barcode Printer</button></div>
+        <div class="small" style="margin-top:8px">Browsers cannot silently choose a physical printer. Forge remembers the intended printer; select it in the system print dialog.</div></div>`;
+        const sel = document.querySelector('#barcodePrinterSelect');
+        const mw = document.querySelector('#barcodeManualWrap');
+        sel.onchange = () => mw.style.display = sel.value === '__manual' ? '' : 'none';
+        document.querySelector('#saveBarcodePrinter').onclick = async () => {
+            const val = sel.value === '__manual' ? document.querySelector('#barcodePrinterManual').value.trim() : sel.value;
+            try {
+                await cloudFetch('/settings/barcode_printer', {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value: val })
+                });
+                alert(val ? 'Barcode printer saved to cloud.' : 'Barcode printer selection cleared.');
+                await draw();
+            }
+            catch (e) {
+                alert('Barcode printer was not saved: ' + e.message);
+            }
+        };
+    }
+    try {
+        await draw();
+        setForgeCloudSync('synced', 'Label settings synced');
+    }
+    catch (e) {
+        showCloudRequiredError(e.message);
+        setForgeCloudSync('error', e.message);
+    }
 }
 function addForgeInventory(s, sku, loc, qty) {
     qty = Number(qty || 0);
@@ -4552,15 +4081,98 @@ async function employeeAdminPage() {
     }
     await loadUsers();
 }
-
-function generalSettingsPage(){
-    const s=state();
-    const el=document.getElementById('defaultPrinter');
-    if(!el) return;
-    const printers=(s.printers||[]).filter(p=>p.active!==false);
-    el.innerHTML='<option value="">No default</option>'+printers.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.model?` · ${esc(p.model)}`:''}</option>`).join('');
-    el.value=(s.siteSettings&&s.siteSettings.defaultPrinter)||'';
-    el.onchange=()=>{s.siteSettings=s.siteSettings||{};s.siteSettings.defaultPrinter=el.value;save(s);};
+async function generalSettingsPage() {
+    installForgeCloudSyncBadge();
+    const defaultPrinter = document.getElementById('defaultPrinter');
+    const defaultLocation = document.getElementById('defaultLocation');
+    const msg = document.getElementById('settingsMessage');
+    let data;
+    async function refresh() {
+        data = await cloudFetch('/settings');
+        return data;
+    }
+    function flash(text, kind = 'ok') {
+        if (!msg)
+            return;
+        msg.innerHTML = badge(text, kind);
+        setTimeout(() => { if (msg)
+            msg.innerHTML = ''; }, 2200);
+    }
+    function render() {
+        const printers = (data.printers || []).filter(p => p.active !== false);
+        defaultPrinter.innerHTML = '<option value="">No default</option>' +
+            printers.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.model ? ` · ${esc(p.model)}` : ''}</option>`).join('');
+        defaultPrinter.value = String((data.settings || {}).default_printer || '');
+        if (defaultLocation) {
+            defaultLocation.value = String((data.settings || {}).default_location || 'boat');
+        }
+    }
+    try {
+        await refresh();
+        render();
+        setForgeCloudSync('synced', 'Settings synced');
+    }
+    catch (e) {
+        showCloudRequiredError(e.message);
+        setForgeCloudSync('error', e.message);
+        return;
+    }
+    defaultPrinter.onchange = async () => {
+        defaultPrinter.disabled = true;
+        try {
+            await cloudFetch('/settings/default_printer', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: defaultPrinter.value })
+            });
+            await refresh();
+            render();
+            flash('Default printer updated', 'ok');
+        }
+        catch (e) {
+            flash('Default printer was not saved: ' + e.message, 'danger');
+            await refresh();
+            render();
+        }
+        defaultPrinter.disabled = false;
+    };
+    if (defaultLocation) {
+        defaultLocation.onchange = async () => {
+            defaultLocation.disabled = true;
+            try {
+                await cloudFetch('/settings/default_location', {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value: defaultLocation.value })
+                });
+                await refresh();
+                render();
+                flash('Default location updated', 'ok');
+            }
+            catch (e) {
+                flash('Default location was not saved: ' + e.message, 'danger');
+                await refresh();
+                render();
+            }
+            defaultLocation.disabled = false;
+        };
+    }
+    let stamp = JSON.stringify(data);
+    window.setInterval(async () => {
+        if (document.hidden)
+            return;
+        try {
+            const fresh = await cloudFetch('/settings');
+            const next = JSON.stringify(fresh);
+            if (next === stamp)
+                return;
+            data = fresh;
+            stamp = next;
+            render();
+            setForgeCloudSync('synced', 'Settings updated live');
+        }
+        catch (e) {
+            setForgeCloudSync('error', e.message || 'Settings sync failed');
+        }
+    }, 2000);
 }
 (function () {
     const page = (location.pathname.split('/').pop() || 'index.html').replace('.html', '').replace(/[^a-z0-9_-]/gi, '-');

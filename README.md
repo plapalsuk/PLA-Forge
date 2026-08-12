@@ -1459,3 +1459,14 @@ The Recipes page now resolves human-readable Pal names by SKU against the deploy
 Example: `PLA001` is displayed as `Alex the Axolotl`.
 
 Cloud recipes and cloud product records remain authoritative for operational data; the static catalogue is used only to resolve the product display name and is fetched with `cache: no-store`.
+
+
+## v0.15.0 — General Settings + Printers Cloud
+
+- Printer register is D1-backed.
+- Add, enable/disable and delete printer actions save directly to Cloudflare.
+- Default printer is stored in `forge_settings`.
+- Default location is stored in `forge_settings`.
+- Barcode/label printer selection is stored in `forge_settings`.
+- Settings and printer pages live-refresh across open devices.
+- These settings no longer use local browser state for operational configuration.
