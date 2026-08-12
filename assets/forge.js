@@ -1,5 +1,20 @@
 const STORE = 'plaForgeV02';
 const RESET_RELEASE = '0.9.8';
+function safeJsonValue(value, fallback) {
+    if (fallback === void 0) {
+        fallback = {};
+    }
+    if (value === undefined || value === null || value === '')
+        return fallback;
+    if (typeof value !== 'string')
+        return value;
+    try {
+        return JSON.parse(value);
+    }
+    catch (e) {
+        return fallback;
+    }
+}
 function blankOperationalState() {
     return {
         stock: {},

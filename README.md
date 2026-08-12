@@ -1618,3 +1618,11 @@ No Worker or D1 schema change is required.
 - The next scheduled launch is highlighted.
 - Links directly to Product Availability for release management.
 - No Worker or D1 changes required.
+
+## v0.18.5 — Reset-safe dashboard
+
+- Hardened JSON settings parsing so an empty/reset cloud database cannot cause `"undefined" is not valid JSON`.
+- Missing settings now fall back to empty/default configuration until recreated.
+- Moved Upcoming Releases above Stock Health on the Dashboard.
+- Rebuilt for legacy iPad Safari compatibility.
+- No D1 schema change required.
