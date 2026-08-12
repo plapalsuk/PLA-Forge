@@ -1433,3 +1433,13 @@ Recipes are now editable directly against D1.
 - Every save records an audit snapshot in `recipe_history`.
 - Build Plates continue to load recipe rows from the cloud, so new plate calculations use the latest saved weights and filament colours.
 - No operational recipe edits are stored in browser localStorage.
+
+
+## v0.14.1 — Recipes Display Fix
+
+Fixes the Recipes page incorrectly showing “No matching Pals” when the cloud product records do not use `type: "pal"`.
+
+- Products are now recognised as Pals if they have recipe rows, or use `type`, `product_type`, or `category` values indicating Pal.
+- Existing recipe rows can render even when a corresponding product record is missing or shaped differently.
+- No D1 recipe data is changed or re-imported.
+- Recipe editing and cloud saving remain unchanged.

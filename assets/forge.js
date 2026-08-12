@@ -915,7 +915,12 @@ async function recipes() {
     function draw() {
         const text = (q.value || '').toLowerCase();
         const filtered = ps.filter(p => p.type === 'pal' && `${p.sku} ${p.name} ${(p.filaments || []).join(' ')}`.toLowerCase().includes(text));
-        box.innerHTML = filtered.map(p => {
+        const productSkus = new Set(filtered.map(p => String(p.sku || '')));
+        const recipeOnlyProducts = [...new Set(rs.map(r => r.sku).filter(Boolean))]
+            .filter(sku => !productSkus.has(String(sku)))
+            .map(sku => ({ sku, name: (rs.find(r => r.sku === sku) || {}).name || sku, type: 'pal' }));
+        const displayProducts = [...filtered, ...recipeOnlyProducts.filter(p => `${p.sku} ${p.name}`.toLowerCase().includes(text))];
+        box.innerHTML = displayProducts.map(p => {
             const rr = recipeRowsFor(p.sku);
             const total = rr.reduce((a, r) => a + Number(r.weight_g || 0), 0);
             return `<div class="card recipe-card" data-sku="${esc(p.sku)}">
