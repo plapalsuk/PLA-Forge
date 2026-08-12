@@ -1526,3 +1526,56 @@ No new D1 tables are required for v0.16.0.
 - Added stock/material/data-health alerts and quick operational actions.
 - Responsive mobile dashboard included.
 - No Worker or D1 changes required.
+
+
+## v0.18.0 — Full Operations Dashboard
+
+Forge Control is now a complete live operations dashboard.
+
+### Summary
+- Total active Pals
+- Active Build Plates
+- Ready to Assemble
+- Awaiting Packing
+- Awaiting Dispatch
+- Rework
+
+### Production Today
+- Pals to Print by product/SKU
+- Demand, active-plate coverage and remaining quantity
+- Outstanding recipe colour groups per Pal
+- Most urgent colours by sets and estimated grams
+- Active 3D printers and the plates currently running on each printer
+
+### Stock Health
+- Low filament using cloud filament reorder levels
+- Low consumables using cloud reorder levels
+- Low finished Pal stock against Boat + Cornwall targets
+
+### Workflow Status
+- Printed Parts → Bench → Packing → Dispatch pipeline with live quantities
+
+### Alerts & Actions
+- Low filament
+- Low consumables
+- Failed prints
+- Products off sale
+- Missing recipes
+- SKU/data-health issues
+- Rework waiting
+
+### Quick Actions
+- New Build Plate
+- Add Filament
+- Add Consumable Stock
+- New Pal
+- Dispatch
+
+### Recent Activity
+- Print completions
+- Assembly completions
+- Packing completions
+- Dispatch/transfers
+- Rework completions
+
+No Worker or D1 schema change is required.

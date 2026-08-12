@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Forge Control | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0170"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Forge Control | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0180"></head>
 <body class="forge-protected"><div class="app">
 <aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
@@ -28,57 +28,135 @@
 </aside>
 <main>
 <div class="topbar dashboard-topbar">
-  <div class="pageTitle"><h1>Forge Control</h1><div class="small">Live manufacturing overview — what needs attention next</div></div>
-  <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div>
+  <div class="pageTitle">
+    <h1>Forge Control</h1>
+    <div class="small">Live manufacturing overview — what needs attention next</div>
+  </div>
+  <div class="kitsu">
+    <div style="font-size:25px">🦊</div>
+    <div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div>
+  </div>
 </div>
 
-<div class="ops-kpis">
-  <a class="ops-kpi" href="production.html"><span class="ops-kpi-label">Pals to Print</span><strong id="dashPalsToPrint">–</strong><small id="dashPalTypes">products needing manufacture</small></a>
-  <a class="ops-kpi" href="plates.html"><span class="ops-kpi-label">Printing Now</span><strong id="dashPrinting">–</strong><small>active build plates</small></a>
-  <a class="ops-kpi" href="assembly.html"><span class="ops-kpi-label">Ready for Bench</span><strong id="dashAssembly">–</strong><small>printed Pal sets to assemble</small></a>
-  <a class="ops-kpi" href="packing-station.html"><span class="ops-kpi-label">Awaiting Packing</span><strong id="dashPacking">–</strong><small>assembled Pals</small></a>
-  <a class="ops-kpi" href="deliveries.html"><span class="ops-kpi-label">Awaiting Dispatch</span><strong id="dashDispatch">–</strong><small>packed Pals</small></a>
-  <a class="ops-kpi" href="rework.html"><span class="ops-kpi-label">Rework</span><strong id="dashRework">–</strong><small>items needing attention</small></a>
-</div>
+<section class="dashboard-section">
+  <div class="dashboard-section-heading">
+    <div><span class="dashboard-eyebrow">Live overview</span><h2>Forge Summary</h2></div>
+  </div>
+  <div class="ops-kpis">
+    <a class="ops-kpi" href="pals.html"><span class="ops-kpi-label">Total Pals</span><strong id="dashTotalPals">–</strong><small>active Pal range</small></a>
+    <a class="ops-kpi" href="plates.html"><span class="ops-kpi-label">Active Build Plates</span><strong id="dashPrinting">–</strong><small>currently printing</small></a>
+    <a class="ops-kpi" href="assembly.html"><span class="ops-kpi-label">Ready to Assemble</span><strong id="dashAssembly">–</strong><small>complete printable sets</small></a>
+    <a class="ops-kpi" href="packing-station.html"><span class="ops-kpi-label">Awaiting Packing</span><strong id="dashPacking">–</strong><small>assembled Pals</small></a>
+    <a class="ops-kpi" href="deliveries.html"><span class="ops-kpi-label">Awaiting Dispatch</span><strong id="dashDispatch">–</strong><small>packed Pals</small></a>
+    <a class="ops-kpi" href="rework.html"><span class="ops-kpi-label">Rework</span><strong id="dashRework">–</strong><small>items needing attention</small></a>
+  </div>
+</section>
 
-<div class="dashboard-primary-grid">
-  <section class="card dashboard-pal-demand">
-    <div class="section-title">
-      <div><h2>Pals to Print</h2><div class="small">Actual Pal demand after stock and completed workflow stages are deducted.</div></div>
-      <a href="production.html" class="small accent">Open Production Planner →</a>
+<section class="dashboard-section">
+  <div class="dashboard-section-heading">
+    <div><span class="dashboard-eyebrow">What should we make next?</span><h2>Production Today</h2></div>
+    <a href="production.html" class="small accent">Open Production Planner →</a>
+  </div>
+
+  <div class="dashboard-production-grid">
+    <div class="card dashboard-pal-demand">
+      <div class="section-title">
+        <div><h2>Pals to Print</h2><div class="small">Product demand after current stock and downstream WIP are deducted.</div></div>
+        <div class="dashboard-mini-total"><strong id="dashPalsToPrint">–</strong><span id="dashPalTypes">products</span></div>
+      </div>
+      <div id="dashPalDemand" class="pal-demand-list"></div>
     </div>
-    <div id="dashPalDemand" class="pal-demand-list"></div>
-  </section>
 
-  <section class="card">
-    <div class="section-title">
-      <div><h2>Print by Colour</h2><div class="small">Use this to group the Pal demand efficiently onto build plates.</div></div>
-      <a href="plates.html" class="small accent">Open Build Plates →</a>
+    <div class="dashboard-production-side">
+      <div class="card">
+        <div class="section-title">
+          <div><h2>Most Urgent Colours</h2><div class="small">Outstanding recipe demand grouped for efficient printing.</div></div>
+          <a href="plates.html" class="small accent">Build Plates →</a>
+        </div>
+        <div id="dashColourDemand" class="dashboard-colour-demand"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <div><h2>Active Printers & Plates</h2><div class="small">What is physically running right now.</div></div>
+        </div>
+        <div id="dashActivePrinters" class="active-printer-list"></div>
+      </div>
     </div>
-    <div id="dashColourDemand" class="dashboard-colour-demand"></div>
-  </section>
-</div>
+  </div>
+</section>
 
-<div class="dashboard-secondary-grid">
-  <section class="card">
-    <div class="section-title"><div><h2>Stock & Material Alerts</h2><div class="small">Items that could block production.</div></div></div>
-    <div id="dashStockAlerts" class="list"></div>
-  </section>
-  <section class="card">
-    <div class="section-title"><div><h2>Quick Actions</h2><div class="small">Jump straight into the next job.</div></div></div>
-    <div class="dashboard-actions">
-      <a class="btn" href="plates.html">＋ Build Plate</a>
-      <a class="btn secondary" href="filament.html">≋ Filament</a>
-      <a class="btn secondary" href="consumables.html">▤ Consumables</a>
-      <a class="btn secondary" href="packing-station.html">▣ Packing</a>
-      <a class="btn ghost" href="deliveries.html">⇢ Dispatch</a>
-      <a class="btn ghost" href="new-pal.html">＋ New Pal</a>
+<section class="dashboard-section">
+  <div class="dashboard-section-heading">
+    <div><span class="dashboard-eyebrow">Can production keep moving?</span><h2>Stock Health</h2></div>
+  </div>
+  <div class="dashboard-health-grid">
+    <div class="card">
+      <div class="section-title"><div><h2>Low Filament</h2><div class="small">Spools at or below reorder level.</div></div><a href="filament.html" class="small accent">Filament →</a></div>
+      <div id="dashLowFilament" class="dashboard-health-list"></div>
     </div>
-    <div class="dashboard-health" id="dashDataHealth"></div>
-  </section>
-</div>
+    <div class="card">
+      <div class="section-title"><div><h2>Low Consumables</h2><div class="small">Packaging supplies at or below reorder level.</div></div><a href="consumables.html" class="small accent">Consumables →</a></div>
+      <div id="dashLowConsumables" class="dashboard-health-list"></div>
+    </div>
+    <div class="card">
+      <div class="section-title"><div><h2>Low Finished Stock</h2><div class="small">Largest Pal shortages against Boat + Cornwall targets.</div></div><a href="pals.html" class="small accent">Pals →</a></div>
+      <div id="dashLowFinished" class="dashboard-health-list"></div>
+    </div>
+  </div>
+</section>
 
-<div class="footer-note">PLA Forge v0.17.0 · Manufacturing & Inventory System</div>
-</main></div><script src="assets/forge.js?v=0170"></script><script>forgeBoot(async function(){
+<section class="dashboard-section">
+  <div class="dashboard-section-heading">
+    <div><span class="dashboard-eyebrow">Where is the work?</span><h2>Workflow Status</h2></div>
+  </div>
+  <div class="workflow-pipeline" id="dashWorkflow">
+    <a href="parts.html" class="workflow-stage"><span>Printed Parts</span><strong id="workflowParts">–</strong><small>individual/group stock</small></a>
+    <div class="workflow-arrow">→</div>
+    <a href="assembly.html" class="workflow-stage"><span>Bench</span><strong id="workflowBench">–</strong><small>ready / assembled</small></a>
+    <div class="workflow-arrow">→</div>
+    <a href="packing-station.html" class="workflow-stage"><span>Packing</span><strong id="workflowPacking">–</strong><small>awaiting pack</small></a>
+    <div class="workflow-arrow">→</div>
+    <a href="deliveries.html" class="workflow-stage"><span>Dispatch</span><strong id="workflowDispatch">–</strong><small>awaiting dispatch</small></a>
+  </div>
+</section>
+
+<section class="dashboard-section">
+  <div class="dashboard-alert-action-grid">
+    <div class="card">
+      <div class="section-title">
+        <div><h2>Alerts & Actions</h2><div class="small">Anything blocked, low, failed or incomplete.</div></div>
+        <a href="data-health.html" class="small accent">Data Health →</a>
+      </div>
+      <div id="dashAlerts" class="dashboard-alert-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <div><h2>Quick Actions</h2><div class="small">Jump straight into the next task.</div></div>
+      </div>
+      <div class="dashboard-actions">
+        <a class="btn" href="plates.html">＋ New Build Plate</a>
+        <a class="btn secondary" href="filament.html">≋ Add Filament</a>
+        <a class="btn secondary" href="consumables.html">▤ Add Consumable Stock</a>
+        <a class="btn secondary" href="new-pal.html">＋ New Pal</a>
+        <a class="btn ghost" href="deliveries.html">⇢ Dispatch</a>
+      </div>
+      <div class="dashboard-health" id="dashDataHealth"></div>
+    </div>
+  </div>
+</section>
+
+<section class="dashboard-section">
+  <div class="dashboard-section-heading">
+    <div><span class="dashboard-eyebrow">What just happened?</span><h2>Recent Activity</h2></div>
+  </div>
+  <div class="card dashboard-activity-card">
+    <div id="dashRecentActivity" class="dashboard-activity-list"></div>
+  </div>
+</section>
+
+<div class="footer-note">PLA Forge v0.18.0 · Manufacturing &amp; Inventory System</div>
+</main></div><script src="assets/forge.js?v=0180"></script><script>forgeBoot(async function(){
 dashboard()
 })</script></body></html>
