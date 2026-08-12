@@ -1626,3 +1626,13 @@ No Worker or D1 schema change is required.
 - Moved Upcoming Releases above Stock Health on the Dashboard.
 - Rebuilt for legacy iPad Safari compatibility.
 - No D1 schema change required.
+
+## v0.18.6 — True Reset-Safe Hydration
+
+- Fixed the actual source of `"undefined" is not valid JSON` after Reset Everything to Zero.
+- Production hydration no longer calls `JSON.parse(JSON.stringify(undefined))`.
+- Missing operational D1 fields now receive safe array/object defaults.
+- Added explicit blank defaults for production, plates and packing jobs.
+- Keeps Upcoming Releases above Stock Health.
+- Rebuilt for legacy iPad Safari.
+- No Worker or D1 schema changes required.

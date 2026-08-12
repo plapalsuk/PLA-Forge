@@ -15,6 +15,27 @@ function safeJsonValue(value, fallback) {
         return fallback;
     }
 }
+function forgeClone(value, fallback) {
+    if (value === undefined)
+        value = fallback;
+    if (value === undefined || value === null) {
+        if (Array.isArray(fallback))
+            return [];
+        if (fallback && typeof fallback === 'object')
+            return {};
+        return fallback === undefined ? null : fallback;
+    }
+    try {
+        return JSON.parse(JSON.stringify(value));
+    }
+    catch (e) {
+        if (Array.isArray(fallback))
+            return [];
+        if (fallback && typeof fallback === 'object')
+            return {};
+        return fallback === undefined ? null : fallback;
+    }
+}
 function blankOperationalState() {
     return {
         stock: {},
@@ -230,9 +251,10 @@ async function hydrateProductionCloud(force = false) {
         const cloudState = (st === null || st === void 0 ? void 0 : st.state) || {};
         const blank = blankOperationalState();
         CLOUD_PRODUCTION_FIELDS.forEach(k => {
-            s[k] = cloudState[k] !== undefined
-                ? JSON.parse(JSON.stringify(cloudState[k]))
-                : JSON.parse(JSON.stringify(blank[k]));
+            const fallback = blank[k] !== undefined
+                ? blank[k]
+                : (['printHistory', 'failedParts', 'assemblyHistory', 'boxHistory', 'insertHistory', 'consumableHistory', 'packingHistory', 'awaitingDispatch', 'transfers', 'damageHistory', 'damageReworkJobs', 'reworkHistory', 'plates'].includes(k) ? [] : {});
+            s[k] = forgeClone(cloudState[k], fallback);
         });
         s.targets = {};
         ((targetData === null || targetData === void 0 ? void 0 : targetData.targets) || []).forEach(t => {
