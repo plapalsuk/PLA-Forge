@@ -1505,3 +1505,13 @@ No new D1 tables are required for v0.16.0.
 - Stores printer, paper size and orientation using the existing settings API.
 - Defaults: A4, Portrait.
 - No Worker or D1 migration required.
+
+## v0.16.2 — Mobile Dropdown Menu
+
+- Replaced the long horizontal mobile navigation button strip with a single `Menu` dropdown.
+- The closed menu shows the current page.
+- Opening it reveals the existing grouped navigation vertically.
+- The current page is highlighted.
+- Selecting a page automatically closes the dropdown.
+- Desktop sidebar navigation is unchanged.
+- No Worker or D1 changes required.

@@ -4398,6 +4398,49 @@ async function generalSettingsPage() {
         }
     }, 2000);
 }
+
+function installMobileForgeMenu() {
+    const toggle = document.getElementById('mobileNavToggle');
+    const nav = document.getElementById('forgeNav');
+    if (!toggle || !nav)
+        return;
+    const current = toggle.querySelector('.mobile-nav-current');
+    const links = Array.from(nav.querySelectorAll('a'));
+    const here = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    const active = links.find(a => {
+        const href = String(a.getAttribute('href') || '').split('?')[0].split('#')[0];
+        return href.toLowerCase() === here;
+    });
+    if (current && active)
+        current.textContent = active.textContent.trim();
+    if (active)
+        active.classList.add('mobile-current-page');
+    const close = () => {
+        nav.classList.remove('mobile-nav-open');
+        toggle.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+    };
+    toggle.onclick = () => {
+        const open = !nav.classList.contains('mobile-nav-open');
+        nav.classList.toggle('mobile-nav-open', open);
+        toggle.classList.toggle('open', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    links.forEach(a => a.addEventListener('click', close));
+    document.addEventListener('click', e => {
+        if (window.innerWidth > 980)
+            return;
+        if (!nav.classList.contains('mobile-nav-open'))
+            return;
+        if (nav.contains(e.target) || toggle.contains(e.target))
+            return;
+        close();
+    });
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 980)
+            close();
+    });
+}
 (function () {
     const page = (location.pathname.split('/').pop() || 'index.html').replace('.html', '').replace(/[^a-z0-9_-]/gi, '-');
     document.body.classList.add('forge-page-' + page);
@@ -4410,4 +4453,8 @@ document.addEventListener('visibilitychange', async () => {
             forgeLastCloudStamp = null;
         }
     }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    installMobileForgeMenu();
 });
