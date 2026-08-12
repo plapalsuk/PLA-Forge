@@ -1596,3 +1596,13 @@ No Worker or D1 schema change is required.
 - KPI now counts only Pals whose cloud Product Availability record has `on_sale = true`.
 - The full catalogue count is no longer shown in this KPI.
 - No Worker or D1 changes required.
+
+
+## v0.18.3 — Legacy iPad Safari Compatibility
+
+- Re-transpiled the complete `forge.js` bundle to ES2017 after the v0.18 dashboard changes.
+- Removes unsupported optional chaining, nullish coalescing and object-spread syntax from the shipped bundle.
+- Keeps the v0.18.2 dashboard and Pals On Sale KPI unchanged.
+- Re-audited secure boot hooks on every protected page.
+- Added a 15-second legacy boot failsafe so older Safari no longer remains indefinitely on the secure-session splash if startup fails.
+- No Worker or D1 changes required.

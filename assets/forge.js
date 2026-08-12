@@ -865,7 +865,6 @@ async function availabilityPage() {
         render();
     });
 }
-
 async function assemblyPage() {
     installForgeCloudSyncBadge();
     if (!forgeProductionCloudReady) {
@@ -1042,7 +1041,6 @@ async function assemblyPage() {
         render();
     });
 }
-
 async function insertProductionPage() {
     installForgeCloudSyncBadge();
     if (!forgeProductionCloudReady) {
@@ -1251,10 +1249,8 @@ async function insertProductionPage() {
         render();
     });
 }
-
 async function dashboard() {
     installForgeCloudSyncBadge();
-
     try {
         if (!forgeProductionCloudReady)
             await hydrateProductionCloud();
@@ -1263,43 +1259,37 @@ async function dashboard() {
         showCloudRequiredError(e.message);
         return;
     }
-
     const s = cloudOperationalState();
-
     let ps, rs, mm, filamentData;
     try {
         [ps, rs, mm, filamentData] = await Promise.all([
             load('products'),
             load('recipes'),
             load('mismatches'),
-            cloudFetch('/filaments').catch(() => ({filaments:[],history:[]}))
+            cloudFetch('/filaments').catch(() => ({ filaments: [], history: [] }))
         ]);
     }
     catch (e) {
         showCloudRequiredError(e.message);
         return;
     }
-
     const pals = (ps || []).filter(x => x.type === 'pal' && x.active !== false);
     const palBySku = Object.fromEntries(pals.map(p => [p.sku, p]));
     const recipesBySku = {};
     (rs || []).forEach(r => {
-        if (!recipesBySku[r.sku]) recipesBySku[r.sku] = [];
+        if (!recipesBySku[r.sku])
+            recipesBySku[r.sku] = [];
         recipesBySku[r.sku].push(r);
     });
-
     const num = v => Number(v || 0);
-    const sumObj = o => Object.values(o || {}).reduce((a,b)=>a+num(b),0);
-    const sumRows = (rows, fn) => (rows || []).reduce((a,x)=>a+num(fn(x)),0);
-
-    function palName(sku, fallback='') {
+    const sumObj = o => Object.values(o || {}).reduce((a, b) => a + num(b), 0);
+    const sumRows = (rows, fn) => (rows || []).reduce((a, x) => a + num(fn(x)), 0);
+    function palName(sku, fallback = '') {
         return (palBySku[sku] && palBySku[sku].name) || fallback || sku || 'Unknown Pal';
     }
-
     function remainingPalDemand(sku) {
         return manufacturingNeed(s, sku);
     }
-
     function groupedRecipeRows(sku) {
         return (recipesBySku[sku] || []).map(r => {
             const key = groupKey(r);
@@ -1317,44 +1307,34 @@ async function dashboard() {
             };
         });
     }
-
     function completedRecipeSets(sku) {
         const rows = groupedRecipeRows(sku);
-        if (!rows.length) return 0;
+        if (!rows.length)
+            return 0;
         return Math.max(0, Math.min(...rows.map(r => r.printed)));
     }
-
     const demand = pals.map(p => {
         const need = remainingPalDemand(p.sku);
         const rows = groupedRecipeRows(p.sku);
         const onPlates = rows.length ? Math.min(need, Math.max(...rows.map(x => x.onPlate), 0)) : 0;
         const remaining = rows.length ? Math.max(...rows.map(x => x.remaining), 0) : need;
-        return {p, need, onPlates, remaining, rows};
+        return { p, need, onPlates, remaining, rows };
     }).filter(x => x.need > 0)
-      .sort((a,b)=>b.remaining-a.remaining || b.need-a.need || a.p.name.localeCompare(b.p.name));
-
-    const readyToAssemble = pals.reduce((total,p)=>{
+        .sort((a, b) => b.remaining - a.remaining || b.need - a.need || a.p.name.localeCompare(b.p.name));
+    const readyToAssemble = pals.reduce((total, p) => {
         const printable = completedRecipeSets(p.sku);
         const alreadyAssembled = num((s.assembled || {})[p.sku]);
         return total + Math.max(0, printable - alreadyAssembled);
-    },0);
-
+    }, 0);
     const awaitingPacking = sumObj(s.assembled);
-    const awaitingDispatch = sumRows(
-        (s.awaitingDispatch || []).filter(x=>x.status === 'awaiting_dispatch'),
-        x=>x.qty
-    );
-    const reworkQty = sumRows(
-        (s.damageReworkJobs || []).filter(x=>x.status === 'awaiting_rework'),
-        x=>x.qty || 1
-    );
-    const activePrinting = (s.plates || []).filter(p=>p.status === 'printing');
-
-    const setText=(id,value)=>{
-        const el=document.getElementById(id);
-        if(el) el.textContent=value;
+    const awaitingDispatch = sumRows((s.awaitingDispatch || []).filter(x => x.status === 'awaiting_dispatch'), x => x.qty);
+    const reworkQty = sumRows((s.damageReworkJobs || []).filter(x => x.status === 'awaiting_rework'), x => x.qty || 1);
+    const activePrinting = (s.plates || []).filter(p => p.status === 'printing');
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el)
+            el.textContent = value;
     };
-
     const onSalePals = pals.filter(p => {
         const rec = (s.productAvailability || {})[p.sku] || {};
         return rec.on_sale === true;
@@ -1365,23 +1345,21 @@ async function dashboard() {
     setText('dashPacking', awaitingPacking);
     setText('dashDispatch', awaitingDispatch);
     setText('dashRework', reworkQty);
-
-    const totalPalsToPrint = demand.reduce((a,x)=>a+x.remaining,0);
+    const totalPalsToPrint = demand.reduce((a, x) => a + x.remaining, 0);
     setText('dashPalsToPrint', totalPalsToPrint);
-    setText('dashPalTypes', `${demand.filter(x=>x.remaining>0).length} product${demand.filter(x=>x.remaining>0).length===1?'':'s'}`);
-
+    setText('dashPalTypes', `${demand.filter(x => x.remaining > 0).length} product${demand.filter(x => x.remaining > 0).length === 1 ? '' : 's'}`);
     // ---------------------------------------------------------------
     // Pals to Print
     // ---------------------------------------------------------------
-    const palHost=document.getElementById('dashPalDemand');
-    if(palHost){
-        palHost.innerHTML=demand.length ? demand.slice(0,16).map((x,idx)=>{
-            const priority=x.remaining>=5?['Urgent','danger']:x.remaining>=3?['High','warning']:['Normal','info'];
-            const recipeSummary=x.rows.filter(r=>r.remaining>0)
-                .map(r=>`<span>${esc(r.colour)} · ${r.remaining} set${r.remaining===1?'':'s'}</span>`).join('');
+    const palHost = document.getElementById('dashPalDemand');
+    if (palHost) {
+        palHost.innerHTML = demand.length ? demand.slice(0, 16).map((x, idx) => {
+            const priority = x.remaining >= 5 ? ['Urgent', 'danger'] : x.remaining >= 3 ? ['High', 'warning'] : ['Normal', 'info'];
+            const recipeSummary = x.rows.filter(r => r.remaining > 0)
+                .map(r => `<span>${esc(r.colour)} · ${r.remaining} set${r.remaining === 1 ? '' : 's'}</span>`).join('');
             return `<article class="pal-demand-row">
               <div class="pal-demand-main">
-                <div class="pal-demand-rank">${idx+1}</div>
+                <div class="pal-demand-rank">${idx + 1}</div>
                 <div class="pal-demand-name">
                   <strong>${esc(x.p.name)}</strong>
                   <span class="sku">${esc(x.p.sku)}</span>
@@ -1389,7 +1367,7 @@ async function dashboard() {
                 <div class="pal-demand-stat"><span>Total Need</span><strong>${x.need}</strong></div>
                 <div class="pal-demand-stat"><span>On Plates</span><strong>${x.onPlates}</strong></div>
                 <div class="pal-demand-stat pal-demand-remaining"><span>Still to Print</span><strong>${x.remaining}</strong></div>
-                <div>${badge(priority[0],priority[1])}</div>
+                <div>${badge(priority[0], priority[1])}</div>
               </div>
               ${recipeSummary
                 ? `<div class="pal-demand-recipes">${recipeSummary}</div>`
@@ -1397,272 +1375,212 @@ async function dashboard() {
             </article>`;
         }).join('') : `<div class="dashboard-clear-state"><strong>Everything is covered.</strong><span>No Pals currently need printing against production targets.</span></div>`;
     }
-
     // ---------------------------------------------------------------
     // Colour demand
     // ---------------------------------------------------------------
-    const colourMap={};
-    (rs || []).forEach(r=>{
-        if(!palBySku[r.sku]) return;
-        const key=groupKey(r);
-        const remain=Math.max(0,remainingPalDemand(r.sku)-partQty(s,key)-activePlateQty(s,key));
-        if(!remain) return;
-        const colour=String(r.filament || '').trim() || 'Unspecified';
-        if(!colourMap[colour]) colourMap[colour]={colour,sets:0,grams:0,pals:new Set()};
-        colourMap[colour].sets+=remain;
-        colourMap[colour].grams+=remain*num(r.weight_g);
+    const colourMap = {};
+    (rs || []).forEach(r => {
+        if (!palBySku[r.sku])
+            return;
+        const key = groupKey(r);
+        const remain = Math.max(0, remainingPalDemand(r.sku) - partQty(s, key) - activePlateQty(s, key));
+        if (!remain)
+            return;
+        const colour = String(r.filament || '').trim() || 'Unspecified';
+        if (!colourMap[colour])
+            colourMap[colour] = { colour, sets: 0, grams: 0, pals: new Set() };
+        colourMap[colour].sets += remain;
+        colourMap[colour].grams += remain * num(r.weight_g);
         colourMap[colour].pals.add(r.sku);
     });
-
-    const colours=Object.values(colourMap)
-        .map(x=>({...x,palCount:x.pals.size}))
-        .sort((a,b)=>b.sets-a.sets || b.grams-a.grams);
-
-    const colourHost=document.getElementById('dashColourDemand');
-    if(colourHost){
-        colourHost.innerHTML=colours.length ? colours.slice(0,8).map((x,idx)=>`
-          <a href="plates.html" class="dashboard-colour-row ${idx===0?'urgent-colour':''}">
-            <div><strong>${esc(x.colour)}</strong><span>${x.palCount} Pal${x.palCount===1?'':'s'}</span></div>
+    const colours = Object.values(colourMap)
+        .map(x => (Object.assign(Object.assign({}, x), { palCount: x.pals.size })))
+        .sort((a, b) => b.sets - a.sets || b.grams - a.grams);
+    const colourHost = document.getElementById('dashColourDemand');
+    if (colourHost) {
+        colourHost.innerHTML = colours.length ? colours.slice(0, 8).map((x, idx) => `
+          <a href="plates.html" class="dashboard-colour-row ${idx === 0 ? 'urgent-colour' : ''}">
+            <div><strong>${esc(x.colour)}</strong><span>${x.palCount} Pal${x.palCount === 1 ? '' : 's'}</span></div>
             <div><strong>${x.sets}</strong><span>sets</span></div>
             <div><strong>${x.grams.toFixed(1)}g</strong><span>estimated</span></div>
           </a>`).join('') : `<div class="dashboard-clear-state"><strong>No print demand.</strong><span>There are no outstanding colour groups.</span></div>`;
     }
-
     // ---------------------------------------------------------------
     // Active printers / plates
     // ---------------------------------------------------------------
-    const printerHost=document.getElementById('dashActivePrinters');
-    if(printerHost){
-        const printers=(s.printers || []).filter(p=>p.active!==false);
-        const printerRows=printers.map(printer=>{
-            const plates=activePrinting.filter(p=>p.printer===printer.id);
-            return {printer,plates};
+    const printerHost = document.getElementById('dashActivePrinters');
+    if (printerHost) {
+        const printers = (s.printers || []).filter(p => p.active !== false);
+        const printerRows = printers.map(printer => {
+            const plates = activePrinting.filter(p => p.printer === printer.id);
+            return { printer, plates };
         });
-        const unassigned=activePrinting.filter(p=>!p.printer || !printers.some(x=>x.id===p.printer));
-
-        printerHost.innerHTML=
-          printerRows.map(x=>`<div class="active-printer-row">
-            <div class="printer-state-dot ${x.plates.length?'running':'idle'}"></div>
+        const unassigned = activePrinting.filter(p => !p.printer || !printers.some(x => x.id === p.printer));
+        printerHost.innerHTML =
+            printerRows.map(x => `<div class="active-printer-row">
+            <div class="printer-state-dot ${x.plates.length ? 'running' : 'idle'}"></div>
             <div class="active-printer-name"><strong>${esc(x.printer.name)}</strong><span>${esc(x.printer.model || '3D Printer')}</span></div>
             <div class="active-printer-job">${x.plates.length
-                ? x.plates.map(p=>`<a href="plates.html">${esc(p.code || p.name || p.id)} · ${esc(p.colour || '')}</a>`).join('')
+                ? x.plates.map(p => `<a href="plates.html">${esc(p.code || p.name || p.id)} · ${esc(p.colour || '')}</a>`).join('')
                 : '<span>Idle</span>'}</div>
           </div>`).join('') +
-          (unassigned.length ? `<div class="active-printer-row"><div class="printer-state-dot running"></div><div class="active-printer-name"><strong>Unassigned</strong><span>Active plate</span></div><div class="active-printer-job">${unassigned.map(p=>esc(p.code || p.name || p.id)).join(', ')}</div></div>` : '') ||
-          `<div class="dashboard-clear-state"><strong>No 3D printers configured.</strong><span>Add printers in Settings → 3D Printers.</span></div>`;
+                (unassigned.length ? `<div class="active-printer-row"><div class="printer-state-dot running"></div><div class="active-printer-name"><strong>Unassigned</strong><span>Active plate</span></div><div class="active-printer-job">${unassigned.map(p => esc(p.code || p.name || p.id)).join(', ')}</div></div>` : '') ||
+                `<div class="dashboard-clear-state"><strong>No 3D printers configured.</strong><span>Add printers in Settings → 3D Printers.</span></div>`;
     }
-
     // ---------------------------------------------------------------
     // Stock health
     // ---------------------------------------------------------------
-    const filamentRows=(filamentData && filamentData.filaments) || [];
-    const lowFilament=filamentRows.filter(f=>num(f.grams_in_stock ?? f.stock_g)<=num(f.reorder_level_g ?? f.reorder_g))
-        .sort((a,b)=>num(a.grams_in_stock ?? a.stock_g)-num(b.grams_in_stock ?? b.stock_g));
-
-    const lowFilHost=document.getElementById('dashLowFilament');
-    if(lowFilHost){
-        lowFilHost.innerHTML=lowFilament.length ? lowFilament.slice(0,6).map(f=>{
-            const stock=num(f.grams_in_stock ?? f.stock_g);
-            const reorder=num(f.reorder_level_g ?? f.reorder_g);
+    const filamentRows = (filamentData && filamentData.filaments) || [];
+    const lowFilament = filamentRows.filter(f => { var _f, _g; return num((_f = f.grams_in_stock) !== null && _f !== void 0 ? _f : f.stock_g) <= num((_g = f.reorder_level_g) !== null && _g !== void 0 ? _g : f.reorder_g); })
+        .sort((a, b) => { var _f, _g; return num((_f = a.grams_in_stock) !== null && _f !== void 0 ? _f : a.stock_g) - num((_g = b.grams_in_stock) !== null && _g !== void 0 ? _g : b.stock_g); });
+    const lowFilHost = document.getElementById('dashLowFilament');
+    if (lowFilHost) {
+        lowFilHost.innerHTML = lowFilament.length ? lowFilament.slice(0, 6).map(f => {
+            var _f, _g;
+            const stock = num((_f = f.grams_in_stock) !== null && _f !== void 0 ? _f : f.stock_g);
+            const reorder = num((_g = f.reorder_level_g) !== null && _g !== void 0 ? _g : f.reorder_g);
             return `<a href="filament.html" class="health-row">
               <div><strong>${esc(f.name)}</strong><span>${esc(f.material || 'PLA')} · ${esc(f.colour || f.name)}</span></div>
-              <div class="health-value ${stock<=0?'danger-text':'warning-text'}">${Math.round(stock)}g</div>
+              <div class="health-value ${stock <= 0 ? 'danger-text' : 'warning-text'}">${Math.round(stock)}g</div>
               <small>reorder ${Math.round(reorder)}g</small>
             </a>`;
         }).join('') : `<div class="dashboard-clear-state"><strong>Filament healthy.</strong><span>No filament is at or below its reorder level.</span></div>`;
     }
-
-    const lowConsumables=Object.entries(s.consumables || {})
-        .map(([key,c])=>({key,...c,stock:num(c.stock),reorder:num(c.reorder)}))
-        .filter(c=>c.reorder>0 && c.stock<=c.reorder)
-        .sort((a,b)=>a.stock-b.stock);
-
-    const lowConHost=document.getElementById('dashLowConsumables');
-    if(lowConHost){
-        lowConHost.innerHTML=lowConsumables.length ? lowConsumables.slice(0,6).map(c=>`
+    const lowConsumables = Object.entries(s.consumables || {})
+        .map(([key, c]) => (Object.assign(Object.assign({ key }, c), { stock: num(c.stock), reorder: num(c.reorder) })))
+        .filter(c => c.reorder > 0 && c.stock <= c.reorder)
+        .sort((a, b) => a.stock - b.stock);
+    const lowConHost = document.getElementById('dashLowConsumables');
+    if (lowConHost) {
+        lowConHost.innerHTML = lowConsumables.length ? lowConsumables.slice(0, 6).map(c => `
           <a href="consumables.html" class="health-row">
             <div><strong>${esc(c.name || c.key)}</strong><span>${esc(c.unit || 'units')}</span></div>
-            <div class="health-value ${c.stock<=0?'danger-text':'warning-text'}">${c.stock}</div>
+            <div class="health-value ${c.stock <= 0 ? 'danger-text' : 'warning-text'}">${c.stock}</div>
             <small>reorder ${c.reorder}</small>
           </a>`).join('') : `<div class="dashboard-clear-state"><strong>Consumables healthy.</strong><span>No consumable is at or below its reorder level.</span></div>`;
     }
-
-    const shortages=pals.map(p=>({
+    const shortages = pals.map(p => ({
         p,
-        boatTarget:getTarget(s,p.sku,'boat'),
-        cornwallTarget:getTarget(s,p.sku,'cornwall'),
-        boatStock:stock(s,p.sku,'boat'),
-        cornwallStock:stock(s,p.sku,'cornwall'),
-        short:totalNeed(s,p.sku)
-    })).filter(x=>x.short>0).sort((a,b)=>b.short-a.short);
-
-    const lowFinishedHost=document.getElementById('dashLowFinished');
-    if(lowFinishedHost){
-        lowFinishedHost.innerHTML=shortages.length ? shortages.slice(0,6).map(x=>`
+        boatTarget: getTarget(s, p.sku, 'boat'),
+        cornwallTarget: getTarget(s, p.sku, 'cornwall'),
+        boatStock: stock(s, p.sku, 'boat'),
+        cornwallStock: stock(s, p.sku, 'cornwall'),
+        short: totalNeed(s, p.sku)
+    })).filter(x => x.short > 0).sort((a, b) => b.short - a.short);
+    const lowFinishedHost = document.getElementById('dashLowFinished');
+    if (lowFinishedHost) {
+        lowFinishedHost.innerHTML = shortages.length ? shortages.slice(0, 6).map(x => `
           <a href="pals.html" class="health-row">
             <div><strong>${esc(x.p.name)}</strong><span>${esc(x.p.sku)} · Boat ${x.boatStock}/${x.boatTarget} · Cornwall ${x.cornwallStock}/${x.cornwallTarget}</span></div>
             <div class="health-value danger-text">−${x.short}</div>
             <small>short</small>
           </a>`).join('') : `<div class="dashboard-clear-state"><strong>Finished stock covered.</strong><span>All Pal targets are currently met.</span></div>`;
     }
-
     // ---------------------------------------------------------------
     // Workflow pipeline
     // ---------------------------------------------------------------
-    const printedParts=sumObj(s.parts);
-    setText('workflowParts',printedParts);
-    setText('workflowBench',readyToAssemble + awaitingPacking);
-    setText('workflowPacking',awaitingPacking);
-    setText('workflowDispatch',awaitingDispatch);
-
+    const printedParts = sumObj(s.parts);
+    setText('workflowParts', printedParts);
+    setText('workflowBench', readyToAssemble + awaitingPacking);
+    setText('workflowPacking', awaitingPacking);
+    setText('workflowDispatch', awaitingDispatch);
     // ---------------------------------------------------------------
     // Alerts / actions
     // ---------------------------------------------------------------
-    const alerts=[];
-
-    lowFilament.slice(0,4).forEach(f=>{
-        const stockNow=num(f.grams_in_stock ?? f.stock_g);
+    const alerts = [];
+    lowFilament.slice(0, 4).forEach(f => {
+        var _f;
+        const stockNow = num((_f = f.grams_in_stock) !== null && _f !== void 0 ? _f : f.stock_g);
         alerts.push({
-            level:stockNow<=0?'danger':'warning',
-            title:`Low filament: ${f.name}`,
-            text:`${Math.round(stockNow)}g remaining`,
-            href:'filament.html'
+            level: stockNow <= 0 ? 'danger' : 'warning',
+            title: `Low filament: ${f.name}`,
+            text: `${Math.round(stockNow)}g remaining`,
+            href: 'filament.html'
         });
     });
-
-    lowConsumables.slice(0,4).forEach(c=>{
+    lowConsumables.slice(0, 4).forEach(c => {
         alerts.push({
-            level:c.stock<=0?'danger':'warning',
-            title:`Low consumable: ${c.name || c.key}`,
-            text:`${c.stock} ${c.unit || 'units'} remaining`,
-            href:'consumables.html'
+            level: c.stock <= 0 ? 'danger' : 'warning',
+            title: `Low consumable: ${c.name || c.key}`,
+            text: `${c.stock} ${c.unit || 'units'} remaining`,
+            href: 'consumables.html'
         });
     });
-
-    const failedCount=Array.isArray(s.failedParts) ? s.failedParts.length : sumObj(s.failedParts);
-    if(failedCount>0){
-        alerts.push({level:'danger',title:'Failed prints',text:`${failedCount} failed print record${failedCount===1?'':'s'} need attention`,href:'parts.html'});
+    const failedCount = Array.isArray(s.failedParts) ? s.failedParts.length : sumObj(s.failedParts);
+    if (failedCount > 0) {
+        alerts.push({ level: 'danger', title: 'Failed prints', text: `${failedCount} failed print record${failedCount === 1 ? '' : 's'} need attention`, href: 'parts.html' });
     }
-
-    const offSale=pals.filter(p=>{
-        const a=(s.productAvailability || {})[p.sku];
+    const offSale = pals.filter(p => {
+        const a = (s.productAvailability || {})[p.sku];
         return a && a.status === 'off';
     });
-    if(offSale.length){
-        alerts.push({level:'info',title:'Products off sale',text:`${offSale.length} Pal${offSale.length===1?' is':'s are'} currently excluded from production`,href:'settings-availability.html'});
+    if (offSale.length) {
+        alerts.push({ level: 'info', title: 'Products off sale', text: `${offSale.length} Pal${offSale.length === 1 ? ' is' : 's are'} currently excluded from production`, href: 'settings-availability.html' });
     }
-
-    const missingRecipes=pals.filter(x=>!x.recipe_ready);
-    if(missingRecipes.length){
-        alerts.push({level:'warning',title:'Missing recipes',text:`${missingRecipes.length} Pal${missingRecipes.length===1?'':'s'} still need recipe data`,href:'recipes.html'});
+    const missingRecipes = pals.filter(x => !x.recipe_ready);
+    if (missingRecipes.length) {
+        alerts.push({ level: 'warning', title: 'Missing recipes', text: `${missingRecipes.length} Pal${missingRecipes.length === 1 ? '' : 's'} still need recipe data`, href: 'recipes.html' });
     }
-
-    if((mm || []).length){
-        alerts.push({level:'danger',title:'Data Health',text:`${mm.length} SKU mismatch${mm.length===1?'':'es'} detected`,href:'data-health.html'});
+    if ((mm || []).length) {
+        alerts.push({ level: 'danger', title: 'Data Health', text: `${mm.length} SKU mismatch${mm.length === 1 ? '' : 'es'} detected`, href: 'data-health.html' });
     }
-
-    if(reworkQty>0){
-        alerts.push({level:'warning',title:'Rework waiting',text:`${reworkQty} item${reworkQty===1?'':'s'} waiting for repair`,href:'rework.html'});
+    if (reworkQty > 0) {
+        alerts.push({ level: 'warning', title: 'Rework waiting', text: `${reworkQty} item${reworkQty === 1 ? '' : 's'} waiting for repair`, href: 'rework.html' });
     }
-
-    const alertHost=document.getElementById('dashAlerts');
-    if(alertHost){
-        alertHost.innerHTML=alerts.length ? alerts.slice(0,12).map(a=>`
+    const alertHost = document.getElementById('dashAlerts');
+    if (alertHost) {
+        alertHost.innerHTML = alerts.length ? alerts.slice(0, 12).map(a => `
           <a href="${a.href}" class="dashboard-alert">
-            <span>${badge(a.level==='danger'?'Action':a.level==='warning'?'Check':'Info',a.level)}</span>
+            <span>${badge(a.level === 'danger' ? 'Action' : a.level === 'warning' ? 'Check' : 'Info', a.level)}</span>
             <div><strong>${esc(a.title)}</strong><div class="small">${esc(a.text)}</div></div>
             <span class="dashboard-alert-arrow">→</span>
           </a>`).join('') : `<div class="dashboard-clear-state"><strong>No blockers detected.</strong><span>Production is clear to keep moving.</span></div>`;
     }
-
-    const dataHealth=document.getElementById('dashDataHealth');
-    if(dataHealth){
-        dataHealth.innerHTML=`<a href="data-health.html" class="dashboard-health-link">
+    const dataHealth = document.getElementById('dashDataHealth');
+    if (dataHealth) {
+        dataHealth.innerHTML = `<a href="data-health.html" class="dashboard-health-link">
           <strong>Data Health</strong>
-          <span>${(mm || []).length ? `${mm.length} issue${mm.length===1?'':'s'} need checking` : 'No SKU mismatches detected'} →</span>
+          <span>${(mm || []).length ? `${mm.length} issue${mm.length === 1 ? '' : 's'} need checking` : 'No SKU mismatches detected'} →</span>
         </a>`;
     }
-
     // ---------------------------------------------------------------
     // Recent activity
     // ---------------------------------------------------------------
-    const activity=[];
-
-    const addActivity=(type,title,detail,date,href,icon)=>{
-        if(!date) return;
-        const parsed=new Date(date);
-        if(Number.isNaN(parsed.getTime())) return;
-        activity.push({type,title,detail,date,href,icon,ts:parsed.getTime()});
+    const activity = [];
+    const addActivity = (type, title, detail, date, href, icon) => {
+        if (!date)
+            return;
+        const parsed = new Date(date);
+        if (Number.isNaN(parsed.getTime()))
+            return;
+        activity.push({ type, title, detail, date, href, icon, ts: parsed.getTime() });
     };
-
-    (s.printHistory || []).forEach(x=>{
-        addActivity(
-            'print',
-            'Print completed',
-            `${palName(x.sku,x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)} set${num(x.qty)===1?'':'s'}` : ''}`,
-            x.completed_at || x.created_at || x.date,
-            'parts.html',
-            '▱'
-        );
+    (s.printHistory || []).forEach(x => {
+        addActivity('print', 'Print completed', `${palName(x.sku, x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)} set${num(x.qty) === 1 ? '' : 's'}` : ''}`, x.completed_at || x.created_at || x.date, 'parts.html', '▱');
     });
-
-    (s.assemblyHistory || []).forEach(x=>{
-        addActivity(
-            'assembly',
-            'Assembly completed',
-            `${palName(x.sku,x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)}` : ''}`,
-            x.completed_at || x.created_at || x.date,
-            'assembly.html',
-            '⌁'
-        );
+    (s.assemblyHistory || []).forEach(x => {
+        addActivity('assembly', 'Assembly completed', `${palName(x.sku, x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)}` : ''}`, x.completed_at || x.created_at || x.date, 'assembly.html', '⌁');
     });
-
-    (s.packingHistory || []).forEach(x=>{
-        addActivity(
-            'packing',
-            'Packing completed',
-            `${palName(x.sku,x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)}` : ''}`,
-            x.completed_at || x.created_at || x.date,
-            'packing-station.html',
-            '▣'
-        );
+    (s.packingHistory || []).forEach(x => {
+        addActivity('packing', 'Packing completed', `${palName(x.sku, x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)}` : ''}`, x.completed_at || x.created_at || x.date, 'packing-station.html', '▣');
     });
-
-    (s.transfers || []).forEach(x=>{
-        addActivity(
-            'dispatch',
-            'Dispatch / transfer',
-            `${palName(x.sku,x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)}` : ''}${x.to ? ` → ${x.to}` : ''}`,
-            x.completed_at || x.dispatched_at || x.created_at || x.date,
-            'deliveries.html',
-            '⇢'
-        );
+    (s.transfers || []).forEach(x => {
+        addActivity('dispatch', 'Dispatch / transfer', `${palName(x.sku, x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)}` : ''}${x.to ? ` → ${x.to}` : ''}`, x.completed_at || x.dispatched_at || x.created_at || x.date, 'deliveries.html', '⇢');
     });
-
-    (s.reworkHistory || []).forEach(x=>{
-        addActivity(
-            'rework',
-            'Rework completed',
-            `${palName(x.sku,x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)}` : ''}`,
-            x.completed_at || x.created_at || x.date,
-            'rework.html',
-            '↻'
-        );
+    (s.reworkHistory || []).forEach(x => {
+        addActivity('rework', 'Rework completed', `${palName(x.sku, x.product_name || x.name)}${x.qty ? ` · ${num(x.qty)}` : ''}`, x.completed_at || x.created_at || x.date, 'rework.html', '↻');
     });
-
-    activity.sort((a,b)=>b.ts-a.ts);
-
-    const activityHost=document.getElementById('dashRecentActivity');
-    if(activityHost){
-        activityHost.innerHTML=activity.length ? activity.slice(0,12).map(a=>`
+    activity.sort((a, b) => b.ts - a.ts);
+    const activityHost = document.getElementById('dashRecentActivity');
+    if (activityHost) {
+        activityHost.innerHTML = activity.length ? activity.slice(0, 12).map(a => `
           <a href="${a.href}" class="activity-row">
             <div class="activity-icon activity-${a.type}">${a.icon}</div>
             <div class="activity-copy"><strong>${esc(a.title)}</strong><span>${esc(a.detail)}</span></div>
             <time>${fmtDate(a.date)}</time>
           </a>`).join('') : `<div class="dashboard-clear-state"><strong>No recent activity yet.</strong><span>Completed prints, assembly, packing and dispatch will appear here.</span></div>`;
     }
-
-    setForgeCloudSync('synced','Dashboard live');
+    setForgeCloudSync('synced', 'Dashboard live');
 }
 function isOnSale(s, sku) { var _a, _b; return ((_b = (_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) === null || _b === void 0 ? void 0 : _b.on_sale) === true; }
 function releaseDateFor(s, sku) { var _a, _b; return ((_b = (_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) === null || _b === void 0 ? void 0 : _b.release_date) || ''; }
@@ -3516,8 +3434,10 @@ async function barcodePrinterSettings() {
         const boxSel = host.querySelector('#boxDocumentPrinter');
         const boxManualWrap = host.querySelector('#boxDocumentManualWrap');
         if (boxSel)
-            boxSel.onchange = () => { if (boxManualWrap)
-                boxManualWrap.style.display = boxSel.value === '__manual' ? '' : 'none'; };
+            boxSel.onchange = () => {
+                if (boxManualWrap)
+                    boxManualWrap.style.display = boxSel.value === '__manual' ? '' : 'none';
+            };
         const boxSave = host.querySelector('#saveBoxDocumentPrinter');
         if (boxSave)
             boxSave.onclick = async () => {
@@ -3587,7 +3507,7 @@ async function barcodePrinterSettings() {
         host.innerHTML =
             printerControl('barcode', 'Pal Barcode Label', 'Used at Packing Station for the Pal barcode label.', 50, 30) +
                 printerControl('filament_label', 'Filament / RFID Spool Label', 'Reserved for the filament intake and RFID workflow.', 50, 30) +
-            documentPrinterControl() +
+                documentPrinterControl() +
                 `<div class="card" style="margin-top:14px"><strong>Browser printing</strong><div class="small" style="margin-top:5px">PLA Forge stores the intended printer and label size in Cloudflare. The browser still requires the physical printer to be selected in the operating-system print dialog.</div></div>`;
         bind();
     }
@@ -5305,7 +5225,6 @@ async function generalSettingsPage() {
         }
     }, 2000);
 }
-
 function installMobileForgeMenu() {
     const toggle = document.getElementById('mobileNavToggle');
     const nav = document.getElementById('forgeNav');
@@ -5361,7 +5280,6 @@ document.addEventListener('visibilitychange', async () => {
         }
     }
 });
-
 document.addEventListener('DOMContentLoaded', function () {
     installMobileForgeMenu();
 });
