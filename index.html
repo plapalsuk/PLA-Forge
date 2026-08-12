@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Forge Control | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0162"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Forge Control | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0170"></head>
 <body class="forge-protected"><div class="app">
 <aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
@@ -26,19 +26,59 @@
   <a href="settings-system.html">! System &amp; Data</a>
  </nav>
 </aside>
-<main><div class="topbar"><div class="pageTitle"><h1>Forge Control</h1><div class="small">PLA Pals manufacturing overview</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div>
-<div class="grid kpis">
- <div class="card kpi"><div class="label">Pals</div><div class="value" id="pals">–</div><div class="small">master products</div></div>
- <div class="card kpi"><div class="label">Keyrings</div><div class="value" id="keys">–</div><div class="small">available range</div></div>
- <div class="card kpi"><div class="label">Sticker Sheets</div><div class="value" id="stickers">–</div><div class="small">product range</div></div>
- <div class="card kpi"><div class="label">Recipes</div><div class="value accent" id="recipes">–</div><div class="small">Pals with recipe data</div></div>
- <div class="card kpi"><div class="label">Filaments</div><div class="value" id="filaments">–</div><div class="small">colours in recipes</div></div>
+<main>
+<div class="topbar dashboard-topbar">
+  <div class="pageTitle"><h1>Forge Control</h1><div class="small">Live manufacturing overview — what needs attention next</div></div>
+  <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div>
 </div>
-<div class="grid two">
- <div class="card"><div class="section-title"><h2>🦊 Kitsu's setup check</h2><a class="small accent" href="data-health.html">Open Data Health →</a></div><div class="list" id="dataWarnings"></div></div>
- <div class="card"><div class="section-title"><h2>Recipes still needed</h2></div><div class="list" id="missingRecipes"></div></div>
+
+<div class="ops-kpis">
+  <a class="ops-kpi" href="production.html"><span class="ops-kpi-label">Pals to Print</span><strong id="dashPalsToPrint">–</strong><small id="dashPalTypes">products needing manufacture</small></a>
+  <a class="ops-kpi" href="plates.html"><span class="ops-kpi-label">Printing Now</span><strong id="dashPrinting">–</strong><small>active build plates</small></a>
+  <a class="ops-kpi" href="assembly.html"><span class="ops-kpi-label">Ready for Bench</span><strong id="dashAssembly">–</strong><small>printed Pal sets to assemble</small></a>
+  <a class="ops-kpi" href="packing-station.html"><span class="ops-kpi-label">Awaiting Packing</span><strong id="dashPacking">–</strong><small>assembled Pals</small></a>
+  <a class="ops-kpi" href="deliveries.html"><span class="ops-kpi-label">Awaiting Dispatch</span><strong id="dashDispatch">–</strong><small>packed Pals</small></a>
+  <a class="ops-kpi" href="rework.html"><span class="ops-kpi-label">Rework</span><strong id="dashRework">–</strong><small>items needing attention</small></a>
 </div>
-<div class="card" style="margin-top:14px"><div class="section-title"><h2>Workshop status</h2><a href="plates.html" class="small accent">Open Build Plates →</a></div><div id="forgeStatus" class="list"></div></div><div class="card" style="margin-top:14px"><h2 style="margin-top:0">Forge workflow</h2><div class="small">Shopify stock → Targets → Production demand → Colour-grouped recipes → Build plates → Printed parts → Assembly → Packing → Boat / Cornwall dispatch → Shopify stock.</div></div>
-<div class="footer-note">PLA Forge v0.16.2 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=0162"></script><script>forgeBoot(async function(){
+
+<div class="dashboard-primary-grid">
+  <section class="card dashboard-pal-demand">
+    <div class="section-title">
+      <div><h2>Pals to Print</h2><div class="small">Actual Pal demand after stock and completed workflow stages are deducted.</div></div>
+      <a href="production.html" class="small accent">Open Production Planner →</a>
+    </div>
+    <div id="dashPalDemand" class="pal-demand-list"></div>
+  </section>
+
+  <section class="card">
+    <div class="section-title">
+      <div><h2>Print by Colour</h2><div class="small">Use this to group the Pal demand efficiently onto build plates.</div></div>
+      <a href="plates.html" class="small accent">Open Build Plates →</a>
+    </div>
+    <div id="dashColourDemand" class="dashboard-colour-demand"></div>
+  </section>
+</div>
+
+<div class="dashboard-secondary-grid">
+  <section class="card">
+    <div class="section-title"><div><h2>Stock & Material Alerts</h2><div class="small">Items that could block production.</div></div></div>
+    <div id="dashStockAlerts" class="list"></div>
+  </section>
+  <section class="card">
+    <div class="section-title"><div><h2>Quick Actions</h2><div class="small">Jump straight into the next job.</div></div></div>
+    <div class="dashboard-actions">
+      <a class="btn" href="plates.html">＋ Build Plate</a>
+      <a class="btn secondary" href="filament.html">≋ Filament</a>
+      <a class="btn secondary" href="consumables.html">▤ Consumables</a>
+      <a class="btn secondary" href="packing-station.html">▣ Packing</a>
+      <a class="btn ghost" href="deliveries.html">⇢ Dispatch</a>
+      <a class="btn ghost" href="new-pal.html">＋ New Pal</a>
+    </div>
+    <div class="dashboard-health" id="dashDataHealth"></div>
+  </section>
+</div>
+
+<div class="footer-note">PLA Forge v0.17.0 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=0170"></script><script>forgeBoot(async function(){
 dashboard()
 })</script></body></html>

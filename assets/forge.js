@@ -741,21 +741,131 @@ function forgeLogout() {
     location.replace('login.html');
 }
 async function dashboard() {
-    const ps = await load('products'), rs = await load('recipes'), mm = await load('mismatches'), s = state();
-    const pals = ps.filter(x => x.type === 'pal'), keys = pals.filter(x => x.keyring), st = ps.filter(x => x.type === 'sticker');
-    document.querySelector('#pals').textContent = pals.length;
-    document.querySelector('#keys').textContent = keys.length;
-    document.querySelector('#stickers').textContent = st.length;
-    document.querySelector('#recipes').textContent = new Set(rs.map(x => x.sku)).size;
-    document.querySelector('#filaments').textContent = new Set(rs.map(x => x.filament).filter(Boolean)).size;
-    const missing = pals.filter(x => !x.recipe_ready);
-    document.querySelector('#missingRecipes').innerHTML = missing.slice(0, 10).map(x => `<div class="listitem"><strong>${esc(x.name)}</strong><span class="sku">${x.sku}</span></div>`).join('') || '<div class="listitem">All products have a recipe.</div>';
-    document.querySelector('#dataWarnings').innerHTML = mm.slice(0, 10).map(x => `<div class="listitem"><strong>${esc(x.recipe)}</strong><span class="muted">${x.stated_sku} → ${x.resolved_sku}</span></div>`).join('') || '<div class="listitem">No SKU mismatches detected.</div>';
-    const mini = document.querySelector('#forgeStatus');
-    if (mini) {
-        const active = s.plates.filter(p => p.status === 'printing').length, draft = s.plates.filter(p => p.status === 'draft').length, printed = Object.values(s.parts).reduce((a, b) => a + Number(b || 0), 0);
-        mini.innerHTML = `<div class="listitem"><strong>${active} plate(s) printing</strong><span class="muted">${draft} draft · ${printed} printed inventory units</span></div>`;
+    installForgeCloudSyncBadge();
+    try {
+        if (!forgeProductionCloudReady)
+            await hydrateProductionCloud();
     }
+    catch (e) {
+        showCloudRequiredError(e.message);
+        return;
+    }
+
+    const s = cloudOperationalState();
+    const ps = await load('products');
+    const rs = await load('recipes');
+    const mm = await load('mismatches');
+    const pals = ps.filter(x => x.type === 'pal' && x.active !== false);
+    const palBySku = Object.fromEntries(pals.map(p => [p.sku, p]));
+
+    function sumObj(o) {
+        return Object.values(o || {}).reduce((a, b) => a + Number(b || 0), 0);
+    }
+    function remainingPalDemand(sku) {
+        return manufacturingNeed(s, sku);
+    }
+    function groupedRecipeRows(sku) {
+        return rs.filter(r => r.sku === sku).map(r => {
+            const key = groupKey(r);
+            const need = remainingPalDemand(sku);
+            const printed = partQty(s, key);
+            const onPlate = activePlateQty(s, key);
+            return {
+                colour: String(r.filament || '').trim() || 'Unspecified',
+                parts: r.parts || 'Grouped set',
+                weight: Number(r.weight_g || 0),
+                need,
+                printed,
+                onPlate,
+                remaining: Math.max(0, need - printed - onPlate)
+            };
+        });
+    }
+
+    const demand = pals.map(p => {
+        const need = remainingPalDemand(p.sku);
+        const rows = groupedRecipeRows(p.sku);
+        const onPlates = rows.length ? Math.min(need, Math.max(...rows.map(x => x.onPlate), 0)) : 0;
+        const remaining = rows.length ? Math.max(...rows.map(x => x.remaining), 0) : need;
+        return { p, need, onPlates, remaining, rows };
+    }).filter(x => x.need > 0)
+      .sort((a, b) => b.remaining - a.remaining || b.need - a.need || a.p.name.localeCompare(b.p.name));
+
+    const totalPalNeed = demand.reduce((a, x) => a + x.remaining, 0);
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setText('dashPalsToPrint', totalPalNeed);
+    setText('dashPalTypes', `${demand.filter(x => x.remaining > 0).length} products needing manufacture`);
+    setText('dashPrinting', (s.plates || []).filter(p => p.status === 'printing').length);
+    setText('dashAssembly', sumObj(s.assembled));
+    setText('dashPacking', sumObj(s.assembled));
+    setText('dashDispatch', (s.awaitingDispatch || []).filter(x => x.status === 'awaiting_dispatch').reduce((a, x) => a + Number(x.qty || 0), 0));
+    setText('dashRework', (s.damageReworkJobs || []).filter(x => x.status === 'awaiting_rework').reduce((a, x) => a + Number(x.qty || 1), 0));
+
+    const palHost = document.getElementById('dashPalDemand');
+    if (palHost) {
+        palHost.innerHTML = demand.length ? demand.slice(0, 14).map((x, idx) => {
+            const priority = x.remaining >= 5 ? ['Urgent', 'danger'] : x.remaining >= 3 ? ['High', 'warning'] : ['Normal', 'info'];
+            const recipeSummary = x.rows.filter(r => r.remaining > 0).map(r => `<span>${esc(r.colour)} · ${r.remaining} set${r.remaining === 1 ? '' : 's'}</span>`).join('');
+            return `<article class="pal-demand-row">
+              <div class="pal-demand-main">
+                <div class="pal-demand-rank">${idx + 1}</div>
+                <div class="pal-demand-name"><strong>${esc(x.p.name)}</strong><span class="sku">${esc(x.p.sku)}</span></div>
+                <div class="pal-demand-stat"><span>Demand</span><strong>${x.need}</strong></div>
+                <div class="pal-demand-stat"><span>On Plates</span><strong>${x.onPlates}</strong></div>
+                <div class="pal-demand-stat pal-demand-remaining"><span>Still to Print</span><strong>${x.remaining}</strong></div>
+                <div>${badge(priority[0], priority[1])}</div>
+              </div>
+              ${recipeSummary ? `<div class="pal-demand-recipes">${recipeSummary}</div>` : `<div class="pal-demand-recipes"><span>No complete recipe data found</span></div>`}
+            </article>`;
+        }).join('') : `<div class="dashboard-clear-state"><strong>Everything is covered.</strong><span>No Pals currently need printing against the production targets.</span></div>`;
+    }
+
+    const colourMap = {};
+    rs.forEach(r => {
+        const p = palBySku[r.sku];
+        if (!p) return;
+        const key = groupKey(r);
+        const remain = Math.max(0, remainingPalDemand(r.sku) - partQty(s, key) - activePlateQty(s, key));
+        if (!remain) return;
+        const colour = String(r.filament || '').trim() || 'Unspecified';
+        if (!colourMap[colour]) colourMap[colour] = { colour, sets: 0, grams: 0, pals: new Set() };
+        colourMap[colour].sets += remain;
+        colourMap[colour].grams += remain * Number(r.weight_g || 0);
+        colourMap[colour].pals.add(r.sku);
+    });
+    const colours = Object.values(colourMap).map(x => ({...x, palCount:x.pals.size})).sort((a,b)=>b.sets-a.sets||b.grams-a.grams);
+    const colourHost = document.getElementById('dashColourDemand');
+    if (colourHost) {
+        colourHost.innerHTML = colours.length ? colours.slice(0, 10).map(x => `<a href="plates.html" class="dashboard-colour-row">
+          <div><strong>${esc(x.colour)}</strong><span>${x.palCount} Pal${x.palCount===1?'':'s'}</span></div>
+          <div><strong>${x.sets}</strong><span>sets</span></div>
+          <div><strong>${x.grams.toFixed(1)}g</strong><span>estimated</span></div>
+        </a>`).join('') : `<div class="dashboard-clear-state"><strong>No print demand.</strong><span>There are no outstanding colour groups.</span></div>`;
+    }
+
+    const alerts = [];
+    Object.entries(s.consumables || {}).forEach(([key,c]) => {
+        const qty = Number(c.stock || 0), reorder = Number(c.reorder || 0);
+        if (reorder > 0 && qty <= reorder)
+            alerts.push({level: qty <= 0 ? 'danger' : 'warning', title:c.name || key, text:`${qty} ${c.unit || 'units'} in stock · reorder at ${reorder}`});
+    });
+    const filaments = s.filaments || {};
+    Object.entries(filaments).forEach(([name,qty]) => {
+        if (Number(qty || 0) <= 250)
+            alerts.push({level:Number(qty||0)<=0?'danger':'warning',title:name,text:`${Number(qty||0).toFixed(0)}g filament remaining`});
+    });
+    const missingRecipes = pals.filter(x => !x.recipe_ready);
+    if (missingRecipes.length) alerts.push({level:'warning',title:'Missing recipes',text:`${missingRecipes.length} Pal${missingRecipes.length===1?'':'s'} still need recipe data`});
+    if ((mm || []).length) alerts.push({level:'danger',title:'Data Health',text:`${mm.length} SKU mismatch${mm.length===1?'':'es'} detected`});
+
+    const alertHost = document.getElementById('dashStockAlerts');
+    if (alertHost) {
+        alertHost.innerHTML = alerts.length ? alerts.slice(0,10).map(a=>`<div class="dashboard-alert"><span>${badge(a.level==='danger'?'Action':'Low',a.level)}</span><div><strong>${esc(a.title)}</strong><div class="small">${esc(a.text)}</div></div></div>`).join('') : `<div class="dashboard-clear-state"><strong>No blockers detected.</strong><span>Materials and core data look healthy.</span></div>`;
+    }
+    const health = document.getElementById('dashDataHealth');
+    if (health) health.innerHTML = `<a href="data-health.html" class="dashboard-health-link"><strong>Data Health</strong><span>${(mm||[]).length ? `${mm.length} issue${mm.length===1?'':'s'} need checking` : 'No SKU mismatches detected'} →</span></a>`;
+
+    setForgeCloudSync('synced','Dashboard live');
 }
 function isOnSale(s, sku) { var _a, _b; return ((_b = (_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) === null || _b === void 0 ? void 0 : _b.on_sale) === true; }
 function releaseDateFor(s, sku) { var _a, _b; return ((_b = (_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) === null || _b === void 0 ? void 0 : _b.release_date) || ''; }

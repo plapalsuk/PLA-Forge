@@ -1515,3 +1515,14 @@ No new D1 tables are required for v0.16.0.
 - Selecting a page automatically closes the dropdown.
 - Desktop sidebar navigation is unchanged.
 - No Worker or D1 changes required.
+
+## v0.17.0 — Operations Dashboard
+
+- Dashboard is now cloud-hydrated and operations-focused.
+- Added workflow KPIs for print demand, active plates, bench, packing, dispatch and rework.
+- Added `Pals to Print`, showing product name/SKU, demand, active plate coverage and remaining quantity.
+- Each Pal row shows the outstanding recipe colours/sets, so product demand is visible before colour grouping.
+- Added colour-group demand alongside Pal demand for efficient build-plate planning.
+- Added stock/material/data-health alerts and quick operational actions.
+- Responsive mobile dashboard included.
+- No Worker or D1 changes required.
