@@ -1450,3 +1450,12 @@ Fixes the Recipes page incorrectly showing “No matching Pals” when the cloud
 Recipe cards now resolve the Pal name from multiple cloud product fields (`name`, `product_name`, `title`, `display_name`, `product_title`, `animal`) before falling back to the SKU.
 
 This fixes recipe cards showing `PLA001`, `PLA002`, etc. as the product name when the cloud product response uses a different name field.
+
+
+## v0.14.3 — Recipe Catalogue Name Resolution
+
+The Recipes page now resolves human-readable Pal names by SKU against the deployed `data/products.json` reference catalogue before using cloud product fields.
+
+Example: `PLA001` is displayed as `Alex the Axolotl`.
+
+Cloud recipes and cloud product records remain authoritative for operational data; the static catalogue is used only to resolve the product display name and is fetched with `cache: no-store`.

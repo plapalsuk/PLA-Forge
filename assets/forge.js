@@ -819,10 +819,19 @@ async function recipes() {
     const box = document.querySelector('#cards');
     let ps = [];
     let rs = [];
+    let productReference = [];
     async function refresh() {
-        const core = await Promise.all([cloudFetch('/products'), cloudFetch('/recipes')]);
+        const core = await Promise.all([
+            cloudFetch('/products'),
+            cloudFetch('/recipes'),
+            fetch('data/products.json', {cache:'no-store'}).then(r=>{
+                if(!r.ok)throw new Error('Product reference catalogue unavailable.');
+                return r.json();
+            }).catch(()=>[])
+        ]);
         ps = core[0].products || [];
         rs = (core[1].recipes || []).map(normaliseCloudRecipe);
+        productReference = Array.isArray(core[2]) ? core[2] : [];
     }
     try {
         await refresh();
@@ -837,14 +846,18 @@ async function recipes() {
         return rs.filter(r => r.sku === sku).sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
     }
     function productDisplayName(p, sku) {
+        const ref = productReference.find(x=>String(x.sku||'').trim()===String(sku||'').trim());
+        const referenceName = String((ref||{}).name||'').trim();
+        if(referenceName && referenceName.toUpperCase()!==String(sku||'').toUpperCase())return referenceName;
+
         const direct = [
-            p && p.name,
             p && p.product_name,
             p && p.title,
             p && p.display_name,
             p && p.product_title,
-            p && p.animal
-        ].map(v=>String(v||'').trim()).find(Boolean);
+            p && p.animal,
+            p && p.name
+        ].map(v=>String(v||'').trim()).find(v=>v && v.toUpperCase()!==String(sku||'').toUpperCase());
         if(direct)return direct;
 
         const rr = rs.find(r=>r.sku===sku);
@@ -852,7 +865,8 @@ async function recipes() {
             rr && rr.product_name,
             rr && rr.name,
             rr && rr.animal
-        ].map(v=>String(v||'').trim()).find(Boolean);
+        ].map(v=>String(v||'').trim()).find(v=>v && v.toUpperCase()!==String(sku||'').toUpperCase());
+
         return fromRecipe || sku;
     }
 
