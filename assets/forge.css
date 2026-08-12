@@ -2375,3 +2375,9 @@ body.forge-protected:not(.forge-auth-ready)::after{
   justify-content:space-between;
   gap:12px;
 }
+
+
+/* v0.12.5 — Original iPad Air / Safari 12 compatibility */
+body.forge-protected:not(.forge-auth-ready)::after{
+  content:"Connecting to Forge…\A Checking secure session";
+}

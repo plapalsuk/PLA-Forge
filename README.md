@@ -1401,3 +1401,17 @@ Authentication boot order has been rebuilt across all protected pages.
 - Retail Staff page access remains Dispatch + Rework.
 - Login and First Admin Bootstrap remain outside the protected-page gate.
 - No Worker or D1 change is required.
+
+
+## v0.12.5 — Legacy iPad / Safari Compatibility
+
+The fail-closed authentication gate from v0.12.4 is retained.
+
+The shared Forge JavaScript bundle is now transpiled to ES2017-compatible syntax so Safari 12
+(the newest Safari available on the original iPad Air) can parse and execute it.
+
+Specifically, newer syntax such as optional chaining and nullish coalescing is removed from the
+deployed bundle while preserving the current cloud authentication, role permissions, Dispatch,
+Rework and live-sync behaviour.
+
+No Worker or D1 changes are required.
