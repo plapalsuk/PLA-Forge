@@ -1355,7 +1355,11 @@ async function dashboard() {
         if(el) el.textContent=value;
     };
 
-    setText('dashTotalPals', pals.length);
+    const onSalePals = pals.filter(p => {
+        const rec = (s.productAvailability || {})[p.sku] || {};
+        return rec.on_sale === true;
+    });
+    setText('dashTotalPals', onSalePals.length);
     setText('dashPrinting', activePrinting.length);
     setText('dashAssembly', readyToAssemble);
     setText('dashPacking', awaitingPacking);

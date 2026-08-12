@@ -1589,3 +1589,10 @@ No Worker or D1 schema change is required.
 - Fixed the Dashboard filament request; it now reads `/filaments` through the existing cloud API rather than calling an undefined `cloudFilaments()` helper.
 - Audited every HTML `forgeBoot()` startup call against the functions actually present in `forge.js`.
 - No Worker or D1 changes required.
+
+## v0.18.2 — Pals On Sale KPI
+
+- Dashboard top KPI renamed from `Total Pals` to `Pals On Sale`.
+- KPI now counts only Pals whose cloud Product Availability record has `on_sale = true`.
+- The full catalogue count is no longer shown in this KPI.
+- No Worker or D1 changes required.
