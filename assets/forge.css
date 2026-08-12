@@ -2319,3 +2319,59 @@ body.forge-page-rework button:disabled{
 body.forge-role-retail-staff a[href="rework.html"]{
   display:inline-flex;
 }
+
+/* =========================================================
+   v0.12.4 — Authentication fail-closed gate
+   ========================================================= */
+
+/* Protected pages are invisible until /auth/me succeeds. */
+body.forge-protected:not(.forge-auth-ready) > *{
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+
+/* A static loading screen remains available even if page JS is slow.
+   If JS completely fails, protected application content remains hidden. */
+body.forge-protected:not(.forge-auth-ready)::before{
+  content:"🦊  PLA FORGE";
+  visibility:visible !important;
+  position:fixed;
+  z-index:2147483646;
+  left:50%;
+  top:44%;
+  transform:translate(-50%,-50%);
+  color:#fff;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:24px;
+  font-weight:800;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+body.forge-protected:not(.forge-auth-ready)::after{
+  content:"Connecting to Forge…\A Checking secure session";
+  white-space:pre;
+  visibility:visible !important;
+  position:fixed;
+  z-index:2147483646;
+  left:50%;
+  top:51%;
+  transform:translateX(-50%);
+  color:#9aa3af;
+  text-align:center;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:14px;
+  line-height:1.6;
+}
+
+.forge-startup-error{
+  margin:18px;
+  padding:18px;
+  border:1px solid #71343a;
+  border-radius:14px;
+  background:#24171a;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}

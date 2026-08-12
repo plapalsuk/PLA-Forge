@@ -526,7 +526,7 @@ function cloudModeBadge(){
 const FORGE_ROLE_PAGES={
  admin:['*'],
  packing:['packing-station.html'],
- retail_staff:['deliveries.html']
+ retail_staff:['deliveries.html','rework.html']
 };
 function forgeCurrentPage(){return location.pathname.split('/').pop()||'index.html'}
 function roleCanOpen(role,page){
@@ -543,27 +543,65 @@ function currentForgeUser(){
 }
 function setForgeUser(user){if(user)localStorage.setItem('plaForgeUser',JSON.stringify(user));else localStorage.removeItem('plaForgeUser')}
 async function forgeRequireLogin(){
- if(forgeCurrentPage()==='login.html')return;
+ if(forgeCurrentPage()==='login.html')return true;
+
+ // Fail closed: a protected page never becomes visible until Cloudflare
+ // has confirmed both the token and the user's role.
+ document.body.classList.remove('forge-auth-ready');
+
+ const returnTo=encodeURIComponent(location.href);
  if(!cloudToken()){
-   const returnTo=encodeURIComponent(location.href);
+   setForgeUser(null);
    location.replace(`login.html?return=${returnTo}`);
-   return;
+   return false;
  }
+
  try{
    const me=await cloudFetch('/auth/me');
    const user=me.user||me;
-   setForgeUser(user);
-   if(!roleCanOpen(user.role,forgeCurrentPage())){
-     location.replace(roleHomePage(user.role)+'?denied=1');
-     return;
+
+   if(!user||!user.id||!user.role){
+     throw new Error('Invalid authenticated user response.');
    }
+
+   if(!roleCanOpen(user.role,forgeCurrentPage())){
+     setForgeUser(user);
+     location.replace(roleHomePage(user.role)+'?denied=1');
+     return false;
+   }
+
+   // Cached user data is for display only. Access was granted by /auth/me above.
+   setForgeUser(user);
    applyRoleNavigation(user);
+   applyRolePageRestrictions(user);
+
+   document.body.classList.remove('forge-auth-checking');
    document.body.classList.add('forge-auth-ready');
-   setTimeout(()=>applyRolePageRestrictions(user),0);
+   return true;
  }catch(e){
-   setCloudToken('');setForgeUser(null);
-   const returnTo=encodeURIComponent(location.href);
+   setCloudToken('');
+   setForgeUser(null);
+   document.body.classList.remove('forge-auth-ready');
    location.replace(`login.html?return=${returnTo}`);
+   return false;
+ }
+}
+
+async function forgeBoot(initializer){
+ // Every protected page comes through this gate.
+ document.body.classList.add('forge-auth-checking');
+ const ok=await forgeRequireLogin();
+ if(!ok)return;
+
+ try{
+   if(typeof initializer==='function')await initializer();
+ }catch(e){
+   console.error('PLA Forge page startup failed:',e);
+   const host=document.querySelector('main')||document.body;
+   const box=document.createElement('div');
+   box.className='forge-startup-error';
+   box.innerHTML=`<div><strong>PLA Forge could not start this page.</strong><div class="small">${esc(e?.message||String(e))}</div></div><button class="btn" onclick="location.reload()">Try Again</button>`;
+   host.prepend(box);
  }
 }
 function applyRoleNavigation(user){

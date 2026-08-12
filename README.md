@@ -1385,3 +1385,19 @@ Fixed role-page routing for Retail Staff.
 - Retail Staff still cannot access factory/admin pages.
 - Existing Rework restrictions remain in place: Cornwall-local repair actions are available, factory replacement actions remain Admin-only.
 - No Worker or D1 change is required.
+
+
+## v0.12.4 — Authentication Fail-Closed
+
+Authentication boot order has been rebuilt across all protected pages.
+
+- Protected HTML is hidden at CSS level before JavaScript starts.
+- `/auth/me` must confirm a valid session and role before the page becomes visible.
+- Page-specific initializers do not run until authentication succeeds.
+- A locally cached user record never grants access; it is display-only.
+- Missing/expired/invalid sessions redirect to Login.
+- If authentication JavaScript fails on an old browser, protected content remains hidden rather than exposing the application shell.
+- A static "Connecting to Forge / Checking secure session" gate is shown during authentication.
+- Retail Staff page access remains Dispatch + Rework.
+- Login and First Admin Bootstrap remain outside the protected-page gate.
+- No Worker or D1 change is required.
