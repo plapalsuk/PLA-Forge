@@ -1701,3 +1701,10 @@ No Worker or D1 schema change is required.
   - `pal_target_overrides`
 - Requires Worker v3t already deployed.
 - No D1 migration required.
+
+## v0.20.4 — Stock Target Settings Boot Fix
+- Fixed General Settings boot sequence.
+- `stockTargetSettingsPage()` now runs after `generalSettingsPage()`.
+- Finished Pal Stock Targets now loads its saved/default values and changes badge from Loading.
+- Worker remains v3t.
+- No D1 migration required.
