@@ -1636,3 +1636,17 @@ No Worker or D1 schema change is required.
 - Keeps Upcoming Releases above Stock Health.
 - Rebuilt for legacy iPad Safari.
 - No Worker or D1 schema changes required.
+
+
+## v0.19.0 — Shopify Integration
+
+- Added Settings → Shopify.
+- Uses the authenticated Worker endpoints introduced in Worker v3q.
+- Connection status and live store details.
+- Shopify product count and product/variant/SKU preview.
+- Shopify inventory variant count.
+- Shopify location list.
+- Latest 20 orders and line-item SKU preview.
+- Read-only: this frontend does not write products, inventory or orders to Shopify.
+- Rebuilt for legacy iPad Safari compatibility.
+- Requires Worker v3q.

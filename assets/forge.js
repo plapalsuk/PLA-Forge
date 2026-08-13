@@ -5359,6 +5359,209 @@ function installMobileForgeMenu() {
             close();
     });
 }
+async function shopifyIntegrationPage() {
+    installForgeCloudSyncBadge();
+    const root = document.getElementById('shopifyIntegrationRoot');
+    if (!root)
+        return;
+    const badgeEl = document.getElementById('shopifyConnectionBadge');
+    const summaryEl = document.getElementById('shopifyConnectionSummary');
+    const detailsEl = document.getElementById('shopifyStoreDetails');
+    const locationsEl = document.getElementById('shopifyLocations');
+    const productsBody = document.getElementById('shopifyProductsTable');
+    const ordersEl = document.getElementById('shopifyOrders');
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el)
+            el.textContent = value;
+    };
+    function setConnection(state, text) {
+        if (!badgeEl)
+            return;
+        badgeEl.className = 'badge ' + (state === 'ok' ? 'success' : state === 'error' ? 'danger' : 'info');
+        badgeEl.textContent = text;
+    }
+    function money(order) {
+        var _h;
+        const m = (_h = order === null || order === void 0 ? void 0 : order.totalPriceSet) === null || _h === void 0 ? void 0 : _h.shopMoney;
+        if (!m)
+            return '';
+        try {
+            return new Intl.NumberFormat('en-GB', {
+                style: 'currency',
+                currency: m.currencyCode || 'GBP'
+            }).format(Number(m.amount || 0));
+        }
+        catch (e) {
+            return `${m.currencyCode || 'GBP'} ${m.amount || '0.00'}`;
+        }
+    }
+    async function loadStatus() {
+        var _h;
+        setConnection('loading', 'Checking…');
+        try {
+            const data = await cloudFetch('/shopify/status');
+            const shop = data.shop || {};
+            setConnection('ok', 'Connected');
+            if (summaryEl) {
+                summaryEl.innerHTML = `
+                  <div class="shopify-connected-banner">
+                    <strong>Shopify is connected to PLA Forge.</strong>
+                    <span>${esc(shop.name || data.configured_shop || 'Shopify Store')}</span>
+                  </div>`;
+            }
+            if (detailsEl) {
+                detailsEl.innerHTML = `
+                  <div><span>Store</span><strong>${esc(shop.name || '–')}</strong></div>
+                  <div><span>MyShopify domain</span><strong>${esc(shop.myshopifyDomain || data.configured_shop || '–')}</strong></div>
+                  <div><span>Primary domain</span><strong>${esc(((_h = shop.primaryDomain) === null || _h === void 0 ? void 0 : _h.host) || '–')}</strong></div>
+                  <div><span>Currency</span><strong>${esc(shop.currencyCode || '–')}</strong></div>
+                  <div><span>API version</span><strong>${esc(data.api_version || '–')}</strong></div>
+                `;
+            }
+            return data;
+        }
+        catch (e) {
+            setConnection('error', 'Connection Error');
+            if (summaryEl) {
+                summaryEl.innerHTML = `<div class="dashboard-clear-state"><strong>Shopify could not connect.</strong><span>${esc(e.message)}</span></div>`;
+            }
+            throw e;
+        }
+    }
+    async function loadLocations() {
+        const data = await cloudFetch('/shopify/locations');
+        const rows = data.locations || [];
+        setText('shopifyLocationCount', rows.length);
+        if (locationsEl) {
+            locationsEl.innerHTML = rows.length ? rows.map(x => {
+                var _h, _j;
+                return `
+              <div class="shopify-list-row">
+                <div><strong>${esc(x.name)}</strong><span>${x.isActive ? 'Active' : 'Inactive'}</span></div>
+                <small>${esc([(_h = x.address) === null || _h === void 0 ? void 0 : _h.city, (_j = x.address) === null || _j === void 0 ? void 0 : _j.country].filter(Boolean).join(', ') || 'No address')}</small>
+              </div>`;
+            }).join('') : `<div class="dashboard-clear-state"><strong>No locations returned.</strong></div>`;
+        }
+        return data;
+    }
+    async function loadProductsAndInventory() {
+        const [productsData, inventoryData] = await Promise.all([
+            cloudFetch('/shopify/products'),
+            cloudFetch('/shopify/inventory')
+        ]);
+        const products = productsData.products || [];
+        const inventory = inventoryData.inventory || [];
+        setText('shopifyProductCount', products.length);
+        setText('shopifyInventoryCount', inventory.length);
+        const rows = [];
+        products.forEach(product => {
+            var _h;
+            const variants = ((_h = product.variants) === null || _h === void 0 ? void 0 : _h.nodes) || [];
+            if (!variants.length) {
+                rows.push({
+                    product: product.title,
+                    variant: '–',
+                    sku: '',
+                    status: product.status,
+                    qty: 0
+                });
+            }
+            else {
+                variants.forEach(v => rows.push({
+                    product: product.title,
+                    variant: v.title,
+                    sku: v.sku || '',
+                    status: product.status,
+                    qty: Number(v.inventoryQuantity || 0)
+                }));
+            }
+        });
+        if (productsBody) {
+            productsBody.innerHTML = rows.length ? rows.slice(0, 300).map(r => `
+              <tr>
+                <td>${esc(r.product)}</td>
+                <td>${esc(r.variant || '–')}</td>
+                <td><span class="sku">${esc(r.sku || 'No SKU')}</span></td>
+                <td>${badge(esc(r.status || 'Unknown'), r.status === 'ACTIVE' ? 'success' : 'info')}</td>
+                <td>${r.qty}</td>
+              </tr>`).join('') : `<tr><td colspan="5">No Shopify products returned.</td></tr>`;
+        }
+        return { productsData, inventoryData };
+    }
+    async function loadOrders() {
+        const data = await cloudFetch('/shopify/orders?limit=20');
+        const orders = data.orders || [];
+        setText('shopifyOrderCount', orders.length);
+        if (ordersEl) {
+            ordersEl.innerHTML = orders.length ? orders.map(order => {
+                var _h;
+                const items = ((_h = order.lineItems) === null || _h === void 0 ? void 0 : _h.nodes) || [];
+                const itemText = items.slice(0, 4).map(i => `${i.quantity} × ${i.sku || i.name}`).join(' · ');
+                return `
+                  <div class="shopify-order-row">
+                    <div class="shopify-order-main">
+                      <strong>${esc(order.name || 'Order')}</strong>
+                      <span>${esc(itemText || 'No line items')}</span>
+                    </div>
+                    <div class="shopify-order-status">
+                      <strong>${esc(money(order))}</strong>
+                      <span>${esc(order.displayFinancialStatus || '')} · ${esc(order.displayFulfillmentStatus || '')}</span>
+                    </div>
+                    <time>${fmtDate(order.createdAt)}</time>
+                  </div>`;
+            }).join('') : `<div class="dashboard-clear-state"><strong>No recent orders returned.</strong></div>`;
+        }
+        return data;
+    }
+    async function refreshAll() {
+        const btn = document.getElementById('shopifyRefreshAll');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Refreshing…';
+        }
+        try {
+            await loadStatus();
+            await Promise.all([
+                loadLocations(),
+                loadProductsAndInventory(),
+                loadOrders()
+            ]);
+            setForgeCloudSync('synced', 'Shopify data refreshed');
+        }
+        catch (e) {
+            setForgeCloudSync('error', 'Shopify sync error');
+        }
+        finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Refresh Shopify Data';
+            }
+        }
+    }
+    const testBtn = document.getElementById('shopifyTestConnection');
+    if (testBtn) {
+        testBtn.onclick = async () => {
+            testBtn.disabled = true;
+            testBtn.textContent = 'Testing…';
+            try {
+                await loadStatus();
+                alert('Shopify connection successful.');
+            }
+            catch (e) {
+                alert('Shopify connection failed: ' + e.message);
+            }
+            finally {
+                testBtn.disabled = false;
+                testBtn.textContent = 'Test Connection';
+            }
+        };
+    }
+    const refreshBtn = document.getElementById('shopifyRefreshAll');
+    if (refreshBtn)
+        refreshBtn.onclick = refreshAll;
+    await refreshAll();
+}
 (function () {
     const page = (location.pathname.split('/').pop() || 'index.html').replace('.html', '').replace(/[^a-z0-9_-]/gi, '-');
     document.body.classList.add('forge-page-' + page);

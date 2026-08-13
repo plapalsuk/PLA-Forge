@@ -2689,3 +2689,44 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
   .release-status{grid-column:2;grid-row:1}
   .release-arrow{grid-column:2;grid-row:2;justify-self:end}
 }
+
+/* v0.19.0 — Shopify Integration */
+.shopify-hero{border-color:rgba(149,191,71,.28)}
+.shopify-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.shopify-connected-banner{display:flex;flex-direction:column;gap:4px;padding:13px 14px;border:1px solid rgba(69,207,128,.28);border-radius:12px;background:rgba(69,207,128,.06)}
+.shopify-connected-banner strong{color:#62d994}
+.shopify-connected-banner span{color:var(--muted);font-size:11px}
+.shopify-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.shopify-kpi{display:flex;flex-direction:column;min-height:110px}
+.shopify-kpi>span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.shopify-kpi strong{font-size:31px;margin:14px 0 6px}
+.shopify-kpi small{color:var(--muted)}
+.shopify-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.shopify-detail-list{display:grid;gap:8px}
+.shopify-detail-list>div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.shopify-detail-list>div:last-child{border-bottom:0}
+.shopify-detail-list span{color:var(--muted);font-size:11px}
+.shopify-list{display:grid;gap:7px}
+.shopify-list-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+.shopify-list-row>div{display:flex;flex-direction:column;gap:2px}
+.shopify-list-row span,.shopify-list-row small{font-size:10px;color:var(--muted)}
+.shopify-table-wrap{overflow-x:auto}
+.shopify-table{width:100%;border-collapse:collapse;min-width:720px}
+.shopify-table th,.shopify-table td{padding:10px 9px;border-bottom:1px solid var(--line);text-align:left;font-size:11px}
+.shopify-table th{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.shopify-order-list{display:grid}
+.shopify-order-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.shopify-order-row:last-child{border-bottom:0}
+.shopify-order-main,.shopify-order-status{display:flex;flex-direction:column;gap:2px}
+.shopify-order-main span,.shopify-order-status span,.shopify-order-row time{font-size:10px;color:var(--muted)}
+.shopify-order-status{text-align:right}
+.shopify-safety{margin-top:14px;border-color:rgba(255,102,0,.25)}
+@media(max-width:900px){
+  .shopify-kpi-grid{grid-template-columns:1fr 1fr}
+  .shopify-grid{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .shopify-kpi-grid{grid-template-columns:1fr 1fr}
+  .shopify-order-row{grid-template-columns:1fr}
+  .shopify-order-status{text-align:left}
+}

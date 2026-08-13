@@ -1,0 +1,121 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0190"></head>
+<body class="forge-protected"><div class="app"><aside class="sidebar">
+ <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
+ <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
+ <nav class="nav" id="forgeNav">
+  <div class="navgroup">Forge Control</div>
+  <a href="index.html">⌂ Dashboard</a>
+  <div class="navgroup">Inventory</div>
+  <a href="pals.html">◆ Pals</a><a href="keyrings.html">◇ Keyrings</a><a href="stickers.html">▣ Sticker Sheets</a>
+  <div class="navgroup">The Workshop</div>
+  <a href="production.html">⚙ Production Planner</a><a href="plates.html">▱ Build Plates</a><a href="assembly.html">⌁ The Bench</a><a href="rework.html">↻ Rework</a>
+  <div class="navgroup">Packing & Dispatch</div>
+  <a href="packaging.html">□ Insert Production</a><a href="packing-station.html">▣ Packing Station</a><a href="deliveries.html">⇢ Dispatch</a>
+  <div class="navgroup">Materials</div>
+  <a href="filament.html">≋ Filament</a><a href="recipes.html">⌘ Recipes</a><a href="parts.html">◫ Printed Parts</a><a href="consumables.html">▤ Consumables</a>
+  <div class="navgroup">Administration</div>
+  <a href="new-pal.html">＋ New Pal Setup</a>
+  <a href="data-health.html">! Data Health</a>
+  <div class="navgroup">Settings</div>
+  <a href="settings.html">⚙ General</a>
+  <a href="settings-printers.html">▱ 3D Printers</a>
+  <a href="settings-availability.html">◉ Product Availability</a>
+  <a href="settings-labels.html">▤ Labels &amp; Printing</a>
+  <a href="settings-employees.html">♙ Employees</a>
+  <a href="settings-system.html">! System &amp; Data</a>
+<a href="settings-shopify.html">◈ Shopify</a>
+ </nav>
+</aside><main>
+<div class="topbar">
+  <div class="pageTitle">
+    <h1>Shopify Integration</h1>
+    <div class="small">Connect PLA Forge to the PLA Pals Shopify store.</div>
+  </div>
+  <div class="kitsu">
+    <div style="font-size:25px">🦊</div>
+    <div><strong>Kitsu</strong><div class="small">Shopify connection &amp; sync.</div></div>
+  </div>
+</div>
+
+<div id="shopifyIntegrationRoot">
+  <section class="card shopify-hero">
+    <div class="section-title">
+      <div>
+        <h2>Shopify Connection</h2>
+        <div class="small">Read-only integration. PLA Forge will not change Shopify products, stock or orders yet.</div>
+      </div>
+      <span class="badge info" id="shopifyConnectionBadge">Checking…</span>
+    </div>
+    <div id="shopifyConnectionSummary" class="shopify-connection-summary"></div>
+    <div class="shopify-actions">
+      <button class="btn" id="shopifyTestConnection">Test Connection</button>
+      <button class="btn secondary" id="shopifyRefreshAll">Refresh Shopify Data</button>
+    </div>
+  </section>
+
+  <div class="shopify-kpi-grid">
+    <div class="card shopify-kpi"><span>Products</span><strong id="shopifyProductCount">–</strong><small>Shopify products</small></div>
+    <div class="card shopify-kpi"><span>Variants / Inventory</span><strong id="shopifyInventoryCount">–</strong><small>SKU variants</small></div>
+    <div class="card shopify-kpi"><span>Locations</span><strong id="shopifyLocationCount">–</strong><small>Shopify locations</small></div>
+    <div class="card shopify-kpi"><span>Recent Orders</span><strong id="shopifyOrderCount">–</strong><small>latest 20 orders</small></div>
+  </div>
+
+  <div class="shopify-grid">
+    <section class="card">
+      <div class="section-title">
+        <div><h2>Store Details</h2><div class="small">Live details returned by Shopify.</div></div>
+      </div>
+      <div id="shopifyStoreDetails" class="shopify-detail-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <div><h2>Locations</h2><div class="small">Inventory locations available to Shopify.</div></div>
+      </div>
+      <div id="shopifyLocations" class="shopify-list"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="section-title">
+      <div><h2>Products &amp; SKU Mapping Preview</h2><div class="small">Shows Shopify products and variants. This is read-only; mapping into PLA Forge production comes next.</div></div>
+    </div>
+    <div class="shopify-table-wrap">
+      <table class="shopify-table">
+        <thead><tr><th>Product</th><th>Variant</th><th>SKU</th><th>Status</th><th>Shopify Qty</th></tr></thead>
+        <tbody id="shopifyProductsTable"><tr><td colspan="5">Load Shopify data to preview products.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-title">
+      <div><h2>Recent Orders</h2><div class="small">Latest Shopify orders visible to PLA Forge.</div></div>
+    </div>
+    <div id="shopifyOrders" class="shopify-order-list"></div>
+  </section>
+
+  <section class="card shopify-safety">
+    <h2>Integration Stage</h2>
+    <div class="small">Stage 1 is read-only verification. Once products, SKUs, locations and orders are matching correctly, we can move to Stage 2: order demand flowing into Production Planner, followed later by controlled stock sync back to Shopify.</div>
+  </section>
+</div>
+
+<div class="footer-note">PLA Forge v0.19.0 · Shopify Integration</div>
+</main></div><script src="assets/forge.js?v=0190"></script><script>forgeBoot(async function(){await shopifyIntegrationPage()})</script>
+<script id="legacyBootFailsafe">
+(function(){
+  window.setTimeout(function(){
+    var splash=document.getElementById('forgeBootSplash');
+    if(!splash) return;
+    var body=document.body;
+    if(body && body.className.indexOf('forge-protected') !== -1){
+      var status=splash.querySelector('.forge-boot-status');
+      var detail=splash.querySelector('.forge-boot-detail');
+      if(status) status.textContent='PLA Forge could not finish loading.';
+      if(detail) detail.textContent='Tap refresh to try again.';
+    }
+  },15000);
+})();
+</script>
+</body></html>
