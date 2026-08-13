@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0190"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0191"></head>
 <body class="forge-protected"><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
@@ -78,12 +78,38 @@
 
   <section class="card">
     <div class="section-title">
-      <div><h2>Products &amp; SKU Mapping Preview</h2><div class="small">Shows Shopify products and variants. This is read-only; mapping into PLA Forge production comes next.</div></div>
+      <div>
+        <h2>Shopify Product Mapping</h2>
+        <div class="small">Choose exactly which Shopify variants PLA Forge is allowed to use. Unselected products are ignored by Forge production.</div>
+      </div>
+      <span class="badge info" id="shopifyMappingSavedBadge">Not saved</span>
     </div>
+
+    <div class="shopify-mapping-toolbar">
+      <input id="shopifyProductSearch" class="input" placeholder="Search product, variant or SKU">
+      <select id="shopifyMappingFilter" class="input">
+        <option value="all">All Shopify variants</option>
+        <option value="included">Included only</option>
+        <option value="ignored">Ignored only</option>
+        <option value="matched">Matched to Forge</option>
+        <option value="unmatched">Needs mapping</option>
+        <option value="nosku">No Shopify SKU</option>
+      </select>
+      <button class="btn secondary" id="shopifySelectPlaSkus">Select matching PLA SKUs</button>
+      <button class="btn secondary" id="shopifyClearSelection">Clear Selection</button>
+      <button class="btn" id="shopifySaveMapping">Save Mapping</button>
+    </div>
+
+    <div class="shopify-mapping-summary">
+      <span><strong id="shopifyIncludedCount">0</strong> included</span>
+      <span><strong id="shopifyMatchedCount">0</strong> matched</span>
+      <span><strong id="shopifyNeedsMappingCount">0</strong> need mapping</span>
+    </div>
+
     <div class="shopify-table-wrap">
-      <table class="shopify-table">
-        <thead><tr><th>Product</th><th>Variant</th><th>SKU</th><th>Status</th><th>Shopify Qty</th></tr></thead>
-        <tbody id="shopifyProductsTable"><tr><td colspan="5">Load Shopify data to preview products.</td></tr></tbody>
+      <table class="shopify-table shopify-mapping-table">
+        <thead><tr><th>Use</th><th>Shopify Product</th><th>Variant</th><th>Shopify SKU</th><th>Shopify Qty</th><th>PLA Forge Pal</th><th>Mapping</th></tr></thead>
+        <tbody id="shopifyProductsTable"><tr><td colspan="7">Load Shopify data to choose products.</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -101,8 +127,8 @@
   </section>
 </div>
 
-<div class="footer-note">PLA Forge v0.19.0 · Shopify Integration</div>
-</main></div><script src="assets/forge.js?v=0190"></script><script>forgeBoot(async function(){await shopifyIntegrationPage()})</script>
+<div class="footer-note">PLA Forge v0.19.1 · Shopify Product Mapping</div>
+</main></div><script src="assets/forge.js?v=0191"></script><script>forgeBoot(async function(){await shopifyIntegrationPage()})</script>
 <script id="legacyBootFailsafe">
 (function(){
   window.setTimeout(function(){

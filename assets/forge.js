@@ -5364,22 +5364,163 @@ async function shopifyIntegrationPage() {
     const root = document.getElementById('shopifyIntegrationRoot');
     if (!root)
         return;
-    const badgeEl = document.getElementById('shopifyConnectionBadge');
-    const summaryEl = document.getElementById('shopifyConnectionSummary');
-    const detailsEl = document.getElementById('shopifyStoreDetails');
-    const locationsEl = document.getElementById('shopifyLocations');
-    const productsBody = document.getElementById('shopifyProductsTable');
-    const ordersEl = document.getElementById('shopifyOrders');
-    const setText = (id, value) => {
-        const el = document.getElementById(id);
-        if (el)
-            el.textContent = value;
-    };
+    let shopifyRows = [];
+    let forgeProducts = [];
+    let savedMapping = { version: 1, variants: {} };
+    const byId = id => document.getElementById(id);
+    const setText = (id, value) => { const el = byId(id); if (el)
+        el.textContent = value; };
     function setConnection(state, text) {
-        if (!badgeEl)
+        const el = byId('shopifyConnectionBadge');
+        if (!el)
             return;
-        badgeEl.className = 'badge ' + (state === 'ok' ? 'success' : state === 'error' ? 'danger' : 'info');
-        badgeEl.textContent = text;
+        el.className = 'badge ' + (state === 'ok' ? 'success' : state === 'error' ? 'danger' : 'info');
+        el.textContent = text;
+    }
+    function setMappingDirty(dirty) {
+        const el = byId('shopifyMappingSavedBadge');
+        if (!el)
+            return;
+        el.className = 'badge ' + (dirty ? 'warn' : 'success');
+        el.textContent = dirty ? 'Unsaved changes' : 'Saved';
+    }
+    function variantKey(row) { return String(row.variantId || row.inventoryItemId || `${row.productId}:${row.variantTitle}:${row.sku}`); }
+    function normSku(v) { return String(v || '').trim().toUpperCase(); }
+    function forgeSkuOptions(selected) {
+        const s = String(selected || '');
+        return `<option value="">— Ignore mapping —</option>` + forgeProducts.map(p => `<option value="${esc(p.sku)}"${p.sku === s ? ' selected' : ''}>${esc(p.sku)} — ${esc(p.name || p.sku)}</option>`).join('');
+    }
+    function mappingFor(row) {
+        const key = variantKey(row);
+        const m = savedMapping.variants[key] || {};
+        return { included: !!m.included, forge_sku: String(m.forge_sku || '') };
+    }
+    function autoForgeSku(row) {
+        const sku = normSku(row.sku);
+        if (!sku)
+            return '';
+        const p = forgeProducts.find(x => normSku(x.sku) === sku);
+        return p ? p.sku : '';
+    }
+    function mappingState(row, m) {
+        if (!m.included)
+            return { text: 'Ignored', kind: 'info' };
+        if (!row.sku)
+            return { text: m.forge_sku ? 'Mapped manually' : 'No Shopify SKU', kind: m.forge_sku ? 'success' : 'warn' };
+        if (m.forge_sku)
+            return { text: 'Matched', kind: 'success' };
+        return { text: 'Needs mapping', kind: 'warn' };
+    }
+    function renderMapping() {
+        var _h, _j;
+        const q = String(((_h = byId('shopifyProductSearch')) === null || _h === void 0 ? void 0 : _h.value) || '').toLowerCase().trim();
+        const filter = ((_j = byId('shopifyMappingFilter')) === null || _j === void 0 ? void 0 : _j.value) || 'all';
+        let included = 0, matched = 0, needs = 0;
+        shopifyRows.forEach(row => {
+            const m = mappingFor(row), st = mappingState(row, m);
+            if (m.included)
+                included++;
+            if (m.included && m.forge_sku)
+                matched++;
+            if (m.included && !m.forge_sku)
+                needs++;
+        });
+        setText('shopifyIncludedCount', included);
+        setText('shopifyMatchedCount', matched);
+        setText('shopifyNeedsMappingCount', needs);
+        const visible = shopifyRows.filter(row => {
+            const m = mappingFor(row), st = mappingState(row, m);
+            const hay = [row.productTitle, row.variantTitle, row.sku, m.forge_sku].join(' ').toLowerCase();
+            if (q && !hay.includes(q))
+                return false;
+            if (filter === 'included' && !m.included)
+                return false;
+            if (filter === 'ignored' && m.included)
+                return false;
+            if (filter === 'matched' && !(m.included && m.forge_sku))
+                return false;
+            if (filter === 'unmatched' && !(m.included && !m.forge_sku))
+                return false;
+            if (filter === 'nosku' && row.sku)
+                return false;
+            return true;
+        });
+        const body = byId('shopifyProductsTable');
+        if (!body)
+            return;
+        body.innerHTML = visible.length ? visible.map(row => {
+            const key = variantKey(row), m = mappingFor(row), st = mappingState(row, m);
+            return `<tr data-shopify-key="${esc(key)}">
+              <td><label class="switch-mini"><input type="checkbox" class="shopify-include"${m.included ? ' checked' : ''}><span></span></label></td>
+              <td><strong>${esc(row.productTitle)}</strong></td>
+              <td>${esc(row.variantTitle || 'Default')}</td>
+              <td><span class="sku">${esc(row.sku || 'No SKU')}</span></td>
+              <td>${Number(row.qty || 0)}</td>
+              <td><select class="input shopify-forge-sku">${forgeSkuOptions(m.forge_sku)}</select></td>
+              <td>${badge(st.text, st.kind)}</td>
+            </tr>`;
+        }).join('') : `<tr><td colspan="7">No products match this filter.</td></tr>`;
+        body.querySelectorAll('tr[data-shopify-key]').forEach(tr => {
+            const key = tr.getAttribute('data-shopify-key');
+            const include = tr.querySelector('.shopify-include');
+            const select = tr.querySelector('.shopify-forge-sku');
+            include.onchange = () => {
+                const current = savedMapping.variants[key] || {};
+                savedMapping.variants[key] = Object.assign(Object.assign({}, current), { included: include.checked, forge_sku: String(select.value || '') });
+                setMappingDirty(true);
+                renderMapping();
+            };
+            select.onchange = () => {
+                const current = savedMapping.variants[key] || {};
+                savedMapping.variants[key] = Object.assign(Object.assign({}, current), { included: include.checked, forge_sku: String(select.value || '') });
+                if (select.value && !include.checked)
+                    savedMapping.variants[key].included = true;
+                setMappingDirty(true);
+                renderMapping();
+            };
+        });
+    }
+    async function loadForgeProducts() {
+        const data = await cloudFetch('/products');
+        forgeProducts = (data.products || []).map(p => ({ sku: String(p.sku || ''), name: String(p.name || p.product_name || p.sku || '') })).filter(p => p.sku);
+    }
+    async function loadSavedMapping() {
+        var _h;
+        try {
+            const data = await cloudFetch('/settings');
+            const v = (_h = data.settings) === null || _h === void 0 ? void 0 : _h.shopify_product_mapping;
+            if (v && typeof v === 'object' && v.variants)
+                savedMapping = v;
+            else
+                savedMapping = { version: 1, variants: {} };
+        }
+        catch (e) {
+            savedMapping = { version: 1, variants: {} };
+        }
+    }
+    async function saveMapping() {
+        const btn = byId('shopifySaveMapping');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+        }
+        try {
+            savedMapping.version = 1;
+            savedMapping.updated_at = new Date().toISOString();
+            await cloudFetch('/settings/shopify_product_mapping', { method: 'PUT', body: JSON.stringify({ value: savedMapping }) });
+            setMappingDirty(false);
+            setForgeCloudSync('synced', 'Shopify mapping saved');
+        }
+        catch (e) {
+            alert('Could not save Shopify mapping: ' + e.message);
+            setForgeCloudSync('error', 'Shopify mapping save failed');
+        }
+        finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Save Mapping';
+            }
+        }
     }
     function money(order) {
         var _h;
@@ -5387,10 +5528,7 @@ async function shopifyIntegrationPage() {
         if (!m)
             return '';
         try {
-            return new Intl.NumberFormat('en-GB', {
-                style: 'currency',
-                currency: m.currencyCode || 'GBP'
-            }).format(Number(m.amount || 0));
+            return new Intl.NumberFormat('en-GB', { style: 'currency', currency: m.currencyCode || 'GBP' }).format(Number(m.amount || 0));
         }
         catch (e) {
             return `${m.currencyCode || 'GBP'} ${m.amount || '0.00'}`;
@@ -5400,133 +5538,68 @@ async function shopifyIntegrationPage() {
         var _h;
         setConnection('loading', 'Checking…');
         try {
-            const data = await cloudFetch('/shopify/status');
-            const shop = data.shop || {};
+            const data = await cloudFetch('/shopify/status'), shop = data.shop || {};
             setConnection('ok', 'Connected');
-            if (summaryEl) {
-                summaryEl.innerHTML = `
-                  <div class="shopify-connected-banner">
-                    <strong>Shopify is connected to PLA Forge.</strong>
-                    <span>${esc(shop.name || data.configured_shop || 'Shopify Store')}</span>
-                  </div>`;
-            }
-            if (detailsEl) {
-                detailsEl.innerHTML = `
-                  <div><span>Store</span><strong>${esc(shop.name || '–')}</strong></div>
-                  <div><span>MyShopify domain</span><strong>${esc(shop.myshopifyDomain || data.configured_shop || '–')}</strong></div>
-                  <div><span>Primary domain</span><strong>${esc(((_h = shop.primaryDomain) === null || _h === void 0 ? void 0 : _h.host) || '–')}</strong></div>
-                  <div><span>Currency</span><strong>${esc(shop.currencyCode || '–')}</strong></div>
-                  <div><span>API version</span><strong>${esc(data.api_version || '–')}</strong></div>
-                `;
-            }
+            byId('shopifyConnectionSummary').innerHTML = `<div class="shopify-connected-banner"><strong>Shopify is connected to PLA Forge.</strong><span>${esc(shop.name || data.configured_shop || 'Shopify Store')}</span></div>`;
+            byId('shopifyStoreDetails').innerHTML = `
+              <div><span>Store</span><strong>${esc(shop.name || '–')}</strong></div>
+              <div><span>MyShopify domain</span><strong>${esc(shop.myshopifyDomain || data.configured_shop || '–')}</strong></div>
+              <div><span>Primary domain</span><strong>${esc(((_h = shop.primaryDomain) === null || _h === void 0 ? void 0 : _h.host) || '–')}</strong></div>
+              <div><span>Currency</span><strong>${esc(shop.currencyCode || '–')}</strong></div>
+              <div><span>API version</span><strong>${esc(data.api_version || '–')}</strong></div>`;
             return data;
         }
         catch (e) {
             setConnection('error', 'Connection Error');
-            if (summaryEl) {
-                summaryEl.innerHTML = `<div class="dashboard-clear-state"><strong>Shopify could not connect.</strong><span>${esc(e.message)}</span></div>`;
-            }
+            byId('shopifyConnectionSummary').innerHTML = `<div class="dashboard-clear-state"><strong>Shopify could not connect.</strong><span>${esc(e.message)}</span></div>`;
             throw e;
         }
     }
     async function loadLocations() {
-        const data = await cloudFetch('/shopify/locations');
-        const rows = data.locations || [];
+        const data = await cloudFetch('/shopify/locations'), rows = data.locations || [];
         setText('shopifyLocationCount', rows.length);
-        if (locationsEl) {
-            locationsEl.innerHTML = rows.length ? rows.map(x => {
-                var _h, _j;
-                return `
-              <div class="shopify-list-row">
-                <div><strong>${esc(x.name)}</strong><span>${x.isActive ? 'Active' : 'Inactive'}</span></div>
-                <small>${esc([(_h = x.address) === null || _h === void 0 ? void 0 : _h.city, (_j = x.address) === null || _j === void 0 ? void 0 : _j.country].filter(Boolean).join(', ') || 'No address')}</small>
-              </div>`;
-            }).join('') : `<div class="dashboard-clear-state"><strong>No locations returned.</strong></div>`;
-        }
-        return data;
+        byId('shopifyLocations').innerHTML = rows.length ? rows.map(x => { var _h, _j; return `<div class="shopify-list-row"><div><strong>${esc(x.name)}</strong><span>${x.isActive ? 'Active' : 'Inactive'}</span></div><small>${esc([(_h = x.address) === null || _h === void 0 ? void 0 : _h.city, (_j = x.address) === null || _j === void 0 ? void 0 : _j.country].filter(Boolean).join(', ') || 'No address')}</small></div>`; }).join('') : `<div class="dashboard-clear-state"><strong>No locations returned.</strong></div>`;
     }
     async function loadProductsAndInventory() {
-        const [productsData, inventoryData] = await Promise.all([
-            cloudFetch('/shopify/products'),
-            cloudFetch('/shopify/inventory')
-        ]);
-        const products = productsData.products || [];
-        const inventory = inventoryData.inventory || [];
+        const [pd, id] = await Promise.all([cloudFetch('/shopify/products'), cloudFetch('/shopify/inventory')]);
+        const products = pd.products || [], inventory = id.inventory || [];
         setText('shopifyProductCount', products.length);
         setText('shopifyInventoryCount', inventory.length);
-        const rows = [];
+        shopifyRows = [];
         products.forEach(product => {
             var _h;
             const variants = ((_h = product.variants) === null || _h === void 0 ? void 0 : _h.nodes) || [];
-            if (!variants.length) {
-                rows.push({
-                    product: product.title,
-                    variant: '–',
-                    sku: '',
-                    status: product.status,
-                    qty: 0
+            variants.forEach(v => {
+                var _h;
+                return shopifyRows.push({
+                    productId: product.id, productTitle: product.title, productStatus: product.status,
+                    variantId: v.id, variantTitle: v.title, sku: String(v.sku || ''), qty: Number(v.inventoryQuantity || 0),
+                    inventoryItemId: ((_h = v.inventoryItem) === null || _h === void 0 ? void 0 : _h.id) || ''
                 });
-            }
-            else {
-                variants.forEach(v => rows.push({
-                    product: product.title,
-                    variant: v.title,
-                    sku: v.sku || '',
-                    status: product.status,
-                    qty: Number(v.inventoryQuantity || 0)
-                }));
-            }
+            });
         });
-        if (productsBody) {
-            productsBody.innerHTML = rows.length ? rows.slice(0, 300).map(r => `
-              <tr>
-                <td>${esc(r.product)}</td>
-                <td>${esc(r.variant || '–')}</td>
-                <td><span class="sku">${esc(r.sku || 'No SKU')}</span></td>
-                <td>${badge(esc(r.status || 'Unknown'), r.status === 'ACTIVE' ? 'success' : 'info')}</td>
-                <td>${r.qty}</td>
-              </tr>`).join('') : `<tr><td colspan="5">No Shopify products returned.</td></tr>`;
-        }
-        return { productsData, inventoryData };
+        renderMapping();
     }
     async function loadOrders() {
-        const data = await cloudFetch('/shopify/orders?limit=20');
-        const orders = data.orders || [];
+        const data = await cloudFetch('/shopify/orders?limit=20'), orders = data.orders || [];
         setText('shopifyOrderCount', orders.length);
-        if (ordersEl) {
-            ordersEl.innerHTML = orders.length ? orders.map(order => {
-                var _h;
-                const items = ((_h = order.lineItems) === null || _h === void 0 ? void 0 : _h.nodes) || [];
-                const itemText = items.slice(0, 4).map(i => `${i.quantity} × ${i.sku || i.name}`).join(' · ');
-                return `
-                  <div class="shopify-order-row">
-                    <div class="shopify-order-main">
-                      <strong>${esc(order.name || 'Order')}</strong>
-                      <span>${esc(itemText || 'No line items')}</span>
-                    </div>
-                    <div class="shopify-order-status">
-                      <strong>${esc(money(order))}</strong>
-                      <span>${esc(order.displayFinancialStatus || '')} · ${esc(order.displayFulfillmentStatus || '')}</span>
-                    </div>
-                    <time>${fmtDate(order.createdAt)}</time>
-                  </div>`;
-            }).join('') : `<div class="dashboard-clear-state"><strong>No recent orders returned.</strong></div>`;
-        }
-        return data;
+        byId('shopifyOrders').innerHTML = orders.length ? orders.map(order => {
+            var _h;
+            const items = ((_h = order.lineItems) === null || _h === void 0 ? void 0 : _h.nodes) || [], itemText = items.slice(0, 4).map(i => `${i.quantity} × ${i.sku || i.name}`).join(' · ');
+            return `<div class="shopify-order-row"><div class="shopify-order-main"><strong>${esc(order.name || 'Order')}</strong><span>${esc(itemText || 'No line items')}</span></div><div class="shopify-order-status"><strong>${esc(money(order))}</strong><span>${esc(order.displayFinancialStatus || '')} · ${esc(order.displayFulfillmentStatus || '')}</span></div><time>${fmtDate(order.createdAt)}</time></div>`;
+        }).join('') : `<div class="dashboard-clear-state"><strong>No recent orders returned.</strong></div>`;
     }
     async function refreshAll() {
-        const btn = document.getElementById('shopifyRefreshAll');
+        const btn = byId('shopifyRefreshAll');
         if (btn) {
             btn.disabled = true;
             btn.textContent = 'Refreshing…';
         }
         try {
+            await Promise.all([loadForgeProducts(), loadSavedMapping()]);
             await loadStatus();
-            await Promise.all([
-                loadLocations(),
-                loadProductsAndInventory(),
-                loadOrders()
-            ]);
+            await Promise.all([loadLocations(), loadProductsAndInventory(), loadOrders()]);
+            setMappingDirty(false);
             setForgeCloudSync('synced', 'Shopify data refreshed');
         }
         catch (e) {
@@ -5539,27 +5612,40 @@ async function shopifyIntegrationPage() {
             }
         }
     }
-    const testBtn = document.getElementById('shopifyTestConnection');
-    if (testBtn) {
-        testBtn.onclick = async () => {
-            testBtn.disabled = true;
-            testBtn.textContent = 'Testing…';
-            try {
-                await loadStatus();
-                alert('Shopify connection successful.');
-            }
-            catch (e) {
-                alert('Shopify connection failed: ' + e.message);
-            }
-            finally {
-                testBtn.disabled = false;
-                testBtn.textContent = 'Test Connection';
-            }
-        };
-    }
-    const refreshBtn = document.getElementById('shopifyRefreshAll');
-    if (refreshBtn)
-        refreshBtn.onclick = refreshAll;
+    byId('shopifyProductSearch').oninput = renderMapping;
+    byId('shopifyMappingFilter').onchange = renderMapping;
+    byId('shopifySaveMapping').onclick = saveMapping;
+    byId('shopifyClearSelection').onclick = () => {
+        Object.keys(savedMapping.variants).forEach(k => savedMapping.variants[k] = Object.assign(Object.assign({}, savedMapping.variants[k]), { included: false }));
+        setMappingDirty(true);
+        renderMapping();
+    };
+    byId('shopifySelectPlaSkus').onclick = () => {
+        shopifyRows.forEach(row => {
+            const sku = autoForgeSku(row);
+            if (sku)
+                savedMapping.variants[variantKey(row)] = { included: true, forge_sku: sku };
+        });
+        setMappingDirty(true);
+        renderMapping();
+    };
+    byId('shopifyTestConnection').onclick = async () => {
+        const b = byId('shopifyTestConnection');
+        b.disabled = true;
+        b.textContent = 'Testing…';
+        try {
+            await loadStatus();
+            alert('Shopify connection successful.');
+        }
+        catch (e) {
+            alert('Shopify connection failed: ' + e.message);
+        }
+        finally {
+            b.disabled = false;
+            b.textContent = 'Test Connection';
+        }
+    };
+    byId('shopifyRefreshAll').onclick = refreshAll;
     await refreshAll();
 }
 (function () {

@@ -2730,3 +2730,17 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
   .shopify-order-row{grid-template-columns:1fr}
   .shopify-order-status{text-align:left}
 }
+
+/* v0.19.1 Shopify product selection */
+.shopify-mapping-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 190px auto auto auto;gap:8px;align-items:center;margin:14px 0 10px}
+.shopify-mapping-summary{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 10px;color:var(--muted);font-size:11px}
+.shopify-mapping-summary strong{color:var(--text);font-size:14px}
+.shopify-mapping-table select{min-width:220px}
+.switch-mini{position:relative;display:inline-block;width:36px;height:20px}
+.switch-mini input{opacity:0;width:0;height:0}
+.switch-mini span{position:absolute;inset:0;border-radius:999px;background:#313944;border:1px solid var(--line);cursor:pointer}
+.switch-mini span:after{content:"";position:absolute;width:14px;height:14px;left:2px;top:2px;border-radius:50%;background:#aab2bd;transition:.15s}
+.switch-mini input:checked+span{background:rgba(255,102,0,.25);border-color:var(--orange)}
+.switch-mini input:checked+span:after{transform:translateX(16px);background:var(--orange)}
+@media(max-width:1100px){.shopify-mapping-toolbar{grid-template-columns:1fr 1fr}.shopify-mapping-toolbar .btn{width:100%}}
+@media(max-width:650px){.shopify-mapping-toolbar{grid-template-columns:1fr}.shopify-mapping-table select{min-width:180px}}

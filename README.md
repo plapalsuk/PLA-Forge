@@ -1650,3 +1650,14 @@ No Worker or D1 schema change is required.
 - Read-only: this frontend does not write products, inventory or orders to Shopify.
 - Rebuilt for legacy iPad Safari compatibility.
 - Requires Worker v3q.
+
+
+## v0.19.1 — Shopify Product Mapping
+- Choose individual Shopify variants to include in PLA Forge.
+- Search and filter products.
+- Map each included Shopify variant to a PLA Forge SKU.
+- Auto-select variants whose Shopify SKU already matches a Forge SKU.
+- Flags missing SKUs and unmapped included variants.
+- Mapping is saved to the existing cloud `forge_settings` table under `shopify_product_mapping`.
+- No Worker or D1 schema update required beyond Worker v3q.
+- Shopify remains read-only.
