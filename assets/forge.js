@@ -5473,6 +5473,8 @@ async function shopifyIntegrationPage() {
     let shopifyRows = [];
     let forgeProducts = [];
     let savedMapping = { version: 1, variants: {} };
+    let locationMapping = { version: 1, locations: {} };
+    let shopifyLocationsForMapping = [];
     const byId = id => document.getElementById(id);
     const setText = (id, value) => {
         const el = byId(id);
@@ -5631,6 +5633,10 @@ async function shopifyIntegrationPage() {
             }
         }
     }
+    function setLocationMappingDirty(dirty){const el=byId('shopifyLocationMappingBadge');if(!el)return;el.className='badge '+(dirty?'warn':'success');el.textContent=dirty?'Unsaved changes':'Saved';}
+    function renderLocationMapping(){const host=byId('shopifyLocationMappingRows');if(!host)return;host.innerHTML=shopifyLocationsForMapping.length?shopifyLocationsForMapping.map(loc=>{const current=String(locationMapping.locations?.[loc.id]||'ignore');return `<div class="shopify-location-map-row" data-location-id="${esc(loc.id)}"><div class="shopify-location-map-info"><strong>${esc(loc.name)}</strong><span>${esc([loc.city,loc.country].filter(Boolean).join(', ')||'No address')} · ${loc.active?'Active':'Inactive'}</span></div><select class="input shopify-location-map-select"><option value="ignore"${current==='ignore'?' selected':''}>Ignore</option><option value="boat"${current==='boat'?' selected':''}>Kitsune Boat</option><option value="cornwall"${current==='cornwall'?' selected':''}>Kitsune Cornwall</option></select></div>`}).join(''):`<div class="dashboard-clear-state"><strong>No Shopify locations returned.</strong></div>`;host.querySelectorAll('.shopify-location-map-row').forEach(row=>{const id=row.getAttribute('data-location-id'),sel=row.querySelector('.shopify-location-map-select');sel.onchange=()=>{locationMapping.locations=locationMapping.locations||{};locationMapping.locations[id]=sel.value;setLocationMappingDirty(true)}})}
+    async function loadLocationMapping(){try{const [status,settings]=await Promise.all([cloudFetch('/shopify/location-mapping'),cloudFetch('/settings')]);shopifyLocationsForMapping=status.locations||[];const saved=settings.settings?.shopify_location_mapping;if(saved&&typeof saved==='object'&&saved.locations)locationMapping=saved;else{locationMapping={version:1,locations:{}};(status.locations||[]).forEach(loc=>locationMapping.locations[loc.id]=String(loc.forge_location||'ignore'))}renderLocationMapping();setLocationMappingDirty(false)}catch(e){shopifyLocationsForMapping=[];renderLocationMapping();const b=byId('shopifyLocationMappingBadge');if(b){b.className='badge danger';b.textContent='Load error'}}}
+    async function saveLocationMapping(){const btn=byId('shopifySaveLocationMapping');if(btn){btn.disabled=true;btn.textContent='Saving…'}try{locationMapping.version=1;locationMapping.updated_at=new Date().toISOString();await cloudFetch('/settings/shopify_location_mapping',{method:'PUT',body:JSON.stringify({value:locationMapping})});setLocationMappingDirty(false);setForgeCloudSync('synced','Shopify location mapping saved')}catch(e){alert('Could not save Shopify location mapping: '+e.message)}finally{if(btn){btn.disabled=false;btn.textContent='Save Location Mapping'}}}
     function money(order) {
         var _h;
         const m = (_h = order === null || order === void 0 ? void 0 : order.totalPriceSet) === null || _h === void 0 ? void 0 : _h.shopMoney;
@@ -5705,7 +5711,7 @@ async function shopifyIntegrationPage() {
             btn.textContent = 'Refreshing…';
         }
         try {
-            await Promise.all([loadForgeProducts(), loadSavedMapping()]);
+            await Promise.all([loadForgeProducts(), loadSavedMapping(), loadLocationMapping()]);
             await loadStatus();
             await Promise.all([loadLocations(), loadProductsAndInventory(), loadOrders()]);
             setMappingDirty(false);
@@ -5755,6 +5761,7 @@ async function shopifyIntegrationPage() {
         }
     };
     byId('shopifyRefreshAll').onclick = refreshAll;
+    const saveLocationBtn=byId('shopifySaveLocationMapping');if(saveLocationBtn)saveLocationBtn.onclick=saveLocationMapping;
     await refreshAll();
 }
 (function () {

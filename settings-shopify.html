@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0201"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0202"></head>
 <body class="forge-protected"><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
@@ -77,6 +77,13 @@
   </div>
 
   <section class="card">
+    <div class="section-title"><div><h2>Shopify Location Mapping</h2><div class="small">Assign each Shopify location to Kitsune Boat, Kitsune Cornwall, or Ignore.</div></div><span class="badge info" id="shopifyLocationMappingBadge">Not saved</span></div>
+    <div class="shopify-location-help"><div><strong>Kitsune Boat</strong><span>Boat finished Pal stock.</span></div><div><strong>Kitsune Cornwall</strong><span>Cornwall finished Pal stock.</span></div><div><strong>Ignore</strong><span>Exclude this location from Forge stock calculations.</span></div></div>
+    <div id="shopifyLocationMappingRows" class="shopify-location-mapping-list"></div>
+    <div class="shopify-actions"><button class="btn" id="shopifySaveLocationMapping">Save Location Mapping</button></div>
+  </section>
+
+<section class="card">
     <div class="section-title">
       <div>
         <h2>Shopify Product Mapping</h2>
@@ -127,8 +134,8 @@
   </section>
 </div>
 
-<div class="footer-note">PLA Forge v0.20.1 · Shopify Product Mapping</div>
-</main></div><script src="assets/forge.js?v=0201"></script><script>forgeBoot(async function(){await shopifyIntegrationPage()})</script>
+<div class="footer-note">PLA Forge v0.20.2 · Shopify Product Mapping</div>
+</main></div><script src="assets/forge.js?v=0202"></script><script>forgeBoot(async function(){await shopifyIntegrationPage()})</script>
 <script id="legacyBootFailsafe">
 (function(){
   window.setTimeout(function(){

@@ -2773,3 +2773,5 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
 .warning-text{color:#e6b94f!important;margin-top:4px}
 @media(max-width:850px){.pal-inventory-source{grid-template-columns:1fr 1fr}.pal-inventory-source>.badge{justify-self:start}}
 @media(max-width:560px){.pal-inventory-source{grid-template-columns:1fr}}
+
+.shopify-location-help{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.shopify-location-help>div{display:flex;flex-direction:column;gap:3px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}.shopify-location-help span,.shopify-location-map-info span{font-size:10px;color:var(--muted)}.shopify-location-mapping-list{display:grid;gap:7px}.shopify-location-map-row{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:12px;align-items:center;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:var(--panel2)}.shopify-location-map-info{display:flex;flex-direction:column;gap:2px}@media(max-width:700px){.shopify-location-help,.shopify-location-map-row{grid-template-columns:1fr}}
