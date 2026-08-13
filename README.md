@@ -1686,3 +1686,18 @@ No Worker or D1 schema change is required.
 - Products not mapped in Settings → Shopify are clearly flagged on Pal Inventory.
 - Requires Worker v3s.
 - No D1 migration required.
+
+## v0.20.3 — Finished Pal Stock Target Settings
+- Added General Settings → Finished Pal Stock Targets.
+- Set global default target for Kitsune Boat and Kitsune Cornwall.
+- Pal Inventory uses the global default unless a Pal has a custom override.
+- Editing a Pal target creates a per-location custom override.
+- Reset button returns that Pal/location to the current global default.
+- Pal Inventory marks targets as DEFAULT or CUSTOM.
+- Need to Make continues to use live Shopify available stock less Forge work already in progress.
+- Production Planner and Dashboard now use the same default/override target rules.
+- Stored in existing `forge_settings` keys:
+  - `stock_target_defaults`
+  - `pal_target_overrides`
+- Requires Worker v3t already deployed.
+- No D1 migration required.

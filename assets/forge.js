@@ -1698,6 +1698,72 @@ async function dashboard() {
 }
 function isOnSale(s, sku) { var _a, _b; return ((_b = (_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) === null || _b === void 0 ? void 0 : _b.on_sale) === true; }
 function releaseDateFor(s, sku) { var _a, _b; return ((_b = (_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) === null || _b === void 0 ? void 0 : _b.release_date) || ''; }
+function stockTargetDefaultsFromSettings(settings) {
+    var _m, _o;
+    const cfg = (settings === null || settings === void 0 ? void 0 : settings.stock_target_defaults) || {};
+    return {
+        boat: Math.max(0, Number((_m = cfg.boat) !== null && _m !== void 0 ? _m : 3)),
+        cornwall: Math.max(0, Number((_o = cfg.cornwall) !== null && _o !== void 0 ? _o : 3))
+    };
+}
+function palTargetOverrideMap(settings) {
+    const cfg = settings === null || settings === void 0 ? void 0 : settings.pal_target_overrides;
+    return (cfg && typeof cfg === 'object') ? cfg : {};
+}
+async function stockTargetSettingsPage() {
+    const badgeEl = document.getElementById('stockTargetSettingsBadge');
+    const boatEl = document.getElementById('defaultBoatTarget');
+    const cornwallEl = document.getElementById('defaultCornwallTarget');
+    const saveBtn = document.getElementById('saveStockTargetDefaults');
+    if (!boatEl || !cornwallEl || !saveBtn)
+        return;
+    let current = { boat: 3, cornwall: 3 };
+    function setBadge(state, text) {
+        if (!badgeEl)
+            return;
+        badgeEl.className = 'badge ' + (state === 'ok' ? 'success' : state === 'error' ? 'danger' : 'info');
+        badgeEl.textContent = text;
+    }
+    try {
+        const data = await cloudFetch('/settings');
+        current = stockTargetDefaultsFromSettings(data.settings || {});
+        boatEl.value = current.boat;
+        cornwallEl.value = current.cornwall;
+        setBadge('ok', 'Saved');
+    }
+    catch (e) {
+        setBadge('error', 'Load error');
+    }
+    async function save() {
+        const next = {
+            boat: Math.max(0, Math.round(Number(boatEl.value || 0))),
+            cornwall: Math.max(0, Math.round(Number(cornwallEl.value || 0)))
+        };
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+        setBadge('loading', 'Saving…');
+        try {
+            await cloudFetch('/settings/stock_target_defaults', {
+                method: 'PUT',
+                body: JSON.stringify({ value: next })
+            });
+            current = next;
+            boatEl.value = current.boat;
+            cornwallEl.value = current.cornwall;
+            setBadge('ok', 'Saved');
+            setForgeCloudSync('synced', 'Stock target defaults saved');
+        }
+        catch (e) {
+            setBadge('error', 'Save error');
+            alert('Could not save stock target defaults: ' + e.message);
+        }
+        finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Default Targets';
+        }
+    }
+    saveBtn.onclick = save;
+}
 async function inventory(type) {
     installForgeCloudSyncBadge();
     if (!forgeProductionCloudReady) {
@@ -1716,6 +1782,21 @@ async function inventory(type) {
     const q = document.querySelector('#q');
     let shopifyInventory = { inventory: [], mapped_variants: 0, synced_at: null };
     let shopifyBySku = {};
+    let targetDefaults = { boat: 3, cornwall: 3 };
+    let targetOverrides = {};
+    async function loadTargetSettings() {
+        if (type !== 'pal')
+            return;
+        try {
+            const data = await cloudFetch('/settings');
+            targetDefaults = stockTargetDefaultsFromSettings(data.settings || {});
+            targetOverrides = palTargetOverrideMap(data.settings || {});
+        }
+        catch (e) {
+            targetDefaults = { boat: 3, cornwall: 3 };
+            targetOverrides = {};
+        }
+    }
     function rebuildShopifyIndex() {
         shopifyBySku = {};
         (shopifyInventory.inventory || []).forEach(row => shopifyBySku[row.sku] = row);
@@ -1746,24 +1827,46 @@ async function inventory(type) {
         }
     }
     function shopStock(sku, loc) {
-        var _k;
-        const row = shopifyBySku[sku];
-        return Math.max(0, Number(((_k = row === null || row === void 0 ? void 0 : row[loc]) === null || _k === void 0 ? void 0 : _k.available) || 0));
+        var _m, _o;
+        return Math.max(0, Number(((_o = (_m = shopifyBySku[sku]) === null || _m === void 0 ? void 0 : _m[loc]) === null || _o === void 0 ? void 0 : _o.available) || 0));
+    }
+    function hasCustomTarget(sku, loc) {
+        return (targetOverrides === null || targetOverrides === void 0 ? void 0 : targetOverrides[sku]) && Object.prototype.hasOwnProperty.call(targetOverrides[sku], loc);
+    }
+    function effectiveTarget(sku, loc) {
+        if (hasCustomTarget(sku, loc)) {
+            return Math.max(0, Number(targetOverrides[sku][loc] || 0));
+        }
+        return Math.max(0, Number(targetDefaults[loc] || 0));
     }
     function shopNeed(sku, loc) {
-        return Math.max(0, getTarget(s, sku, loc) - shopStock(sku, loc));
+        return Math.max(0, effectiveTarget(sku, loc) - shopStock(sku, loc));
     }
     function totalShopNeed(sku) {
         return shopNeed(sku, 'boat') + shopNeed(sku, 'cornwall');
     }
     function netManufacturingNeed(sku) {
-        // Shopify stock gives the finished-stock shortage.
-        // Existing assembled Pals and items already awaiting Dispatch are work
-        // already in Forge that will satisfy that shortage.
         return Math.max(0, totalShopNeed(sku)
             - assembledQtyForDemand(s, sku)
             - awaitingDispatchQty(s, sku)
             - intactDamageReworkQty(s, sku));
+    }
+    function targetControl(sku, loc) {
+        const custom = hasCustomTarget(sku, loc);
+        const value = effectiveTarget(sku, loc);
+        return `<div class="target-control ${custom ? 'custom' : 'default'}">
+          <div class="target-input-row">
+            <input class="number pal-target-input" data-sku="${sku}" data-loc="${loc}" type="number" min="0" value="${value}">
+            <button type="button" class="target-reset-btn" data-reset-sku="${sku}" data-reset-loc="${loc}" ${custom ? '' : 'disabled'} title="Reset to default">↺</button>
+          </div>
+          <span class="target-mode">${custom ? 'CUSTOM' : 'DEFAULT'}${custom ? '' : ` · ${targetDefaults[loc]}`}</span>
+        </div>`;
+    }
+    async function saveOverrides() {
+        await cloudFetch('/settings/pal_target_overrides', {
+            method: 'PUT',
+            body: JSON.stringify({ value: targetOverrides })
+        });
     }
     function draw() {
         const text = (q.value || '').toLowerCase();
@@ -1774,8 +1877,8 @@ async function inventory(type) {
             const useShopify = type === 'pal';
             const b = useShopify ? shopStock(x.sku, 'boat') : stock(s, x.sku, 'boat');
             const c = useShopify ? shopStock(x.sku, 'cornwall') : stock(s, x.sku, 'cornwall');
-            const bt = getTarget(s, x.sku, 'boat');
-            const ct = getTarget(s, x.sku, 'cornwall');
+            const bt = useShopify ? effectiveTarget(x.sku, 'boat') : getTarget(s, x.sku, 'boat');
+            const ct = useShopify ? effectiveTarget(x.sku, 'cornwall') : getTarget(s, x.sku, 'cornwall');
             const rawNeed = useShopify ? totalShopNeed(x.sku) : needed(s, x.sku, 'boat') + needed(s, x.sku, 'cornwall');
             const need = useShopify ? netManufacturingNeed(x.sku) : rawNeed;
             const sale = isOnSale(s, x.sku);
@@ -1789,39 +1892,84 @@ async function inventory(type) {
               <td data-label="On Sale">${sale ? badge('ON SALE', 'ok') : badge('NOT ON SALE', '')}</td>
               <td data-label="Recipe">${x.recipe_ready ? badge('Recipe ready', 'ok') : badge('No recipe', 'warning')}</td>
               <td class="stock-cell shopify-stock-cell" data-label="Boat Shopify Stock"><strong>${b}</strong>${useShopify ? '<small>available</small>' : ''}</td>
-              <td class="target-cell" data-label="Boat Target"><input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}"></td>
+              <td class="target-cell" data-label="Boat Target">${useShopify ? targetControl(x.sku, 'boat') : `<input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}">`}</td>
               <td class="stock-cell shopify-stock-cell" data-label="Cornwall Shopify Stock"><strong>${c}</strong>${useShopify ? '<small>available</small>' : ''}</td>
-              <td class="target-cell" data-label="Cornwall Target"><input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}"></td>
+              <td class="target-cell" data-label="Cornwall Target">${useShopify ? targetControl(x.sku, 'cornwall') : `<input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}">`}</td>
               <td class="need-cell" data-label="Need to Make"><strong>${need}</strong>${useShopify && rawNeed !== need ? `<small>${rawNeed} shortage · ${rawNeed - need} in Forge</small>` : ''}</td>
             </tr>`;
         }).join('');
-        document.querySelectorAll('.t').forEach(el => el.onchange = async () => {
-            const sku = el.dataset.sku, loc = el.dataset.loc;
-            const qty = Math.max(0, Number(el.value || 0));
-            const previous = getTarget(s, sku, loc);
-            el.disabled = true;
-            try {
-                await cloudFetch(`/targets/${encodeURIComponent(sku)}/${encodeURIComponent(loc)}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ target_qty: qty })
-                });
-                s.targets[targetKey(sku, loc)] = qty;
-                draw();
-            }
-            catch (e) {
-                s.targets[targetKey(sku, loc)] = previous;
-                alert(`Cloud target update failed: ${e.message}`);
-                draw();
-            }
-        });
+        if (useShopifyPage()) {
+            document.querySelectorAll('.pal-target-input').forEach(el => el.onchange = async () => {
+                const sku = el.dataset.sku, loc = el.dataset.loc;
+                const qty = Math.max(0, Math.round(Number(el.value || 0)));
+                const before = JSON.parse(JSON.stringify(targetOverrides));
+                targetOverrides[sku] = targetOverrides[sku] || {};
+                targetOverrides[sku][loc] = qty;
+                el.disabled = true;
+                try {
+                    await saveOverrides();
+                    draw();
+                    setForgeCloudSync('synced', 'Custom Pal target saved');
+                }
+                catch (e) {
+                    targetOverrides = before;
+                    alert('Could not save custom Pal target: ' + e.message);
+                    draw();
+                }
+            });
+            document.querySelectorAll('.target-reset-btn').forEach(btn => btn.onclick = async () => {
+                if (btn.disabled)
+                    return;
+                const sku = btn.dataset.resetSku, loc = btn.dataset.resetLoc;
+                const before = JSON.parse(JSON.stringify(targetOverrides));
+                if (targetOverrides[sku]) {
+                    delete targetOverrides[sku][loc];
+                    if (!Object.keys(targetOverrides[sku]).length)
+                        delete targetOverrides[sku];
+                }
+                btn.disabled = true;
+                try {
+                    await saveOverrides();
+                    draw();
+                    setForgeCloudSync('synced', 'Pal target reset to default');
+                }
+                catch (e) {
+                    targetOverrides = before;
+                    alert('Could not reset Pal target: ' + e.message);
+                    draw();
+                }
+            });
+        }
+        else {
+            document.querySelectorAll('.t').forEach(el => el.onchange = async () => {
+                const sku = el.dataset.sku, loc = el.dataset.loc;
+                const qty = Math.max(0, Number(el.value || 0));
+                const previous = getTarget(s, sku, loc);
+                el.disabled = true;
+                try {
+                    await cloudFetch(`/targets/${encodeURIComponent(sku)}/${encodeURIComponent(loc)}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ target_qty: qty })
+                    });
+                    s.targets[targetKey(sku, loc)] = qty;
+                    draw();
+                }
+                catch (e) {
+                    s.targets[targetKey(sku, loc)] = previous;
+                    alert(`Cloud target update failed: ${e.message}`);
+                    draw();
+                }
+            });
+        }
     }
+    function useShopifyPage() { return type === 'pal'; }
     q.oninput = draw;
-    await refreshShopifyInventory();
+    await Promise.all([refreshShopifyInventory(), loadTargetSettings()]);
     draw();
     await startForgeLiveSync(async (fresh) => {
         s = fresh;
-        await refreshShopifyInventory();
+        await Promise.all([refreshShopifyInventory(), loadTargetSettings()]);
         draw();
     });
 }
@@ -2082,11 +2230,11 @@ async function production() {
             spare.innerHTML = low.length ? low.map(x => `<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${x.item === 'Flat Clear Boxes' ? badge('FACTORY SUPPLY', 'danger') : x.pending > 0 ? badge('IN REPLENISHMENT', 'info') : badge('INSERT PRODUCTION', 'danger')}</span><strong>Stock ${x.qty}${x.target != null ? ` / ${x.target}` : ''}${x.pending != null ? ` · Pending ${x.pending}` : ''}</strong></div>`).join('') : '<div class="bench-empty">Cornwall spare stock is healthy.</div>';
         }
     }
-    await refreshPalInventory();
+    await Promise.all([refreshPalInventory(), refreshTargetSettings()]);
     drawProduction();
     await startForgeLiveSync(async (fresh) => {
         s = fresh;
-        await refreshPalInventory();
+        await Promise.all([refreshPalInventory(), refreshTargetSettings()]);
         drawProduction();
     });
 }
@@ -5633,10 +5781,51 @@ async function shopifyIntegrationPage() {
             }
         }
     }
-    function setLocationMappingDirty(dirty){const el=byId('shopifyLocationMappingBadge');if(!el)return;el.className='badge '+(dirty?'warn':'success');el.textContent=dirty?'Unsaved changes':'Saved';}
-    function renderLocationMapping(){const host=byId('shopifyLocationMappingRows');if(!host)return;host.innerHTML=shopifyLocationsForMapping.length?shopifyLocationsForMapping.map(loc=>{const current=String(locationMapping.locations?.[loc.id]||'ignore');return `<div class="shopify-location-map-row" data-location-id="${esc(loc.id)}"><div class="shopify-location-map-info"><strong>${esc(loc.name)}</strong><span>${esc([loc.city,loc.country].filter(Boolean).join(', ')||'No address')} · ${loc.active?'Active':'Inactive'}</span></div><select class="input shopify-location-map-select"><option value="ignore"${current==='ignore'?' selected':''}>Ignore</option><option value="boat"${current==='boat'?' selected':''}>Kitsune Boat</option><option value="cornwall"${current==='cornwall'?' selected':''}>Kitsune Cornwall</option></select></div>`}).join(''):`<div class="dashboard-clear-state"><strong>No Shopify locations returned.</strong></div>`;host.querySelectorAll('.shopify-location-map-row').forEach(row=>{const id=row.getAttribute('data-location-id'),sel=row.querySelector('.shopify-location-map-select');sel.onchange=()=>{locationMapping.locations=locationMapping.locations||{};locationMapping.locations[id]=sel.value;setLocationMappingDirty(true)}})}
-    async function loadLocationMapping(){try{const [status,settings]=await Promise.all([cloudFetch('/shopify/location-mapping'),cloudFetch('/settings')]);shopifyLocationsForMapping=status.locations||[];const saved=settings.settings?.shopify_location_mapping;if(saved&&typeof saved==='object'&&saved.locations)locationMapping=saved;else{locationMapping={version:1,locations:{}};(status.locations||[]).forEach(loc=>locationMapping.locations[loc.id]=String(loc.forge_location||'ignore'))}renderLocationMapping();setLocationMappingDirty(false)}catch(e){shopifyLocationsForMapping=[];renderLocationMapping();const b=byId('shopifyLocationMappingBadge');if(b){b.className='badge danger';b.textContent='Load error'}}}
-    async function saveLocationMapping(){const btn=byId('shopifySaveLocationMapping');if(btn){btn.disabled=true;btn.textContent='Saving…'}try{locationMapping.version=1;locationMapping.updated_at=new Date().toISOString();await cloudFetch('/settings/shopify_location_mapping',{method:'PUT',body:JSON.stringify({value:locationMapping})});setLocationMappingDirty(false);setForgeCloudSync('synced','Shopify location mapping saved')}catch(e){alert('Could not save Shopify location mapping: '+e.message)}finally{if(btn){btn.disabled=false;btn.textContent='Save Location Mapping'}}}
+    function setLocationMappingDirty(dirty) { const el = byId('shopifyLocationMappingBadge'); if (!el)
+        return; el.className = 'badge ' + (dirty ? 'warn' : 'success'); el.textContent = dirty ? 'Unsaved changes' : 'Saved'; }
+    function renderLocationMapping() { const host = byId('shopifyLocationMappingRows'); if (!host)
+        return; host.innerHTML = shopifyLocationsForMapping.length ? shopifyLocationsForMapping.map(loc => { var _m; const current = String(((_m = locationMapping.locations) === null || _m === void 0 ? void 0 : _m[loc.id]) || 'ignore'); return `<div class="shopify-location-map-row" data-location-id="${esc(loc.id)}"><div class="shopify-location-map-info"><strong>${esc(loc.name)}</strong><span>${esc([loc.city, loc.country].filter(Boolean).join(', ') || 'No address')} · ${loc.active ? 'Active' : 'Inactive'}</span></div><select class="input shopify-location-map-select"><option value="ignore"${current === 'ignore' ? ' selected' : ''}>Ignore</option><option value="boat"${current === 'boat' ? ' selected' : ''}>Kitsune Boat</option><option value="cornwall"${current === 'cornwall' ? ' selected' : ''}>Kitsune Cornwall</option></select></div>`; }).join('') : `<div class="dashboard-clear-state"><strong>No Shopify locations returned.</strong></div>`; host.querySelectorAll('.shopify-location-map-row').forEach(row => { const id = row.getAttribute('data-location-id'), sel = row.querySelector('.shopify-location-map-select'); sel.onchange = () => { locationMapping.locations = locationMapping.locations || {}; locationMapping.locations[id] = sel.value; setLocationMappingDirty(true); }; }); }
+    async function loadLocationMapping() { var _m; try {
+        const [status, settings] = await Promise.all([cloudFetch('/shopify/location-mapping'), cloudFetch('/settings')]);
+        shopifyLocationsForMapping = status.locations || [];
+        const saved = (_m = settings.settings) === null || _m === void 0 ? void 0 : _m.shopify_location_mapping;
+        if (saved && typeof saved === 'object' && saved.locations)
+            locationMapping = saved;
+        else {
+            locationMapping = { version: 1, locations: {} };
+            (status.locations || []).forEach(loc => locationMapping.locations[loc.id] = String(loc.forge_location || 'ignore'));
+        }
+        renderLocationMapping();
+        setLocationMappingDirty(false);
+    }
+    catch (e) {
+        shopifyLocationsForMapping = [];
+        renderLocationMapping();
+        const b = byId('shopifyLocationMappingBadge');
+        if (b) {
+            b.className = 'badge danger';
+            b.textContent = 'Load error';
+        }
+    } }
+    async function saveLocationMapping() { const btn = byId('shopifySaveLocationMapping'); if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+    } try {
+        locationMapping.version = 1;
+        locationMapping.updated_at = new Date().toISOString();
+        await cloudFetch('/settings/shopify_location_mapping', { method: 'PUT', body: JSON.stringify({ value: locationMapping }) });
+        setLocationMappingDirty(false);
+        setForgeCloudSync('synced', 'Shopify location mapping saved');
+    }
+    catch (e) {
+        alert('Could not save Shopify location mapping: ' + e.message);
+    }
+    finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Save Location Mapping';
+        }
+    } }
     function money(order) {
         var _h;
         const m = (_h = order === null || order === void 0 ? void 0 : order.totalPriceSet) === null || _h === void 0 ? void 0 : _h.shopMoney;
@@ -5761,7 +5950,9 @@ async function shopifyIntegrationPage() {
         }
     };
     byId('shopifyRefreshAll').onclick = refreshAll;
-    const saveLocationBtn=byId('shopifySaveLocationMapping');if(saveLocationBtn)saveLocationBtn.onclick=saveLocationMapping;
+    const saveLocationBtn = byId('shopifySaveLocationMapping');
+    if (saveLocationBtn)
+        saveLocationBtn.onclick = saveLocationMapping;
     await refreshAll();
 }
 (function () {

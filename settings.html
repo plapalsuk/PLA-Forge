@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0202"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0203"></head>
 <body class="forge-protected"><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
@@ -31,7 +31,36 @@
 <a class="card settings-hub-link" href="settings-availability.html"><strong>◉ Product Availability</strong><span class="small">Control releases and production eligibility.</span></a>
 <a class="card settings-hub-link" href="settings-labels.html"><strong>▤ Labels &amp; Printing</strong><span class="small">Barcode and label printing settings.</span></a>
 <a class="card settings-hub-link" href="settings-employees.html"><strong>♙ Employees</strong><span class="small">Manage Forge users and permissions.</span></a>
-<a class="card settings-hub-link" href="settings-system.html"><strong>! System &amp; Data</strong><span class="small">Administrative and reset controls.</span></a></div><div class="footer-note">PLA Forge v0.16.2 · Manufacturing &amp; Inventory System</div></main></div><script src="assets/forge.js?v=0202"></script><script>forgeBoot(async function(){generalSettingsPage();})</script>
+<a class="card settings-hub-link" href="settings-system.html"><strong>! System &amp; Data</strong><span class="small">Administrative and reset controls.</span></a></div>
+<section class="card" id="stockTargetSettingsCard">
+  <div class="section-title">
+    <div>
+      <h2>Finished Pal Stock Targets</h2>
+      <div class="small">Set the default finished-stock target for each PLA Forge location. Individual Pals can override these defaults from Pal Inventory.</div>
+    </div>
+    <span class="badge info" id="stockTargetSettingsBadge">Loading…</span>
+  </div>
+
+  <div class="stock-target-default-grid">
+    <label>
+      <span>Kitsune Boat Default</span>
+      <input class="number" id="defaultBoatTarget" type="number" min="0" step="1" value="3">
+      <small>Used by Pals without a custom Boat target.</small>
+    </label>
+
+    <label>
+      <span>Kitsune Cornwall Default</span>
+      <input class="number" id="defaultCornwallTarget" type="number" min="0" step="1" value="3">
+      <small>Used by Pals without a custom Cornwall target.</small>
+    </label>
+  </div>
+
+  <div class="shopify-actions">
+    <button class="btn" id="saveStockTargetDefaults">Save Default Targets</button>
+  </div>
+</section>
+
+<div class="footer-note">PLA Forge v0.16.2 · Manufacturing &amp; Inventory System</div></main></div><script src="assets/forge.js?v=0203"></script><script>forgeBoot(async function(){generalSettingsPage();})</script>
 <script id="legacyBootFailsafe">
 (function(){
   window.setTimeout(function(){
