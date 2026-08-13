@@ -2744,3 +2744,21 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
 .switch-mini input:checked+span:after{transform:translateX(16px);background:var(--orange)}
 @media(max-width:1100px){.shopify-mapping-toolbar{grid-template-columns:1fr 1fr}.shopify-mapping-toolbar .btn{width:100%}}
 @media(max-width:650px){.shopify-mapping-toolbar{grid-template-columns:1fr}.shopify-mapping-table select{min-width:180px}}
+
+/* v0.20.0 Shopify-driven demand */
+.shopify-demand-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.shopify-demand-summary>div{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--panel2)}
+.shopify-demand-summary span{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.shopify-demand-summary strong{font-size:22px}
+.shopify-demand-list{display:grid;gap:7px}
+.shopify-demand-row{display:grid;grid-template-columns:minmax(180px,1fr) 100px 90px 100px;gap:10px;align-items:center;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:var(--panel2)}
+.shopify-demand-row>div:first-child{display:flex;flex-direction:column;gap:2px}
+.shopify-demand-row>div:not(:first-child){display:flex;flex-direction:column;gap:2px;text-align:right}
+.shopify-demand-row>div:not(:first-child) span{font-size:9px;color:var(--muted);text-transform:uppercase}
+.shopify-demand-row small{grid-column:1/-1;color:var(--muted);font-size:9px;border-top:1px solid var(--line);padding-top:6px}
+@media(max-width:700px){
+ .shopify-demand-summary{grid-template-columns:1fr}
+ .shopify-demand-row{grid-template-columns:1fr 1fr}
+ .shopify-demand-row>div:not(:first-child){text-align:left}
+ .shopify-demand-row small{grid-column:1/-1}
+}

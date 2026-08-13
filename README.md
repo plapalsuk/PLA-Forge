@@ -1661,3 +1661,16 @@ No Worker or D1 schema change is required.
 - Mapping is saved to the existing cloud `forge_settings` table under `shopify_product_mapping`.
 - No Worker or D1 schema update required beyond Worker v3q.
 - Shopify remains read-only.
+
+## v0.20.0 — Shopify Demand → Production Planner
+- Requires Worker v3r.
+- Reads only Shopify variants explicitly included/mapped in Settings → Shopify.
+- Reads Shopify inventory per location using available/on-hand/committed quantities.
+- Auto-maps Shopify locations containing `Boat`/`Factory` to Forge Boat and `Cornwall` to Forge Cornwall.
+- Reads unfulfilled quantities on open Shopify orders for mapped variants.
+- Shopify production need is `max(stock shortfall, open order quantity)` to avoid double-counting committed inventory.
+- Production Planner uses the higher of existing Forge manufacturing demand and Shopify demand.
+- Dashboard Pals to Print uses the same higher-demand rule.
+- Adds a Shopify Demand panel to Production Planner with stock shortfall and open-order visibility.
+- Shopify remains read-only. No stock or order writes to Shopify.
+- No D1 schema migration required.

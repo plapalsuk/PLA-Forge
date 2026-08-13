@@ -1310,6 +1310,14 @@ async function dashboard() {
         showCloudRequiredError(e.message);
         return;
     }
+    let shopifyDemandData = { demand: [] };
+    try {
+        shopifyDemandData = await cloudFetch('/shopify/demand');
+    }
+    catch (e) {
+        shopifyDemandData = { demand: [] };
+    }
+    const shopifyDemandBySku = Object.fromEntries((shopifyDemandData.demand || []).map(x => [x.sku, Number(x.effective_shopify_need || 0)]));
     const pals = (ps || []).filter(x => x.type === 'pal' && x.active !== false);
     const palBySku = Object.fromEntries(pals.map(p => [p.sku, p]));
     const recipesBySku = {};
@@ -1325,7 +1333,7 @@ async function dashboard() {
         return (palBySku[sku] && palBySku[sku].name) || fallback || sku || 'Unknown Pal';
     }
     function remainingPalDemand(sku) {
-        return manufacturingNeed(s, sku);
+        return Math.max(manufacturingNeed(s, sku), Number(shopifyDemandBySku[sku] || 0));
     }
     function groupedRecipeRows(sku) {
         return (recipesBySku[sku] || []).map(r => {
@@ -1933,15 +1941,70 @@ async function production() {
     }
     const ps = await load('products'), rs = await load('recipes'), body = document.querySelector('#prod');
     let s = cloudOperationalState();
+    let shopifyDemand = { demand: [], mapped_variants: 0, open_orders_checked: 0, synced_at: null };
+    async function refreshShopifyDemand() {
+        try {
+            shopifyDemand = await cloudFetch('/shopify/demand');
+        }
+        catch (e) {
+            shopifyDemand = { demand: [], mapped_variants: 0, open_orders_checked: 0, error: e.message };
+        }
+    }
+    function shopifyRow(sku) {
+        return (shopifyDemand.demand || []).find(x => x.sku === sku) || null;
+    }
+    function plannerManufacturingNeed(sku) {
+        const forgeNeed = manufacturingNeed(s, sku);
+        const sd = shopifyRow(sku);
+        return Math.max(forgeNeed, Number((sd === null || sd === void 0 ? void 0 : sd.effective_shopify_need) || 0));
+    }
     function drawProduction() {
         const rows = [];
         ps.filter(p => p.type === 'pal').forEach(p => {
-            const n = manufacturingNeed(s, p.sku);
+            const forgeNeed = manufacturingNeed(s, p.sku);
+            const sd = shopifyRow(p.sku);
+            const shopifyNeed = Number((sd === null || sd === void 0 ? void 0 : sd.effective_shopify_need) || 0);
+            const n = Math.max(forgeNeed, shopifyNeed);
             if (n > 0)
-                rows.push({ p, n, groups: rs.filter(r => r.sku === p.sku) });
+                rows.push({ p, n, forgeNeed, shopifyNeed, sd, groups: rs.filter(r => r.sku === p.sku) });
         });
-        rows.sort((a, b) => b.n - a.n);
-        body.innerHTML = rows.map(x => `<tr><td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td><td>${x.n}</td><td>${x.groups.length}</td><td>${(x.groups.reduce((a, r) => a + r.weight_g, 0) * x.n).toFixed(1)}g</td><td>${x.groups.map(r => esc(r.filament)).join(', ')}</td></tr>`).join('') || '<tr><td colspan="5">No Pal manufacturing currently required.</td></tr>';
+        rows.sort((a, b) => b.n - a.n || b.shopifyNeed - a.shopifyNeed || a.p.name.localeCompare(b.p.name));
+        body.innerHTML = rows.map(x => `<tr>
+          <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
+          <td><strong>${x.n}</strong>${x.shopifyNeed > x.forgeNeed ? '<br><span class="small accent">Shopify-led</span>' : ''}</td>
+          <td>${x.groups.length}</td>
+          <td>${(x.groups.reduce((a, r) => a + Number(r.weight_g || 0), 0) * x.n).toFixed(1)}g</td>
+          <td>${x.groups.map(r => esc(r.filament)).join(', ')}</td>
+        </tr>`).join('') || '<tr><td colspan="5">No Pal manufacturing currently required.</td></tr>';
+        const mappedEl = document.querySelector('#prodShopifyMapped');
+        const ordersEl = document.querySelector('#prodShopifyOrders');
+        const needEl = document.querySelector('#prodShopifyNeed');
+        const demandEl = document.querySelector('#prodShopifyDemand');
+        if (mappedEl)
+            mappedEl.textContent = Number(shopifyDemand.mapped_variants || 0);
+        if (ordersEl)
+            ordersEl.textContent = Number(shopifyDemand.open_orders_checked || 0);
+        if (needEl)
+            needEl.textContent = (shopifyDemand.demand || []).reduce((a, x) => a + Number(x.effective_shopify_need || 0), 0);
+        if (demandEl) {
+            if (shopifyDemand.error) {
+                demandEl.innerHTML = `<div class="dashboard-clear-state"><strong>Shopify demand unavailable.</strong><span>${esc(shopifyDemand.error)}</span></div>`;
+            }
+            else {
+                const sdRows = (shopifyDemand.demand || []).filter(x => Number(x.effective_shopify_need || 0) > 0);
+                demandEl.innerHTML = sdRows.length ? sdRows.map(x => {
+                    const p = ps.find(p => p.sku === x.sku);
+                    const loc = (x.locations || []).filter(l => l.included_in_demand).map(l => `${l.shopify_location_name}: ${l.available}/${l.target}`).join(' · ');
+                    return `<div class="shopify-demand-row">
+                      <div><strong>${esc((p === null || p === void 0 ? void 0 : p.name) || x.sku)}</strong><span class="sku">${esc(x.sku)}</span></div>
+                      <div><span>Stock Shortfall</span><strong>${Number(x.stock_shortfall || 0)}</strong></div>
+                      <div><span>Open Orders</span><strong>${Number(x.open_order_qty || 0)}</strong></div>
+                      <div><span>Shopify Need</span><strong class="accent">${Number(x.effective_shopify_need || 0)}</strong></div>
+                      <small>${esc(loc || 'No mapped Shopify location')}</small>
+                    </div>`;
+                }).join('') : `<div class="dashboard-clear-state"><strong>Shopify demand is covered.</strong><span>Mapped products currently meet their stock targets and open-order demand.</span></div>`;
+            }
+        }
         const damage = document.querySelector('#damageProduction');
         if (damage) {
             const labels = { box: 'Repack — Box', insert: 'Print Insert + Repack', pal: 'Print Replacement Pal', writeoff: 'Complete Replacement' };
@@ -1966,21 +2029,17 @@ async function production() {
                 const qty = cornwallInsertStock(s, p.sku);
                 if (qty < cornwallInsertTarget()) {
                     const pending = pendingCornwallInsertSupply(s, p.sku);
-                    low.push({
-                        item: `${p.name} Insert`,
-                        detail: p.sku,
-                        qty,
-                        target: cornwallInsertTarget(),
-                        pending
-                    });
+                    low.push({ item: `${p.name} Insert`, detail: p.sku, qty, target: cornwallInsertTarget(), pending });
                 }
             });
             spare.innerHTML = low.length ? low.map(x => `<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${x.item === 'Flat Clear Boxes' ? badge('FACTORY SUPPLY', 'danger') : x.pending > 0 ? badge('IN REPLENISHMENT', 'info') : badge('INSERT PRODUCTION', 'danger')}</span><strong>Stock ${x.qty}${x.target != null ? ` / ${x.target}` : ''}${x.pending != null ? ` · Pending ${x.pending}` : ''}</strong></div>`).join('') : '<div class="bench-empty">Cornwall spare stock is healthy.</div>';
         }
     }
+    await refreshShopifyDemand();
     drawProduction();
     await startForgeLiveSync(async (fresh) => {
         s = fresh;
+        await refreshShopifyDemand();
         drawProduction();
     });
 }
@@ -5368,8 +5427,11 @@ async function shopifyIntegrationPage() {
     let forgeProducts = [];
     let savedMapping = { version: 1, variants: {} };
     const byId = id => document.getElementById(id);
-    const setText = (id, value) => { const el = byId(id); if (el)
-        el.textContent = value; };
+    const setText = (id, value) => {
+        const el = byId(id);
+        if (el)
+            el.textContent = value;
+    };
     function setConnection(state, text) {
         const el = byId('shopifyConnectionBadge');
         if (!el)
