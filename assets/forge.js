@@ -4097,6 +4097,63 @@ async function deliveriesPage() {
         return;
     }
     let s = applyDispatchCloudState(initial);
+    let dispatchShopifyBySku = {};
+    let dispatchTargetDefaults = { boat: 3, cornwall: 3 };
+    let dispatchTargetOverrides = {};
+    async function refreshDispatchShopify() {
+        try {
+            const [palInv, settingsData] = await Promise.all([
+                cloudFetch('/shopify/pal-inventory'),
+                cloudFetch('/settings')
+            ]);
+            dispatchShopifyBySku = Object.fromEntries((palInv.inventory || []).map(x => [x.sku, x]));
+            dispatchTargetDefaults = stockTargetDefaultsFromSettings(settingsData.settings || {});
+            dispatchTargetOverrides = palTargetOverrideMap(settingsData.settings || {});
+        }
+        catch (e) {
+            dispatchShopifyBySku = {};
+        }
+    }
+    function dispatchConfiguredTarget(sku, loc) {
+        if ((dispatchTargetOverrides === null || dispatchTargetOverrides === void 0 ? void 0 : dispatchTargetOverrides[sku]) && Object.prototype.hasOwnProperty.call(dispatchTargetOverrides[sku], loc)) {
+            return Math.max(0, Number(dispatchTargetOverrides[sku][loc] || 0));
+        }
+        return Math.max(0, Number(dispatchTargetDefaults[loc] || 0));
+    }
+    function dispatchShopifyStock(sku, loc) {
+        var _p, _q;
+        return Math.max(0, Number(((_q = (_p = dispatchShopifyBySku[sku]) === null || _p === void 0 ? void 0 : _p[loc]) === null || _q === void 0 ? void 0 : _q.available) || 0));
+    }
+    function dispatchNeed(sku, loc) {
+        return Math.max(0, dispatchConfiguredTarget(sku, loc) - dispatchShopifyStock(sku, loc));
+    }
+    async function syncTransferToShopify(transfer) {
+        if (!transfer || transfer.item_type === 'cornwall_insert_spare')
+            return true;
+        if (transfer.shopify_sync_status === 'synced')
+            return true;
+        try {
+            await cloudFetch('/shopify/inventory/dispatch', {
+                method: 'POST',
+                body: JSON.stringify({
+                    sku: transfer.sku,
+                    location: transfer.destination,
+                    qty: Number(transfer.qty || 0),
+                    transfer_id: transfer.id
+                })
+            });
+            transfer.shopify_sync_status = 'synced';
+            transfer.shopify_synced_at = new Date().toISOString();
+            transfer.shopify_sync_error = null;
+            await refreshDispatchShopify();
+            return true;
+        }
+        catch (e) {
+            transfer.shopify_sync_status = 'failed';
+            transfer.shopify_sync_error = e.message;
+            return false;
+        }
+    }
     let dispatchStamp = initial.updated_at || null;
     recoverAwaitingDispatch(s);
     setForgeCloudSync('synced', 'Dispatch synced');
@@ -4156,7 +4213,7 @@ async function deliveriesPage() {
             if (dt && (!g.oldest || dt < g.oldest))
                 g.oldest = dt;
         });
-        return Object.values(map).sort((a, b) => (needed(s, b.sku, 'boat') + needed(s, b.sku, 'cornwall')) - (needed(s, a.sku, 'boat') + needed(s, a.sku, 'cornwall')) || a.name.localeCompare(b.name));
+        return Object.values(map).sort((a, b) => (dispatchNeed(b.sku, 'boat') + dispatchNeed(b.sku, 'cornwall')) - (dispatchNeed(a.sku, 'boat') + dispatchNeed(a.sku, 'cornwall')) || a.name.localeCompare(b.name));
     }
     function consumeDispatchRecords(group, qty) {
         let remaining = Math.max(0, Number(qty || 0));
@@ -4179,9 +4236,9 @@ async function deliveriesPage() {
         return remaining === 0;
     }
     function allocationCard(g) {
-        const boatStock = stock(s, g.sku, 'boat'), cornStock = stock(s, g.sku, 'cornwall');
-        const boatTarget = getTarget(s, g.sku, 'boat'), cornTarget = getTarget(s, g.sku, 'cornwall');
-        const boatNeed = needed(s, g.sku, 'boat'), cornNeed = needed(s, g.sku, 'cornwall');
+        const boatStock = dispatchShopifyStock(g.sku, 'boat'), cornStock = dispatchShopifyStock(g.sku, 'cornwall');
+        const boatTarget = dispatchConfiguredTarget(g.sku, 'boat'), cornTarget = dispatchConfiguredTarget(g.sku, 'cornwall');
+        const boatNeed = dispatchNeed(g.sku, 'boat'), cornNeed = dispatchNeed(g.sku, 'cornwall');
         if (g.item_type === 'cornwall_insert_spare') {
             return `<div class="dispatch-pal-card rework-dispatch-card">
        <div class="dispatch-pal-head">
@@ -4304,6 +4361,8 @@ async function deliveriesPage() {
        <strong>${esc(t.name)}</strong>
        <div class="sku">${t.sku}</div>
        <div class="small">Dispatched ${fmtDate(t.dispatched_at || t.packed_at)} · Shipment Qty ${qty}</div>
+       ${t.shopify_sync_status === 'failed' ? `<div class="small danger-text">Shopify sync failed: ${esc(t.shopify_sync_error || 'Unknown error')}</div>` : t.shopify_sync_status === 'synced' ? `<div class="small success-text">Shopify stock synced${t.destination === 'cornwall' ? ' after Cornwall receipt/QC' : ' at dispatch'}.</div>` :
+            t.shopify_sync_status === 'awaiting_receipt' ? '<div class="small">Shopify stock waiting for Cornwall receipt + QC.</div>' : ''}
      </div>
 
      <div class="delivery-qc">
@@ -4430,17 +4489,43 @@ async function deliveriesPage() {
             const now = new Date().toISOString();
             if (boatQty > 0) {
                 addForgeInventory(s, g.sku, 'boat', boatQty);
-                s.transfers.push({ id: makeId(), sku: g.sku, name: g.name, qty: boatQty, destination: 'boat', status: 'received', packed_at: g.oldest, dispatched_at: now, received_at: now, good_qty: boatQty, damaged_qty: 0 });
+                const boatTransfer = { id: makeId(), sku: g.sku, name: g.name, qty: boatQty, destination: 'boat', status: 'received', packed_at: g.oldest, dispatched_at: now, received_at: now, good_qty: boatQty, damaged_qty: 0, shopify_sync_status: 'pending', shopify_sync_error: null };
+                s.transfers.push(boatTransfer);
             }
             if (cornQty > 0) {
-                addForgeInventory(s, g.sku, 'cornwall', cornQty);
-                s.transfers.push({
+                // Cornwall remains IN TRANSIT until Cornwall receives and QC checks it.
+                // Do not add it to sellable Forge or Shopify Cornwall stock here.
+                const cornTransfer = {
                     id: makeId(), sku: g.sku, name: g.name, qty: cornQty, destination: 'cornwall',
                     status: 'awaiting_delivery', packed_at: g.oldest, dispatched_at: now, received_at: null,
-                    good_qty: null, damaged_qty: null, qcDraftDamaged: 0, qcDamagedItems: []
-                });
+                    good_qty: null, damaged_qty: null, qcDraftDamaged: 0, qcDamagedItems: [],
+                    shopify_sync_status: 'awaiting_receipt', shopify_sync_error: null
+                };
+                s.transfers.push(cornTransfer);
             }
-            await persistDispatch('Dispatch update');
+            const saved = await persistDispatch('Dispatch update');
+            if (saved) {
+                // Boat becomes sellable immediately at dispatch.
+                // Cornwall is deliberately excluded until its delivery is received and QC checked.
+                const syncTargets = (s.transfers || []).filter(t => t.dispatched_at === now &&
+                    t.sku === g.sku &&
+                    t.destination === 'boat' &&
+                    t.shopify_sync_status === 'pending');
+                let allSynced = true;
+                for (const transfer of syncTargets) {
+                    const ok = await syncTransferToShopify(transfer);
+                    if (!ok)
+                        allSynced = false;
+                }
+                await persistDispatch(allSynced ? 'Dispatch + Shopify sync' : 'Dispatch saved · Shopify sync needs attention');
+                if (!allSynced) {
+                    const failed = syncTargets.filter(t => t.shopify_sync_status === 'failed');
+                    alert('The dispatch was saved, but Shopify Boat stock could not update for ' + failed.length +
+                        ' stock movement' + (failed.length === 1 ? '' : 's') + '.\n\n' +
+                        failed.map(t => `${t.name} → ${t.destination}: ${t.shopify_sync_error}`).join('\n') +
+                        '\n\nThe transfer remains marked for Shopify retry and will not be double-added.');
+                }
+            }
             render();
         });
         function updateQcSummary(t) {
@@ -4519,6 +4604,11 @@ async function deliveriesPage() {
             t.good_qty = good;
             t.damaged_qty = damaged;
             t.damage_items = items.map(x => (Object.assign({}, x)));
+            // Cornwall stock becomes sellable only after physical receipt + QC.
+            // Add only accepted/good Pals. Damaged Pals remain outside sellable stock.
+            if (good > 0 && !t.rework_return) {
+                addForgeInventory(s, t.sku, 'cornwall', good);
+            }
             if (t.rework_return) {
                 // Rework replacements were NOT pre-added to Cornwall inventory.
                 // Add only the quantity received in good condition.
@@ -4534,14 +4624,8 @@ async function deliveriesPage() {
                 }
             }
             if (damaged > 0) {
-                // Remove each damaged physical item once from Cornwall usable stock.
-                if (!t.rework_return) {
-                    s.stock[t.sku] = s.stock[t.sku] || {};
-                    s.stock[t.sku].cornwall = Math.max(0, Number(s.stock[t.sku].cornwall || 0) - damaged);
-                    s.finishedStock = s.finishedStock || { boat: {}, cornwall: {} };
-                    s.finishedStock.cornwall = s.finishedStock.cornwall || {};
-                    s.finishedStock.cornwall[t.sku] = Math.max(0, Number(s.finishedStock.cornwall[t.sku] || 0) - damaged);
-                }
+                // Damaged Cornwall items were never added to sellable stock,
+                // so there is nothing to subtract here.
                 items.forEach((item, index) => {
                     // Each physical damaged Pal creates ONE rework job with a list of requirements.
                     const requirements = {
@@ -4582,7 +4666,37 @@ async function deliveriesPage() {
             }
             delete t.qcDraftDamaged;
             delete t.qcDamagedItems;
-            await persistDispatch('Dispatch update');
+            // Save the physical receipt/QC result before attempting Shopify.
+            t.shopify_sync_status = good > 0 ? 'pending' : 'not_required';
+            t.shopify_sync_error = null;
+            const receiptSaved = await persistDispatch('Cornwall delivery received');
+            if (receiptSaved && good > 0) {
+                // syncTransferToShopify normally uses transfer.qty.
+                // For Cornwall receipt, only accepted GOOD quantity is sellable.
+                const originalQty = t.qty;
+                t.qty = good;
+                const synced = await syncTransferToShopify(t);
+                t.qty = originalQty;
+                if (synced) {
+                    t.shopify_sync_status = 'synced';
+                    t.shopify_synced_qty = good;
+                    t.shopify_synced_at = new Date().toISOString();
+                    t.shopify_sync_error = null;
+                    await persistDispatch('Cornwall received + Shopify synced');
+                }
+                else {
+                    t.shopify_sync_status = 'failed';
+                    await persistDispatch('Cornwall received · Shopify sync needs attention');
+                    alert(`Cornwall receipt has been saved, but Shopify could not add the ${good} accepted ` +
+                        `Pal${good === 1 ? '' : 's'} to Cornwall stock.\n\n` +
+                        `The damaged quantity has NOT been added to Shopify.\n` +
+                        `This transfer is marked for Shopify retry and will not be double-added.`);
+                }
+            }
+            else if (receiptSaved) {
+                await persistDispatch('Cornwall received · no sellable stock');
+            }
+            await refreshDispatchShopify();
             render();
         });
     }
@@ -4599,6 +4713,7 @@ async function deliveriesPage() {
             s = applyDispatchCloudState(fresh);
             dispatchStamp = fresh.updated_at || latestStamp;
             recoverAwaitingDispatch(s);
+            await refreshDispatchShopify();
             render();
             setForgeCloudSync('synced', 'Dispatch updated live');
         }
@@ -5781,51 +5896,68 @@ async function shopifyIntegrationPage() {
             }
         }
     }
-    function setLocationMappingDirty(dirty) { const el = byId('shopifyLocationMappingBadge'); if (!el)
-        return; el.className = 'badge ' + (dirty ? 'warn' : 'success'); el.textContent = dirty ? 'Unsaved changes' : 'Saved'; }
-    function renderLocationMapping() { const host = byId('shopifyLocationMappingRows'); if (!host)
-        return; host.innerHTML = shopifyLocationsForMapping.length ? shopifyLocationsForMapping.map(loc => { var _m; const current = String(((_m = locationMapping.locations) === null || _m === void 0 ? void 0 : _m[loc.id]) || 'ignore'); return `<div class="shopify-location-map-row" data-location-id="${esc(loc.id)}"><div class="shopify-location-map-info"><strong>${esc(loc.name)}</strong><span>${esc([loc.city, loc.country].filter(Boolean).join(', ') || 'No address')} · ${loc.active ? 'Active' : 'Inactive'}</span></div><select class="input shopify-location-map-select"><option value="ignore"${current === 'ignore' ? ' selected' : ''}>Ignore</option><option value="boat"${current === 'boat' ? ' selected' : ''}>Kitsune Boat</option><option value="cornwall"${current === 'cornwall' ? ' selected' : ''}>Kitsune Cornwall</option></select></div>`; }).join('') : `<div class="dashboard-clear-state"><strong>No Shopify locations returned.</strong></div>`; host.querySelectorAll('.shopify-location-map-row').forEach(row => { const id = row.getAttribute('data-location-id'), sel = row.querySelector('.shopify-location-map-select'); sel.onchange = () => { locationMapping.locations = locationMapping.locations || {}; locationMapping.locations[id] = sel.value; setLocationMappingDirty(true); }; }); }
-    async function loadLocationMapping() { var _m; try {
-        const [status, settings] = await Promise.all([cloudFetch('/shopify/location-mapping'), cloudFetch('/settings')]);
-        shopifyLocationsForMapping = status.locations || [];
-        const saved = (_m = settings.settings) === null || _m === void 0 ? void 0 : _m.shopify_location_mapping;
-        if (saved && typeof saved === 'object' && saved.locations)
-            locationMapping = saved;
-        else {
-            locationMapping = { version: 1, locations: {} };
-            (status.locations || []).forEach(loc => locationMapping.locations[loc.id] = String(loc.forge_location || 'ignore'));
+    function setLocationMappingDirty(dirty) {
+        const el = byId('shopifyLocationMappingBadge');
+        if (!el)
+            return;
+        el.className = 'badge ' + (dirty ? 'warn' : 'success');
+        el.textContent = dirty ? 'Unsaved changes' : 'Saved';
+    }
+    function renderLocationMapping() {
+        const host = byId('shopifyLocationMappingRows');
+        if (!host)
+            return;
+        host.innerHTML = shopifyLocationsForMapping.length ? shopifyLocationsForMapping.map(loc => { var _m; const current = String(((_m = locationMapping.locations) === null || _m === void 0 ? void 0 : _m[loc.id]) || 'ignore'); return `<div class="shopify-location-map-row" data-location-id="${esc(loc.id)}"><div class="shopify-location-map-info"><strong>${esc(loc.name)}</strong><span>${esc([loc.city, loc.country].filter(Boolean).join(', ') || 'No address')} · ${loc.active ? 'Active' : 'Inactive'}</span></div><select class="input shopify-location-map-select"><option value="ignore"${current === 'ignore' ? ' selected' : ''}>Ignore</option><option value="boat"${current === 'boat' ? ' selected' : ''}>Kitsune Boat</option><option value="cornwall"${current === 'cornwall' ? ' selected' : ''}>Kitsune Cornwall</option></select></div>`; }).join('') : `<div class="dashboard-clear-state"><strong>No Shopify locations returned.</strong></div>`;
+        host.querySelectorAll('.shopify-location-map-row').forEach(row => { const id = row.getAttribute('data-location-id'), sel = row.querySelector('.shopify-location-map-select'); sel.onchange = () => { locationMapping.locations = locationMapping.locations || {}; locationMapping.locations[id] = sel.value; setLocationMappingDirty(true); }; });
+    }
+    async function loadLocationMapping() {
+        var _m;
+        try {
+            const [status, settings] = await Promise.all([cloudFetch('/shopify/location-mapping'), cloudFetch('/settings')]);
+            shopifyLocationsForMapping = status.locations || [];
+            const saved = (_m = settings.settings) === null || _m === void 0 ? void 0 : _m.shopify_location_mapping;
+            if (saved && typeof saved === 'object' && saved.locations)
+                locationMapping = saved;
+            else {
+                locationMapping = { version: 1, locations: {} };
+                (status.locations || []).forEach(loc => locationMapping.locations[loc.id] = String(loc.forge_location || 'ignore'));
+            }
+            renderLocationMapping();
+            setLocationMappingDirty(false);
         }
-        renderLocationMapping();
-        setLocationMappingDirty(false);
-    }
-    catch (e) {
-        shopifyLocationsForMapping = [];
-        renderLocationMapping();
-        const b = byId('shopifyLocationMappingBadge');
-        if (b) {
-            b.className = 'badge danger';
-            b.textContent = 'Load error';
+        catch (e) {
+            shopifyLocationsForMapping = [];
+            renderLocationMapping();
+            const b = byId('shopifyLocationMappingBadge');
+            if (b) {
+                b.className = 'badge danger';
+                b.textContent = 'Load error';
+            }
         }
-    } }
-    async function saveLocationMapping() { const btn = byId('shopifySaveLocationMapping'); if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Saving…';
-    } try {
-        locationMapping.version = 1;
-        locationMapping.updated_at = new Date().toISOString();
-        await cloudFetch('/settings/shopify_location_mapping', { method: 'PUT', body: JSON.stringify({ value: locationMapping }) });
-        setLocationMappingDirty(false);
-        setForgeCloudSync('synced', 'Shopify location mapping saved');
     }
-    catch (e) {
-        alert('Could not save Shopify location mapping: ' + e.message);
-    }
-    finally {
+    async function saveLocationMapping() {
+        const btn = byId('shopifySaveLocationMapping');
         if (btn) {
-            btn.disabled = false;
-            btn.textContent = 'Save Location Mapping';
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
         }
-    } }
+        try {
+            locationMapping.version = 1;
+            locationMapping.updated_at = new Date().toISOString();
+            await cloudFetch('/settings/shopify_location_mapping', { method: 'PUT', body: JSON.stringify({ value: locationMapping }) });
+            setLocationMappingDirty(false);
+            setForgeCloudSync('synced', 'Shopify location mapping saved');
+        }
+        catch (e) {
+            alert('Could not save Shopify location mapping: ' + e.message);
+        }
+        finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Save Location Mapping';
+            }
+        }
+    }
     function money(order) {
         var _h;
         const m = (_h = order === null || order === void 0 ? void 0 : order.totalPriceSet) === null || _h === void 0 ? void 0 : _h.shopMoney;

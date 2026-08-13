@@ -1708,3 +1708,24 @@ No Worker or D1 schema change is required.
 - Finished Pal Stock Targets now loads its saved/default values and changes badge from Loading.
 - Worker remains v3t.
 - No D1 migration required.
+
+## v0.21.0 — Automatic Shopify Stock Update on Dispatch
+- Requires Worker v3u-auto-dispatch and Shopify `write_inventory`.
+- Removed the need for manual stock-add controls for normal stock movements.
+- Dispatch allocation now uses live Shopify available stock plus Forge default/custom targets.
+- When Confirm Dispatch Allocation is saved, each Boat/Cornwall transfer automatically adds its dispatched quantity to the mapped Shopify location.
+- Cornwall is updated at dispatch time, even while the physical transfer remains Awaiting Delivery, per the selected business rule.
+- Each transfer ID is used as the Shopify idempotency key, preventing duplicate stock increases on retries.
+- Dispatch is saved before Shopify sync. If Shopify fails, the transfer is retained with `shopify_sync_status=failed` and an error message rather than losing the dispatch record.
+- No D1 migration required.
+
+## v0.21.1 — Correct Boat / Cornwall Shopify Stock Timing
+- Requires Worker v3v and Shopify `write_inventory`.
+- Boat: accepted dispatch quantity is added to Shopify Boat immediately at dispatch.
+- Cornwall: dispatch creates an in-transit transfer only. No Cornwall sellable stock is added at dispatch.
+- Cornwall: when delivery QC is confirmed, only `good_qty` is added to Forge Cornwall finished stock and Shopify Cornwall.
+- Damaged Cornwall units are never added to sellable Forge/Shopify stock and continue through the existing damage/rework workflow.
+- The old Cornwall damage subtraction was removed because damaged stock is no longer pre-added at dispatch.
+- Shopify sync is attempted only after the Cornwall physical receipt/QC result has first been saved.
+- Transfer ID remains the idempotency basis, preventing the same stock movement being added twice.
+- No D1 migration required.

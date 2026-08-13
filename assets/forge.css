@@ -2790,3 +2790,10 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
 .target-control.custom .target-mode{color:var(--orange)}
 .target-control.custom .number{border-color:rgba(255,102,0,.55)}
 @media(max-width:650px){.stock-target-default-grid{grid-template-columns:1fr}}
+
+/* v0.21.0 — Shopify automatic dispatch sync */
+.dispatch-shopify-banner{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:12px;border-color:rgba(69,207,128,.25)}
+.dispatch-shopify-banner>div{display:flex;flex-direction:column;gap:3px}
+.dispatch-shopify-banner span:not(.badge){font-size:10px;color:var(--muted)}
+.success-text{color:#62d994!important}
+@media(max-width:650px){.dispatch-shopify-banner{align-items:flex-start;flex-direction:column}}
