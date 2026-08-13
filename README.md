@@ -1674,3 +1674,15 @@ No Worker or D1 schema change is required.
 - Adds a Shopify Demand panel to Production Planner with stock shortfall and open-order visibility.
 - Shopify remains read-only. No stock or order writes to Shopify.
 - No D1 schema migration required.
+
+## v0.20.1 — Shopify Pal Inventory Source
+- Shopify stock is now displayed in Pal Inventory rather than as a separate Production Planner demand feed.
+- Boat Shopify `available` stock is compared against the Forge Boat target.
+- Cornwall Shopify `available` stock is compared against the Forge Cornwall target.
+- Forge targets remain editable directly on Pal Inventory.
+- Need to Make = target shortage less assembled Pals, awaiting Dispatch stock and intact rework stock already in Forge.
+- Production Planner and Dashboard use the same Pal Inventory shortage calculation silently.
+- Removed the Shopify Demand panel from Production Planner.
+- Products not mapped in Settings → Shopify are clearly flagged on Pal Inventory.
+- Requires Worker v3s.
+- No D1 migration required.

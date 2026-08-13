@@ -2762,3 +2762,14 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
  .shopify-demand-row>div:not(:first-child){text-align:left}
  .shopify-demand-row small{grid-column:1/-1}
 }
+
+/* v0.20.1 — Shopify is the finished Pal stock source */
+.pal-inventory-source{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:12px;align-items:center;margin-bottom:12px}
+.pal-inventory-source>div{display:flex;flex-direction:column;gap:3px}
+.pal-inventory-source>div strong{font-size:12px}
+.pal-inventory-source>div span{font-size:10px;color:var(--muted)}
+.shopify-stock-cell strong{color:#63dc97}
+.shopify-stock-cell small,.need-cell small{display:block;margin-top:3px;font-size:9px;color:var(--muted)}
+.warning-text{color:#e6b94f!important;margin-top:4px}
+@media(max-width:850px){.pal-inventory-source{grid-template-columns:1fr 1fr}.pal-inventory-source>.badge{justify-self:start}}
+@media(max-width:560px){.pal-inventory-source{grid-template-columns:1fr}}

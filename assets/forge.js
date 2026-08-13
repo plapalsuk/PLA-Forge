@@ -1319,6 +1319,20 @@ async function dashboard() {
     }
     const shopifyDemandBySku = Object.fromEntries((shopifyDemandData.demand || []).map(x => [x.sku, Number(x.effective_shopify_need || 0)]));
     const pals = (ps || []).filter(x => x.type === 'pal' && x.active !== false);
+    let dashboardShopifyBySku = {};
+    try {
+        const palInv = await cloudFetch('/shopify/pal-inventory');
+        dashboardShopifyBySku = Object.fromEntries((palInv.inventory || []).map(x => [x.sku, x]));
+    }
+    catch (e) {
+        dashboardShopifyBySku = {};
+    }
+    function dashboardLiveStock(sku, loc) { var _k, _l; return Math.max(0, Number(((_l = (_k = dashboardShopifyBySku[sku]) === null || _k === void 0 ? void 0 : _k[loc]) === null || _l === void 0 ? void 0 : _l.available) || 0)); }
+    function dashboardLiveNeed(sku) {
+        const shortage = Math.max(0, getTarget(s, sku, 'boat') - dashboardLiveStock(sku, 'boat'))
+            + Math.max(0, getTarget(s, sku, 'cornwall') - dashboardLiveStock(sku, 'cornwall'));
+        return Math.max(0, shortage - assembledQtyForDemand(s, sku) - awaitingDispatchQty(s, sku) - intactDamageReworkQty(s, sku));
+    }
     const palBySku = Object.fromEntries(pals.map(p => [p.sku, p]));
     const recipesBySku = {};
     (rs || []).forEach(r => {
@@ -1333,7 +1347,7 @@ async function dashboard() {
         return (palBySku[sku] && palBySku[sku].name) || fallback || sku || 'Unknown Pal';
     }
     function remainingPalDemand(sku) {
-        return Math.max(manufacturingNeed(s, sku), Number(shopifyDemandBySku[sku] || 0));
+        return dashboardLiveNeed(sku);
     }
     function groupedRecipeRows(sku) {
         return (recipesBySku[sku] || []).map(r => {
@@ -1686,7 +1700,6 @@ function isOnSale(s, sku) { var _a, _b; return ((_b = (_a = s.productAvailabilit
 function releaseDateFor(s, sku) { var _a, _b; return ((_b = (_a = s.productAvailability) === null || _a === void 0 ? void 0 : _a[sku]) === null || _b === void 0 ? void 0 : _b.release_date) || ''; }
 async function inventory(type) {
     installForgeCloudSyncBadge();
-    // Inventory pages now use live D1 state; never browser operational cache.
     if (!forgeProductionCloudReady) {
         try {
             await hydrateProductionCloud();
@@ -1701,32 +1714,89 @@ async function inventory(type) {
     let items = ps.filter(x => type === 'sticker' ? x.type === 'sticker' : x.type === 'pal' && (type === 'pal' || x.keyring));
     const tbody = document.querySelector('#rows');
     const q = document.querySelector('#q');
+    let shopifyInventory = { inventory: [], mapped_variants: 0, synced_at: null };
+    let shopifyBySku = {};
+    function rebuildShopifyIndex() {
+        shopifyBySku = {};
+        (shopifyInventory.inventory || []).forEach(row => shopifyBySku[row.sku] = row);
+    }
+    async function refreshShopifyInventory() {
+        if (type !== 'pal')
+            return;
+        const sync = document.querySelector('#palShopifySync');
+        if (sync) {
+            sync.className = 'badge info';
+            sync.textContent = 'Refreshing Shopify…';
+        }
+        try {
+            shopifyInventory = await cloudFetch('/shopify/pal-inventory');
+            rebuildShopifyIndex();
+            if (sync) {
+                sync.className = 'badge success';
+                sync.textContent = `Shopify Live · ${Number(shopifyInventory.mapped_variants || 0)} mapped`;
+            }
+        }
+        catch (e) {
+            shopifyInventory = { inventory: [], mapped_variants: 0, error: e.message };
+            shopifyBySku = {};
+            if (sync) {
+                sync.className = 'badge danger';
+                sync.textContent = 'Shopify Stock Error';
+            }
+        }
+    }
+    function shopStock(sku, loc) {
+        var _k;
+        const row = shopifyBySku[sku];
+        return Math.max(0, Number(((_k = row === null || row === void 0 ? void 0 : row[loc]) === null || _k === void 0 ? void 0 : _k.available) || 0));
+    }
+    function shopNeed(sku, loc) {
+        return Math.max(0, getTarget(s, sku, loc) - shopStock(sku, loc));
+    }
+    function totalShopNeed(sku) {
+        return shopNeed(sku, 'boat') + shopNeed(sku, 'cornwall');
+    }
+    function netManufacturingNeed(sku) {
+        // Shopify stock gives the finished-stock shortage.
+        // Existing assembled Pals and items already awaiting Dispatch are work
+        // already in Forge that will satisfy that shortage.
+        return Math.max(0, totalShopNeed(sku)
+            - assembledQtyForDemand(s, sku)
+            - awaitingDispatchQty(s, sku)
+            - intactDamageReworkQty(s, sku));
+    }
     function draw() {
         const text = (q.value || '').toLowerCase();
         const shown = items
             .filter(x => `${x.sku} ${x.name}`.toLowerCase().includes(text))
             .sort((a, b) => Number(isOnSale(s, b.sku)) - Number(isOnSale(s, a.sku)) || a.name.localeCompare(b.name));
         tbody.innerHTML = shown.map(x => {
-            const b = stock(s, x.sku, 'boat');
-            const c = stock(s, x.sku, 'cornwall');
+            const useShopify = type === 'pal';
+            const b = useShopify ? shopStock(x.sku, 'boat') : stock(s, x.sku, 'boat');
+            const c = useShopify ? shopStock(x.sku, 'cornwall') : stock(s, x.sku, 'cornwall');
             const bt = getTarget(s, x.sku, 'boat');
             const ct = getTarget(s, x.sku, 'cornwall');
-            const need = needed(s, x.sku, 'boat') + needed(s, x.sku, 'cornwall');
+            const rawNeed = useShopify ? totalShopNeed(x.sku) : needed(s, x.sku, 'boat') + needed(s, x.sku, 'cornwall');
+            const need = useShopify ? netManufacturingNeed(x.sku) : rawNeed;
             const sale = isOnSale(s, x.sku);
+            const mapped = !!shopifyBySku[x.sku];
             return `<tr class="pal-inventory-card ${sale ? 'on-sale-row' : ''}">
-       <td class="pal-product" data-label="Pal"><div class="product-name">${esc(x.name)}</div><span class="sku">${x.sku}</span></td>
-       <td data-label="On Sale">${sale ? badge('ON SALE', 'ok') : badge('NOT ON SALE', '')}</td>
-       <td data-label="Recipe">${x.recipe_ready ? badge('Recipe ready', 'ok') : badge('No recipe', 'warning')}</td>
-       <td class="stock-cell" data-label="Boat Stock"><strong>${b}</strong></td>
-       <td class="target-cell" data-label="Boat Target"><input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}"></td>
-       <td class="stock-cell" data-label="Cornwall Stock"><strong>${c}</strong></td>
-       <td class="target-cell" data-label="Cornwall Target"><input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}"></td>
-       <td class="need-cell" data-label="Need"><strong>${need}</strong></td>
-     </tr>`;
+              <td class="pal-product" data-label="Pal">
+                <div class="product-name">${esc(x.name)}</div>
+                <span class="sku">${x.sku}</span>
+                ${useShopify && !mapped ? '<div class="small warning-text">Not mapped to Shopify</div>' : ''}
+              </td>
+              <td data-label="On Sale">${sale ? badge('ON SALE', 'ok') : badge('NOT ON SALE', '')}</td>
+              <td data-label="Recipe">${x.recipe_ready ? badge('Recipe ready', 'ok') : badge('No recipe', 'warning')}</td>
+              <td class="stock-cell shopify-stock-cell" data-label="Boat Shopify Stock"><strong>${b}</strong>${useShopify ? '<small>available</small>' : ''}</td>
+              <td class="target-cell" data-label="Boat Target"><input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}"></td>
+              <td class="stock-cell shopify-stock-cell" data-label="Cornwall Shopify Stock"><strong>${c}</strong>${useShopify ? '<small>available</small>' : ''}</td>
+              <td class="target-cell" data-label="Cornwall Target"><input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}"></td>
+              <td class="need-cell" data-label="Need to Make"><strong>${need}</strong>${useShopify && rawNeed !== need ? `<small>${rawNeed} shortage · ${rawNeed - need} in Forge</small>` : ''}</td>
+            </tr>`;
         }).join('');
         document.querySelectorAll('.t').forEach(el => el.onchange = async () => {
-            const sku = el.dataset.sku;
-            const loc = el.dataset.loc;
+            const sku = el.dataset.sku, loc = el.dataset.loc;
             const qty = Math.max(0, Number(el.value || 0));
             const previous = getTarget(s, sku, loc);
             el.disabled = true;
@@ -1747,10 +1817,11 @@ async function inventory(type) {
         });
     }
     q.oninput = draw;
+    await refreshShopifyInventory();
     draw();
-    // Keep stock and targets live while the page is open.
     await startForgeLiveSync(async (fresh) => {
         s = fresh;
+        await refreshShopifyInventory();
         draw();
     });
 }
@@ -1941,70 +2012,46 @@ async function production() {
     }
     const ps = await load('products'), rs = await load('recipes'), body = document.querySelector('#prod');
     let s = cloudOperationalState();
-    let shopifyDemand = { demand: [], mapped_variants: 0, open_orders_checked: 0, synced_at: null };
-    async function refreshShopifyDemand() {
+    let shopifyBySku = {};
+    async function refreshPalInventory() {
         try {
-            shopifyDemand = await cloudFetch('/shopify/demand');
+            const data = await cloudFetch('/shopify/pal-inventory');
+            shopifyBySku = Object.fromEntries((data.inventory || []).map(x => [x.sku, x]));
         }
         catch (e) {
-            shopifyDemand = { demand: [], mapped_variants: 0, open_orders_checked: 0, error: e.message };
+            shopifyBySku = {};
         }
     }
-    function shopifyRow(sku) {
-        return (shopifyDemand.demand || []).find(x => x.sku === sku) || null;
+    function liveStock(sku, loc) {
+        var _k, _l;
+        return Math.max(0, Number(((_l = (_k = shopifyBySku[sku]) === null || _k === void 0 ? void 0 : _k[loc]) === null || _l === void 0 ? void 0 : _l.available) || 0));
     }
-    function plannerManufacturingNeed(sku) {
-        const forgeNeed = manufacturingNeed(s, sku);
-        const sd = shopifyRow(sku);
-        return Math.max(forgeNeed, Number((sd === null || sd === void 0 ? void 0 : sd.effective_shopify_need) || 0));
+    function liveFinishedShortage(sku) {
+        const boat = Math.max(0, getTarget(s, sku, 'boat') - liveStock(sku, 'boat'));
+        const cornwall = Math.max(0, getTarget(s, sku, 'cornwall') - liveStock(sku, 'cornwall'));
+        return boat + cornwall;
+    }
+    function liveManufacturingNeed(sku) {
+        return Math.max(0, liveFinishedShortage(sku)
+            - assembledQtyForDemand(s, sku)
+            - awaitingDispatchQty(s, sku)
+            - intactDamageReworkQty(s, sku));
     }
     function drawProduction() {
         const rows = [];
         ps.filter(p => p.type === 'pal').forEach(p => {
-            const forgeNeed = manufacturingNeed(s, p.sku);
-            const sd = shopifyRow(p.sku);
-            const shopifyNeed = Number((sd === null || sd === void 0 ? void 0 : sd.effective_shopify_need) || 0);
-            const n = Math.max(forgeNeed, shopifyNeed);
+            const n = liveManufacturingNeed(p.sku);
             if (n > 0)
-                rows.push({ p, n, forgeNeed, shopifyNeed, sd, groups: rs.filter(r => r.sku === p.sku) });
+                rows.push({ p, n, groups: rs.filter(r => r.sku === p.sku) });
         });
-        rows.sort((a, b) => b.n - a.n || b.shopifyNeed - a.shopifyNeed || a.p.name.localeCompare(b.p.name));
+        rows.sort((a, b) => b.n - a.n || a.p.name.localeCompare(b.p.name));
         body.innerHTML = rows.map(x => `<tr>
           <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
-          <td><strong>${x.n}</strong>${x.shopifyNeed > x.forgeNeed ? '<br><span class="small accent">Shopify-led</span>' : ''}</td>
+          <td>${x.n}</td>
           <td>${x.groups.length}</td>
           <td>${(x.groups.reduce((a, r) => a + Number(r.weight_g || 0), 0) * x.n).toFixed(1)}g</td>
           <td>${x.groups.map(r => esc(r.filament)).join(', ')}</td>
         </tr>`).join('') || '<tr><td colspan="5">No Pal manufacturing currently required.</td></tr>';
-        const mappedEl = document.querySelector('#prodShopifyMapped');
-        const ordersEl = document.querySelector('#prodShopifyOrders');
-        const needEl = document.querySelector('#prodShopifyNeed');
-        const demandEl = document.querySelector('#prodShopifyDemand');
-        if (mappedEl)
-            mappedEl.textContent = Number(shopifyDemand.mapped_variants || 0);
-        if (ordersEl)
-            ordersEl.textContent = Number(shopifyDemand.open_orders_checked || 0);
-        if (needEl)
-            needEl.textContent = (shopifyDemand.demand || []).reduce((a, x) => a + Number(x.effective_shopify_need || 0), 0);
-        if (demandEl) {
-            if (shopifyDemand.error) {
-                demandEl.innerHTML = `<div class="dashboard-clear-state"><strong>Shopify demand unavailable.</strong><span>${esc(shopifyDemand.error)}</span></div>`;
-            }
-            else {
-                const sdRows = (shopifyDemand.demand || []).filter(x => Number(x.effective_shopify_need || 0) > 0);
-                demandEl.innerHTML = sdRows.length ? sdRows.map(x => {
-                    const p = ps.find(p => p.sku === x.sku);
-                    const loc = (x.locations || []).filter(l => l.included_in_demand).map(l => `${l.shopify_location_name}: ${l.available}/${l.target}`).join(' · ');
-                    return `<div class="shopify-demand-row">
-                      <div><strong>${esc((p === null || p === void 0 ? void 0 : p.name) || x.sku)}</strong><span class="sku">${esc(x.sku)}</span></div>
-                      <div><span>Stock Shortfall</span><strong>${Number(x.stock_shortfall || 0)}</strong></div>
-                      <div><span>Open Orders</span><strong>${Number(x.open_order_qty || 0)}</strong></div>
-                      <div><span>Shopify Need</span><strong class="accent">${Number(x.effective_shopify_need || 0)}</strong></div>
-                      <small>${esc(loc || 'No mapped Shopify location')}</small>
-                    </div>`;
-                }).join('') : `<div class="dashboard-clear-state"><strong>Shopify demand is covered.</strong><span>Mapped products currently meet their stock targets and open-order demand.</span></div>`;
-            }
-        }
         const damage = document.querySelector('#damageProduction');
         if (damage) {
             const labels = { box: 'Repack — Box', insert: 'Print Insert + Repack', pal: 'Print Replacement Pal', writeoff: 'Complete Replacement' };
@@ -2035,11 +2082,11 @@ async function production() {
             spare.innerHTML = low.length ? low.map(x => `<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${x.item === 'Flat Clear Boxes' ? badge('FACTORY SUPPLY', 'danger') : x.pending > 0 ? badge('IN REPLENISHMENT', 'info') : badge('INSERT PRODUCTION', 'danger')}</span><strong>Stock ${x.qty}${x.target != null ? ` / ${x.target}` : ''}${x.pending != null ? ` · Pending ${x.pending}` : ''}</strong></div>`).join('') : '<div class="bench-empty">Cornwall spare stock is healthy.</div>';
         }
     }
-    await refreshShopifyDemand();
+    await refreshPalInventory();
     drawProduction();
     await startForgeLiveSync(async (fresh) => {
         s = fresh;
-        await refreshShopifyDemand();
+        await refreshPalInventory();
         drawProduction();
     });
 }
