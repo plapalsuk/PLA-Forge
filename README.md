@@ -1729,3 +1729,19 @@ No Worker or D1 schema change is required.
 - Shopify sync is attempted only after the Cornwall physical receipt/QC result has first been saved.
 - Transfer ID remains the idempotency basis, preventing the same stock movement being added twice.
 - No D1 migration required.
+
+## v0.21.2 — Canonical Pal Demand Fix
+- Introduced one shared `loadPalDemandSnapshot()` calculation used by Production Planner and Dashboard.
+- Canonical need: Forge target minus live Shopify available stock, less:
+  - assembled Pals,
+  - packed/awaiting-dispatch Pals,
+  - Cornwall Pals currently in transit,
+  - intact Pals already present in damage/rework.
+- Production Planner now consumes exactly the same Need to Make logic as Pal Inventory.
+- Pal Inventory now deducts Cornwall in-transit transfers so dispatching to Cornwall does not create duplicate production demand before receipt.
+- Restored missing `ensureCornwallInsertReplenishment()` and `pendingCornwallInsertSupply()` helpers.
+- Insert Production now loads correctly again.
+- Insert Production keeps the normal 10-ready insert buffer, but raises the required insert target if current Pal production demand is higher.
+- Removed stale Dashboard dependence on the older `/shopify/demand` calculation.
+- Worker remains v3v.
+- No D1 migration required.

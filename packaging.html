@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Insert Production | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0211"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Insert Production | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0212"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
  <nav class="nav" id="forgeNav">
@@ -34,7 +34,7 @@
  <div class="card kpi"><div class="label">Urgent</div><div class="value accent" id="insertUrgentKpi">0</div><div class="small">On Sale Pals below 4 ready</div></div>
  <div class="card kpi"><div class="label">Ready Inserts</div><div class="value" id="insertReadyKpi">0</div><div class="small">cut, scored and usable</div></div>
  <div class="card kpi"><div class="label">Awaiting Cut & Score</div><div class="value" id="insertCutKpi">0</div><div class="small">printed inserts in WIP</div></div>
- <div class="card kpi"><div class="label">Need to Print</div><div class="value" id="insertPrintKpi">0</div><div class="small">to restore pipeline to target 10</div></div>
+ <div class="card kpi"><div class="label">Need to Print</div><div class="value" id="insertPrintKpi">0</div><div class="small">to maintain target 10 or current Pal demand</div></div>
 </div>
 
 <div class="toolbar bench-toolbar"><input id="q" class="search" placeholder="Search On Sale Pal or SKU"></div>
@@ -44,7 +44,7 @@
    <div class="section-title">
      <div>
        <h2>Print Queue</h2>
-       <div class="small">On Sale Pals that need more inserts printed.</div>
+       <div class="small">On Sale Pals needing inserts for the stock buffer and current Pal demand.</div>
      </div>
      <span class="badge danger" id="printQueueCount">0 Jobs</span>
    </div>
@@ -78,8 +78,8 @@
   </table>
  </div>
 </div>
-<div class="footer-note">PLA Forge v0.16.2 · Manufacturing & Inventory System</div>
-</main></div><script src="assets/forge.js?v=0211"></script><script>forgeBoot(async function(){
+<div class="footer-note">PLA Forge v0.21.2 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=0212"></script><script>forgeBoot(async function(){
 insertProductionPage()
 })</script>
 <script id="legacyBootFailsafe">

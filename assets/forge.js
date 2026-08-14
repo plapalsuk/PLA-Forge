@@ -1092,7 +1092,12 @@ async function insertProductionPage() {
     let s = cloudOperationalState();
     const ps = await load('products');
     const files = await load('insert_files');
+    let demandSnapshot = { bySku: {} };
     let pals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku));
+    async function refreshInsertDemand() {
+        demandSnapshot = await loadPalDemandSnapshot(s, ps);
+        pals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku));
+    }
     ensureCornwallInsertReplenishment(s, ps);
     const q = document.querySelector('#q');
     const printCards = document.querySelector('#insertPrintCards');
@@ -1109,13 +1114,20 @@ async function insertProductionPage() {
         s.inserts[sku] = s.inserts[sku] || { awaiting_cut: 0, ready: 0 };
         return s.inserts[sku];
     }
-    function target() { return 10; }
+    function baseInsertTarget() { return 10; }
+    function requiredInsertTarget(sku) {
+        var _k;
+        // Maintain the normal insert buffer, but never below current Pal production demand.
+        return Math.max(baseInsertTarget(), Number(((_k = demandSnapshot.bySku[sku]) === null || _k === void 0 ? void 0 : _k.need_to_make) || 0));
+    }
     function needPrint(sku) {
-        var _a, _b;
+        var _k, _l;
         const r = rec(sku);
-        const damageNeed = Number(((_a = s.damageInsertDemand) === null || _a === void 0 ? void 0 : _a[sku]) || 0);
-        const cornwallNeed = Number(((_b = s.cornwallInsertReplenishment) === null || _b === void 0 ? void 0 : _b[sku]) || 0);
-        return Math.max(0, target() + damageNeed + cornwallNeed - Number(r.ready || 0) - Number(r.awaiting_cut || 0));
+        const damageNeed = Number(((_k = s.damageInsertDemand) === null || _k === void 0 ? void 0 : _k[sku]) || 0);
+        const cornwallNeed = Number(((_l = s.cornwallInsertReplenishment) === null || _l === void 0 ? void 0 : _l[sku]) || 0);
+        return Math.max(0, requiredInsertTarget(sku) + damageNeed + cornwallNeed
+            - Number(r.ready || 0)
+            - Number(r.awaiting_cut || 0));
     }
     function renderPrintCard(x) {
         var _a;
@@ -1278,10 +1290,20 @@ async function insertProductionPage() {
     q.oninput = render;
     if (inventorySearch)
         inventorySearch.oninput = render;
-    render();
+    try {
+        await refreshInsertDemand();
+        ensureCornwallInsertReplenishment(s, ps);
+        render();
+        setForgeCloudSync('synced', 'Insert demand synced');
+    }
+    catch (e) {
+        showCloudRequiredError(e.message);
+        setForgeCloudSync('error', e.message);
+        return;
+    }
     await startForgeLiveSync(async (fresh) => {
         s = JSON.parse(JSON.stringify(fresh));
-        pals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku));
+        await refreshInsertDemand();
         ensureCornwallInsertReplenishment(s, ps);
         render();
     });
@@ -1310,28 +1332,17 @@ async function dashboard() {
         showCloudRequiredError(e.message);
         return;
     }
-    let shopifyDemandData = { demand: [] };
-    try {
-        shopifyDemandData = await cloudFetch('/shopify/demand');
-    }
-    catch (e) {
-        shopifyDemandData = { demand: [] };
-    }
-    const shopifyDemandBySku = Object.fromEntries((shopifyDemandData.demand || []).map(x => [x.sku, Number(x.effective_shopify_need || 0)]));
     const pals = (ps || []).filter(x => x.type === 'pal' && x.active !== false);
-    let dashboardShopifyBySku = {};
+    let dashboardDemandSnapshot = { bySku: {} };
     try {
-        const palInv = await cloudFetch('/shopify/pal-inventory');
-        dashboardShopifyBySku = Object.fromEntries((palInv.inventory || []).map(x => [x.sku, x]));
+        dashboardDemandSnapshot = await loadPalDemandSnapshot(s, ps);
     }
     catch (e) {
-        dashboardShopifyBySku = {};
+        dashboardDemandSnapshot = { bySku: {} };
     }
-    function dashboardLiveStock(sku, loc) { var _k, _l; return Math.max(0, Number(((_l = (_k = dashboardShopifyBySku[sku]) === null || _k === void 0 ? void 0 : _k[loc]) === null || _l === void 0 ? void 0 : _l.available) || 0)); }
     function dashboardLiveNeed(sku) {
-        const shortage = Math.max(0, getTarget(s, sku, 'boat') - dashboardLiveStock(sku, 'boat'))
-            + Math.max(0, getTarget(s, sku, 'cornwall') - dashboardLiveStock(sku, 'cornwall'));
-        return Math.max(0, shortage - assembledQtyForDemand(s, sku) - awaitingDispatchQty(s, sku) - intactDamageReworkQty(s, sku));
+        var _k;
+        return Number(((_k = dashboardDemandSnapshot.bySku[sku]) === null || _k === void 0 ? void 0 : _k.need_to_make) || 0);
     }
     const palBySku = Object.fromEntries(pals.map(p => [p.sku, p]));
     const recipesBySku = {};
@@ -1710,6 +1721,94 @@ function palTargetOverrideMap(settings) {
     const cfg = settings === null || settings === void 0 ? void 0 : settings.pal_target_overrides;
     return (cfg && typeof cfg === 'object') ? cfg : {};
 }
+function pendingCornwallInsertSupply(s, sku) {
+    const awaiting = (s.awaitingDispatch || [])
+        .filter(x => x.item_type === 'cornwall_insert_spare' && x.sku === sku && x.status === 'awaiting_dispatch')
+        .reduce((a, x) => a + Number(x.qty || 0), 0);
+    const inTransit = (s.transfers || [])
+        .filter(x => x.transfer_type === 'cornwall_insert_spare' && x.sku === sku && x.destination === 'cornwall' && x.status === 'awaiting_delivery')
+        .reduce((a, x) => a + Number(x.qty || 0), 0);
+    return awaiting + inTransit;
+}
+function ensureCornwallInsertReplenishment(s, products) {
+    s.cornwallInsertReplenishment = s.cornwallInsertReplenishment || {};
+    (products || [])
+        .filter(p => p.type === 'pal' && isOnSale(s, p.sku))
+        .forEach(p => {
+        const target = cornwallInsertTarget();
+        const stockQty = cornwallInsertStock(s, p.sku);
+        const pending = pendingCornwallInsertSupply(s, p.sku);
+        s.cornwallInsertReplenishment[p.sku] = Math.max(0, target - stockQty - pending);
+    });
+}
+function inTransitCornwallPalQty(s, sku) {
+    return (s.transfers || [])
+        .filter(t => t.sku === sku &&
+        t.destination === 'cornwall' &&
+        t.status === 'awaiting_delivery' &&
+        t.transfer_type !== 'cornwall_insert_spare')
+        .reduce((a, t) => a + Number(t.qty || 0), 0);
+}
+async function loadPalDemandSnapshot(s, products) {
+    const [palInventoryData, settingsData] = await Promise.all([
+        cloudFetch('/shopify/pal-inventory'),
+        cloudFetch('/settings')
+    ]);
+    const shopifyBySku = Object.fromEntries((palInventoryData.inventory || []).map(x => [x.sku, x]));
+    const defaults = stockTargetDefaultsFromSettings(settingsData.settings || {});
+    const overrides = palTargetOverrideMap(settingsData.settings || {});
+    function configuredTarget(sku, loc) {
+        if ((overrides === null || overrides === void 0 ? void 0 : overrides[sku]) && Object.prototype.hasOwnProperty.call(overrides[sku], loc)) {
+            return Math.max(0, Number(overrides[sku][loc] || 0));
+        }
+        return Math.max(0, Number(defaults[loc] || 0));
+    }
+    function shopStock(sku, loc) {
+        var _k, _l;
+        return Math.max(0, Number(((_l = (_k = shopifyBySku[sku]) === null || _k === void 0 ? void 0 : _k[loc]) === null || _l === void 0 ? void 0 : _l.available) || 0));
+    }
+    const bySku = {};
+    (products || []).filter(p => p.type === 'pal').forEach(p => {
+        const boatStock = shopStock(p.sku, 'boat');
+        const cornwallStock = shopStock(p.sku, 'cornwall');
+        const boatTarget = configuredTarget(p.sku, 'boat');
+        const cornwallTarget = configuredTarget(p.sku, 'cornwall');
+        const boatShortage = Math.max(0, boatTarget - boatStock);
+        const cornwallShortage = Math.max(0, cornwallTarget - cornwallStock);
+        const grossNeed = boatShortage + cornwallShortage;
+        const assembled = assembledQtyForDemand(s, p.sku);
+        const awaitingDispatch = awaitingDispatchQty(s, p.sku);
+        const inTransitCornwall = inTransitCornwallPalQty(s, p.sku);
+        const intactRework = intactDamageReworkQty(s, p.sku);
+        const alreadyInForge = assembled + awaitingDispatch + inTransitCornwall + intactRework;
+        bySku[p.sku] = {
+            sku: p.sku,
+            name: p.name,
+            on_sale: isOnSale(s, p.sku),
+            mapped: !!shopifyBySku[p.sku],
+            boat_stock: boatStock,
+            cornwall_stock: cornwallStock,
+            boat_target: boatTarget,
+            cornwall_target: cornwallTarget,
+            boat_shortage: boatShortage,
+            cornwall_shortage: cornwallShortage,
+            gross_need: grossNeed,
+            assembled,
+            awaiting_dispatch: awaitingDispatch,
+            in_transit_cornwall: inTransitCornwall,
+            intact_rework: intactRework,
+            already_in_forge: alreadyInForge,
+            need_to_make: Math.max(0, grossNeed - alreadyInForge)
+        };
+    });
+    return {
+        bySku,
+        defaults,
+        overrides,
+        mapped_variants: Number(palInventoryData.mapped_variants || 0),
+        synced_at: palInventoryData.synced_at || null
+    };
+}
 async function stockTargetSettingsPage() {
     const badgeEl = document.getElementById('stockTargetSettingsBadge');
     const boatEl = document.getElementById('defaultBoatTarget');
@@ -1849,6 +1948,7 @@ async function inventory(type) {
         return Math.max(0, totalShopNeed(sku)
             - assembledQtyForDemand(s, sku)
             - awaitingDispatchQty(s, sku)
+            - inTransitCornwallPalQty(s, sku)
             - intactDamageReworkQty(s, sku));
     }
     function targetControl(sku, loc) {
@@ -2158,44 +2258,38 @@ async function production() {
             return;
         }
     }
-    const ps = await load('products'), rs = await load('recipes'), body = document.querySelector('#prod');
+    const ps = await load('products');
+    const rs = await load('recipes');
+    const body = document.querySelector('#prod');
     let s = cloudOperationalState();
-    let shopifyBySku = {};
-    async function refreshPalInventory() {
-        try {
-            const data = await cloudFetch('/shopify/pal-inventory');
-            shopifyBySku = Object.fromEntries((data.inventory || []).map(x => [x.sku, x]));
-        }
-        catch (e) {
-            shopifyBySku = {};
-        }
-    }
-    function liveStock(sku, loc) {
-        var _k, _l;
-        return Math.max(0, Number(((_l = (_k = shopifyBySku[sku]) === null || _k === void 0 ? void 0 : _k[loc]) === null || _l === void 0 ? void 0 : _l.available) || 0));
-    }
-    function liveFinishedShortage(sku) {
-        const boat = Math.max(0, getTarget(s, sku, 'boat') - liveStock(sku, 'boat'));
-        const cornwall = Math.max(0, getTarget(s, sku, 'cornwall') - liveStock(sku, 'cornwall'));
-        return boat + cornwall;
-    }
-    function liveManufacturingNeed(sku) {
-        return Math.max(0, liveFinishedShortage(sku)
-            - assembledQtyForDemand(s, sku)
-            - awaitingDispatchQty(s, sku)
-            - intactDamageReworkQty(s, sku));
+    let demandSnapshot = { bySku: {} };
+    async function refreshDemand() {
+        demandSnapshot = await loadPalDemandSnapshot(s, ps);
     }
     function drawProduction() {
         const rows = [];
-        ps.filter(p => p.type === 'pal').forEach(p => {
-            const n = liveManufacturingNeed(p.sku);
-            if (n > 0)
-                rows.push({ p, n, groups: rs.filter(r => r.sku === p.sku) });
+        ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku)).forEach(p => {
+            const d = demandSnapshot.bySku[p.sku];
+            const n = Number((d === null || d === void 0 ? void 0 : d.need_to_make) || 0);
+            if (n > 0) {
+                rows.push({
+                    p,
+                    n,
+                    demand: d,
+                    groups: rs.filter(r => r.sku === p.sku)
+                });
+            }
         });
         rows.sort((a, b) => b.n - a.n || a.p.name.localeCompare(b.p.name));
         body.innerHTML = rows.map(x => `<tr>
-          <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
-          <td>${x.n}</td>
+          <td>
+            <strong>${esc(x.p.name)}</strong><br>
+            <span class="sku">${x.p.sku}</span>
+          </td>
+          <td>
+            <strong>${x.n}</strong>
+            <div class="small">${x.demand.boat_shortage} Boat · ${x.demand.cornwall_shortage} Cornwall</div>
+          </td>
           <td>${x.groups.length}</td>
           <td>${(x.groups.reduce((a, r) => a + Number(r.weight_g || 0), 0) * x.n).toFixed(1)}g</td>
           <td>${x.groups.map(r => esc(r.filament)).join(', ')}</td>
@@ -2212,29 +2306,47 @@ async function production() {
                     return 'Complete Replacement';
                 return [r.box ? 'Replace Box' : '', r.insert ? 'Replace Insert' : '', r.pal ? 'Replace Pal' : ''].filter(Boolean).join(' + ');
             }
-            damage.innerHTML = jobs.length ? jobs.map(j => `<div class="damage-production-row"><div><strong>${esc(j.name)}</strong><div class="sku">${j.sku}${j.damaged_item_index ? ` · Damaged Item ${j.damaged_item_index}` : ''}</div></div><span>${esc(damageJobLabel(j))}</span><strong>× ${j.qty}</strong></div>`).join('') : '<div class="bench-empty">No damage rework currently required.</div>';
+            damage.innerHTML = jobs.length
+                ? jobs.map(j => `<div class="damage-production-row"><div><strong>${esc(j.name)}</strong><div class="sku">${j.sku}${j.damaged_item_index ? ` · Damaged Item ${j.damaged_item_index}` : ''}</div></div><span>${esc(damageJobLabel(j))}</span><strong>× ${j.qty}</strong></div>`).join('')
+                : '<div class="bench-empty">No damage rework currently required.</div>';
         }
         const spare = document.querySelector('#cornwallSpareDemand');
         if (spare) {
+            ensureCornwallInsertReplenishment(s, ps);
             const salePals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku)).sort((a, b) => a.name.localeCompare(b.name));
             const low = [];
-            if (cornwallBoxStock(s) < 1)
+            if (cornwallBoxStock(s) < 1) {
                 low.push({ item: 'Flat Clear Boxes', detail: 'Cornwall Rework Stock', qty: cornwallBoxStock(s) });
+            }
             salePals.forEach(p => {
                 const qty = cornwallInsertStock(s, p.sku);
-                if (qty < cornwallInsertTarget()) {
-                    const pending = pendingCornwallInsertSupply(s, p.sku);
+                const pending = pendingCornwallInsertSupply(s, p.sku);
+                if (qty + pending < cornwallInsertTarget()) {
                     low.push({ item: `${p.name} Insert`, detail: p.sku, qty, target: cornwallInsertTarget(), pending });
                 }
             });
-            spare.innerHTML = low.length ? low.map(x => `<div class="damage-production-row factory-spare-row"><div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div><span>${x.item === 'Flat Clear Boxes' ? badge('FACTORY SUPPLY', 'danger') : x.pending > 0 ? badge('IN REPLENISHMENT', 'info') : badge('INSERT PRODUCTION', 'danger')}</span><strong>Stock ${x.qty}${x.target != null ? ` / ${x.target}` : ''}${x.pending != null ? ` · Pending ${x.pending}` : ''}</strong></div>`).join('') : '<div class="bench-empty">Cornwall spare stock is healthy.</div>';
+            spare.innerHTML = low.length
+                ? low.map(x => `<div class="damage-production-row factory-spare-row">
+                    <div><strong>${esc(x.item)}</strong><div class="sku">${esc(x.detail)}</div></div>
+                    <span>${x.item === 'Flat Clear Boxes' ? badge('FACTORY SUPPLY', 'danger') : x.pending > 0 ? badge('IN REPLENISHMENT', 'info') : badge('INSERT PRODUCTION', 'danger')}</span>
+                    <strong>Stock ${x.qty}${x.target != null ? ` / ${x.target}` : ''}${x.pending != null ? ` · Pending ${x.pending}` : ''}</strong>
+                  </div>`).join('')
+                : '<div class="bench-empty">Cornwall spare stock is healthy.</div>';
         }
     }
-    await Promise.all([refreshPalInventory(), refreshTargetSettings()]);
-    drawProduction();
+    try {
+        await refreshDemand();
+        drawProduction();
+        setForgeCloudSync('synced', 'Production demand synced');
+    }
+    catch (e) {
+        showCloudRequiredError(e.message);
+        setForgeCloudSync('error', e.message);
+        return;
+    }
     await startForgeLiveSync(async (fresh) => {
         s = fresh;
-        await Promise.all([refreshPalInventory(), refreshTargetSettings()]);
+        await refreshDemand();
         drawProduction();
     });
 }
