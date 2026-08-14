@@ -1114,20 +1114,28 @@ async function insertProductionPage() {
         s.inserts[sku] = s.inserts[sku] || { awaiting_cut: 0, ready: 0 };
         return s.inserts[sku];
     }
-    function baseInsertTarget() { return 10; }
-    function requiredInsertTarget(sku) {
-        var _k;
-        // Maintain the normal insert buffer, but never below current Pal production demand.
-        return Math.max(baseInsertTarget(), Number(((_k = demandSnapshot.bySku[sku]) === null || _k === void 0 ? void 0 : _k.need_to_make) || 0));
+    function currentProductionNeed(sku) {
+        var _r;
+        return Math.max(0, Number(((_r = demandSnapshot.bySku[sku]) === null || _r === void 0 ? void 0 : _r.need_to_make) || 0));
+    }
+    function factoryBufferRequirement(sku) {
+        const cfg = forgeInsertProductionSettings;
+        const buffer = Math.max(0, Number(cfg.buffer_target || 0));
+        const reorder = Math.max(0, Number(cfg.reorder_level || 0));
+        if (buffer <= 0)
+            return 0;
+        const ready = Math.max(0, Number(rec(sku).ready || 0));
+        return ready < reorder ? buffer : 0;
     }
     function needPrint(sku) {
-        var _k, _l;
+        var _r, _s;
         const r = rec(sku);
-        const damageNeed = Number(((_k = s.damageInsertDemand) === null || _k === void 0 ? void 0 : _k[sku]) || 0);
-        const cornwallNeed = Number(((_l = s.cornwallInsertReplenishment) === null || _l === void 0 ? void 0 : _l[sku]) || 0);
-        return Math.max(0, requiredInsertTarget(sku) + damageNeed + cornwallNeed
-            - Number(r.ready || 0)
-            - Number(r.awaiting_cut || 0));
+        const productionNeed = currentProductionNeed(sku);
+        const bufferNeed = factoryBufferRequirement(sku);
+        const damageNeed = Number(((_r = s.damageInsertDemand) === null || _r === void 0 ? void 0 : _r[sku]) || 0);
+        const cornwallNeed = Number(((_s = s.cornwallInsertReplenishment) === null || _s === void 0 ? void 0 : _s[sku]) || 0);
+        const required = productionNeed + bufferNeed + damageNeed + cornwallNeed;
+        return Math.max(0, required - Number(r.ready || 0) - Number(r.awaiting_cut || 0));
     }
     function renderPrintCard(x) {
         var _a;
@@ -1291,7 +1299,7 @@ async function insertProductionPage() {
     if (inventorySearch)
         inventorySearch.oninput = render;
     try {
-        await refreshInsertDemand();
+        await Promise.all([refreshInsertDemand(), refreshForgeInsertProductionSettings()]);
         ensureCornwallInsertReplenishment(s, ps);
         render();
         setForgeCloudSync('synced', 'Insert demand synced');
@@ -1807,6 +1815,83 @@ async function loadPalDemandSnapshot(s, products) {
         overrides,
         mapped_variants: Number(palInventoryData.mapped_variants || 0),
         synced_at: palInventoryData.synced_at || null
+    };
+}
+function insertProductionSettingsFromSettings(settings) {
+    var _r, _s, _t;
+    const cfg = (settings === null || settings === void 0 ? void 0 : settings.insert_production_settings) || {};
+    return {
+        buffer_target: Math.max(0, Math.round(Number((_r = cfg.buffer_target) !== null && _r !== void 0 ? _r : 0))),
+        reorder_level: Math.max(0, Math.round(Number((_s = cfg.reorder_level) !== null && _s !== void 0 ? _s : 4))),
+        cornwall_target: Math.max(0, Math.round(Number((_t = cfg.cornwall_target) !== null && _t !== void 0 ? _t : 2)))
+    };
+}
+let forgeInsertProductionSettings = { buffer_target: 0, reorder_level: 4, cornwall_target: 2 };
+async function refreshForgeInsertProductionSettings() {
+    try {
+        const data = await cloudFetch('/settings');
+        forgeInsertProductionSettings = insertProductionSettingsFromSettings(data.settings || {});
+    }
+    catch (e) {
+        forgeInsertProductionSettings = { buffer_target: 0, reorder_level: 4, cornwall_target: 2 };
+    }
+    return forgeInsertProductionSettings;
+}
+async function insertProductionSettingsPage() {
+    const badge = document.getElementById('insertProductionSettingsBadge');
+    const bufferEl = document.getElementById('factoryInsertBufferTarget');
+    const reorderEl = document.getElementById('factoryInsertReorderLevel');
+    const cornwallEl = document.getElementById('cornwallInsertSpareTarget');
+    const saveBtn = document.getElementById('saveInsertProductionSettings');
+    if (!bufferEl || !reorderEl || !cornwallEl || !saveBtn)
+        return;
+    function setBadge(state, text) {
+        if (!badge)
+            return;
+        badge.className = 'badge ' + (state === 'ok' ? 'success' : state === 'error' ? 'danger' : 'info');
+        badge.textContent = text;
+    }
+    try {
+        const data = await cloudFetch('/settings');
+        const cfg = insertProductionSettingsFromSettings(data.settings || {});
+        bufferEl.value = cfg.buffer_target;
+        reorderEl.value = cfg.reorder_level;
+        cornwallEl.value = cfg.cornwall_target;
+        setBadge('ok', 'Saved');
+    }
+    catch (e) {
+        setBadge('error', 'Load error');
+    }
+    saveBtn.onclick = async () => {
+        const cfg = {
+            buffer_target: Math.max(0, Math.round(Number(bufferEl.value || 0))),
+            reorder_level: Math.max(0, Math.round(Number(reorderEl.value || 0))),
+            cornwall_target: Math.max(0, Math.round(Number(cornwallEl.value || 0)))
+        };
+        if (cfg.buffer_target > 0 && cfg.reorder_level > cfg.buffer_target) {
+            alert('The reorder alert level cannot be higher than the buffer target.');
+            return;
+        }
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+        setBadge('info', 'Saving…');
+        try {
+            await cloudFetch('/settings/insert_production_settings', {
+                method: 'PUT',
+                body: JSON.stringify({ value: cfg })
+            });
+            forgeInsertProductionSettings = cfg;
+            setBadge('ok', 'Saved');
+            setForgeCloudSync('synced', 'Insert production settings saved');
+        }
+        catch (e) {
+            setBadge('error', 'Save error');
+            alert('Could not save insert production settings: ' + e.message);
+        }
+        finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Insert Settings';
+        }
     };
 }
 async function stockTargetSettingsPage() {
@@ -4083,7 +4168,9 @@ function forgeInsertReady(s, sku) { var _a, _b; return Number(((_b = (_a = s.ins
 function forgeConsumableStock(s, key) { var _a, _b; return Number(((_b = (_a = s.consumables) === null || _a === void 0 ? void 0 : _a[key]) === null || _b === void 0 ? void 0 : _b.stock) || 0); }
 function cornwallBoxStock(s) { var _a; return Number(((_a = s.cornwallReworkStock) === null || _a === void 0 ? void 0 : _a.clear_boxes) || 0); }
 function cornwallInsertStock(s, sku) { var _a, _b; return Number(((_b = (_a = s.cornwallReworkStock) === null || _a === void 0 ? void 0 : _a.inserts) === null || _b === void 0 ? void 0 : _b[sku]) || 0); }
-function cornwallInsertTarget() { return 2; }
+function cornwallInsertTarget() {
+    return Math.max(0, Number(forgeInsertProductionSettings.cornwall_target || 0));
+}
 function damageReworkReady(s, job) {
     const r = damageReworkRequirements(job);
     if (r.route === 'cornwall') {

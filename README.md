@@ -1745,3 +1745,14 @@ No Worker or D1 schema change is required.
 - Removed stale Dashboard dependence on the older `/shopify/demand` calculation.
 - Worker remains v3v.
 - No D1 migration required.
+
+## v0.21.3 — Configurable Insert Buffer
+- General Settings now includes Insert Production settings.
+- Factory Insert Buffer Target defaults to 0.
+- Factory Reorder Alert Level defaults to 4.
+- Cornwall Spare Insert Target defaults to 2.
+- Current Pal production demand is always covered.
+- Factory buffer only replenishes when ready stock drops below the reorder level.
+- Example: target 10 / reorder 4 means stock at 9,8,7,6,5,4 is left alone; at 3 it replenishes back toward 10.
+- Cornwall spare stock remains separate.
+- Worker remains v3v; no D1 migration required.

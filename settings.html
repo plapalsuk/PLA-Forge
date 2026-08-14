@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0212"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0213"></head>
 <body class="forge-protected"><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
@@ -60,7 +60,37 @@
   </div>
 </section>
 
-<div class="footer-note">PLA Forge v0.21.2 · Manufacturing &amp; Inventory System</div></main></div><script src="assets/forge.js?v=0212"></script><script>forgeBoot(async function(){await generalSettingsPage();await stockTargetSettingsPage();})</script>
+
+<section class="card" id="insertProductionSettingsCard">
+  <div class="section-title">
+    <div>
+      <h2>Insert Production</h2>
+      <div class="small">Control how much ready insert stock PLA Forge keeps at the factory.</div>
+    </div>
+    <span class="badge info" id="insertProductionSettingsBadge">Loading…</span>
+  </div>
+  <div class="stock-target-default-grid">
+    <label>
+      <span>Factory Insert Buffer Target</span>
+      <input class="number" id="factoryInsertBufferTarget" type="number" min="0" step="1" value="0">
+      <small>Extra ready inserts to hold once production requirements are covered.</small>
+    </label>
+    <label>
+      <span>Factory Reorder Alert Level</span>
+      <input class="number" id="factoryInsertReorderLevel" type="number" min="0" step="1" value="4">
+      <small>When ready stock drops below this level, replenish the buffer back to target.</small>
+    </label>
+    <label>
+      <span>Cornwall Spare Insert Target</span>
+      <input class="number" id="cornwallInsertSpareTarget" type="number" min="0" step="1" value="2">
+      <small>Separate spare insert stock to maintain at Cornwall.</small>
+    </label>
+  </div>
+  <div class="shopify-actions">
+    <button class="btn" id="saveInsertProductionSettings">Save Insert Settings</button>
+  </div>
+</section>
+<div class="footer-note">PLA Forge v0.21.3 · Manufacturing &amp; Inventory System</div></main></div><script src="assets/forge.js?v=0213"></script><script>forgeBoot(async function(){await generalSettingsPage();await stockTargetSettingsPage();await insertProductionSettingsPage();})</script>
 <script id="legacyBootFailsafe">
 (function(){
   window.setTimeout(function(){
