@@ -3633,6 +3633,28 @@ function getBarcodePrinterName() {
     const s = state();
     return ((_a = s.printerRoles) === null || _a === void 0 ? void 0 : _a.barcode) || localStorage.getItem('plaForgeBarcodePrinter') || 'Barcode / Label Printer';
 }
+function boxPrintHtml(sku, name, paper, orientation) {
+    return `<!doctype html><html><head><meta charset="utf-8"><style>
+  @page{size:${paper || 'A4'} ${orientation || 'portrait'};margin:8mm}
+  html,body{margin:0;background:white;color:black;font-family:Arial,sans-serif}
+  .sheet{min-height:90vh;border:3px solid #111;border-radius:14px;padding:40px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+  .brand{font-size:28px;font-weight:900;letter-spacing:2px;margin-bottom:45px}.name{font-size:48px;font-weight:900}.sku{font-size:26px;font-weight:800;margin-top:24px}
+  </style></head><body><div class="sheet"><div class="brand">PLA PALS</div><div class="name">${esc(name)}</div><div class="sku">${esc(sku)}</div></div></body></html>`;
+}
+async function queueSilentBoxPrint(sku, name, qty) {
+    const d = await cloudFetch('/settings'), s = d.settings || {};
+    const bridge = String(s.box_document_bridge || ''), printer = String(s.box_document_printer || '');
+    if (!bridge)
+        throw new Error('No Print Bridge selected in Settings → Labels & Printing.');
+    if (!printer)
+        throw new Error('No Box / Document printer selected.');
+    return cloudFetch('/print-jobs', { method: 'POST', body: JSON.stringify({
+            bridge_id: bridge, printer_name: printer, job_type: 'box_document', title: `${sku} · ${name}`,
+            content_html: boxPrintHtml(sku, name, String(s.box_document_paper_size || 'A4'), String(s.box_document_orientation || 'portrait')),
+            paper_size: String(s.box_document_paper_size || 'A4'), orientation: String(s.box_document_orientation || 'portrait'),
+            copies: Math.max(1, Math.round(Number(qty || 1)))
+        }) });
+}
 function printPalBarcode(sku, name) {
     const printer = getBarcodePrinterName();
     const w = window.open('', '_blank', 'width=520,height=360');
@@ -3818,7 +3840,7 @@ async function packingStationPage() {
       ${stockStrip(p)}
       <div class="batch-pack-bar"><div><strong>Batch Pack</strong><div class="small">Choose how many ${esc(p.name)} you are packing together.</div></div><div class="batch-qty"><button class="iconbtn batchMinus" data-sku="${p.sku}">−</button><input class="number batchQty" id="batch-${p.sku}" data-sku="${p.sku}" type="number" min="1" max="${maxBatch(p)}" value="${job.qty}"><button class="iconbtn batchPlus" data-sku="${p.sku}">+</button></div></div>
       <div class="packing-steps">${steps.map((n, i) => `<div class="${job.step > i + 1 ? 'done' : job.step === i + 1 ? 'active' : ''}"><b>${i + 1}</b><span>${n}</span>${job.qty > 1 ? `<em>× ${job.qty}</em>` : ''}</div>`).join('')}</div>
-      <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}">${job.step < 8 ? `Complete Step ${job.step} for all ${job.qty}` : `Print ${job.qty} Barcode${job.qty === 1 ? '' : 's'}`}</button>${job.step === 8 ? `<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>` : ''}</div>
+      <div class="packing-actions"><button class="btn secondary silentBoxPrint" data-sku="${p.sku}">Silent Print Box × ${job.qty}</button><button class="btn nextPackStep" data-sku="${p.sku}">${job.step < 8 ? `Complete Step ${job.step} for all ${job.qty}` : `Print ${job.qty} Barcode${job.qty === 1 ? '' : 's'}`}</button>${job.step === 8 ? `<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>` : ''}</div>
     </div>`;
         }).join('') || '<div class="bench-empty">No Pals are currently ready to pack.</div>';
         awaitingList.innerHTML = awaiting.map(p => {
@@ -3853,6 +3875,23 @@ async function packingStationPage() {
                 j.qty = before;
                 render();
                 alert('Packing quantity could not be saved to Cloudflare.');
+            }
+        });
+        document.querySelectorAll('.silentBoxPrint').forEach(b => b.onclick = async () => {
+            const sku = b.dataset.sku, p = pals.find(x => x.sku === sku), j = s.packingJobs[sku] || { qty: 1 }, qty = Math.max(1, Number(j.qty || 1));
+            const original = b.textContent;
+            b.disabled = true;
+            b.textContent = 'Queuing…';
+            try {
+                await queueSilentBoxPrint(sku, (p === null || p === void 0 ? void 0 : p.name) || sku, qty);
+                b.textContent = `Queued × ${qty} ✓`;
+                setForgeCloudSync('synced', `Box print queued · ${sku}`);
+                setTimeout(() => { b.disabled = false; b.textContent = original; }, 1500);
+            }
+            catch (e) {
+                alert('Silent box print failed: ' + e.message);
+                b.disabled = false;
+                b.textContent = original;
             }
         });
         document.querySelectorAll('.nextPackStep').forEach(b => b.onclick = async () => {
@@ -4051,12 +4090,52 @@ async function barcodePrinterSettings() {
             printerControl('barcode', 'Pal Barcode Label', 'Used at Packing Station for the Pal barcode label.', 50, 30) +
                 printerControl('filament_label', 'Filament / RFID Spool Label', 'Reserved for the filament intake and RFID workflow.', 50, 30) +
                 documentPrinterControl() +
-                `<div class="card" style="margin-top:14px"><strong>Browser printing</strong><div class="small" style="margin-top:5px">PLA Forge stores the intended printer and label size in Cloudflare. The browser still requires the physical printer to be selected in the operating-system print dialog.</div></div>`;
+                `<div class="card" id="silentPrintBridgeCard" style="margin-top:14px"><div class="section-title"><div><h2>Silent Box Printing</h2><div class="small">Cloud print queue → Print Bridge computer → physical printer.</div></div><span class="badge info">PRINT BRIDGE</span></div><div id="silentPrintBridgeInner">Loading bridge…</div></div>`;
         bind();
+    }
+    async function renderBridgePanel() {
+        var _u;
+        const hostEl = host.querySelector('#silentPrintBridgeInner');
+        if (!hostEl)
+            return;
+        try {
+            const [status, settingsData] = await Promise.all([cloudFetch('/print-bridge/status'), cloudFetch('/settings')]);
+            const settings = settingsData.settings || {}, bridges = status.bridges || [];
+            const selectedId = String(settings.box_document_bridge || '');
+            const selected = bridges.find(b => b.id === selectedId) || bridges[0] || null;
+            const printers = (selected === null || selected === void 0 ? void 0 : selected.printers) || [];
+            const selectedPrinter = String(settings.box_document_printer || '');
+            hostEl.innerHTML = `<div class="label-settings-grid">
+              <label><span>Print Bridge</span><select id="silentBridgeSelect"><option value="">Select bridge</option>${bridges.map(b => `<option value="${esc(b.id)}"${b.id === selectedId ? ' selected' : ''}>${esc(b.name || b.id)}</option>`).join('')}</select></label>
+              <label><span>Box Printer</span><select id="silentPrinterSelect"><option value="">Select printer</option>${printers.map(p => `<option value="${esc(p)}"${p === selectedPrinter ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></label>
+              <button class="btn" id="saveSilentBridge">Save Bridge & Printer</button>
+              <button class="btn secondary" id="testSilentBridge" ${selected && selectedPrinter ? '' : 'disabled'}>Test Silent Print</button>
+            </div>
+            <div class="print-bridge-detail">${status.configured ? '' : '<strong class="danger-text">PRINT_BRIDGE_KEY is not configured in Cloudflare.</strong>'}${selected ? `<span>${esc(selected.platform || '')}</span><span>Last seen ${fmtDate(selected.last_seen)}</span><span>${printers.length} printer(s)</span><span>${((_u = selected.capabilities) === null || _u === void 0 ? void 0 : _u.ready) === false ? 'Bridge not ready' : 'Bridge ready'}</span>` : '<span>No bridge online yet.</span>'}</div>`;
+            const bridgeSel = hostEl.querySelector('#silentBridgeSelect');
+            bridgeSel.onchange = async () => { await cloudFetch('/settings/box_document_bridge', { method: 'PUT', body: JSON.stringify({ value: bridgeSel.value }) }); render(); await renderBridgePanel(); };
+            const saveBtn = hostEl.querySelector('#saveSilentBridge');
+            saveBtn.onclick = async () => { const pr = hostEl.querySelector('#silentPrinterSelect').value; await Promise.all([cloudFetch('/settings/box_document_bridge', { method: 'PUT', body: JSON.stringify({ value: bridgeSel.value }) }), cloudFetch('/settings/box_document_printer', { method: 'PUT', body: JSON.stringify({ value: pr }) })]); setForgeCloudSync('synced', 'Silent printer saved'); render(); await renderBridgePanel(); };
+            const test = hostEl.querySelector('#testSilentBridge');
+            if (test)
+                test.onclick = async () => { test.disabled = true; test.textContent = 'Queuing…'; try {
+                    await queueSilentBoxPrint('TEST001', 'PLA Forge Silent Print Test', 1);
+                    test.textContent = 'Queued ✓';
+                }
+                catch (e) {
+                    alert(e.message);
+                    test.disabled = false;
+                    test.textContent = 'Test Silent Print';
+                } };
+        }
+        catch (e) {
+            hostEl.innerHTML = `<div class="small danger-text">Bridge status unavailable: ${esc(e.message)}</div>`;
+        }
     }
     try {
         await refresh();
         render();
+        await renderBridgePanel();
         setForgeCloudSync('synced', 'Label settings synced');
     }
     catch (e) {

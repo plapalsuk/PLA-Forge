@@ -1756,3 +1756,8 @@ No Worker or D1 schema change is required.
 - Example: target 10 / reorder 4 means stock at 9,8,7,6,5,4 is left alone; at 3 it replenishes back toward 10.
 - Cornwall spare stock remains separate.
 - Worker remains v3v; no D1 migration required.
+
+## v0.22.0 — Silent Box Printing
+Requires Worker v3w and Print Bridge v1.0.
+Adds cloud print queue, Print Bridge discovery, test silent print, and Packing Station Silent Print Box button.
+Worker auto-creates print queue tables. Add Cloudflare secret PRINT_BRIDGE_KEY.

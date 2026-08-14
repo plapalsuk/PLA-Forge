@@ -2797,3 +2797,5 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
 .dispatch-shopify-banner span:not(.badge){font-size:10px;color:var(--muted)}
 .success-text{color:#62d994!important}
 @media(max-width:650px){.dispatch-shopify-banner{align-items:flex-start;flex-direction:column}}
+
+.print-bridge-detail{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:10px;color:var(--muted)}
