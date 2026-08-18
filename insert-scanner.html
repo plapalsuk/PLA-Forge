@@ -1,0 +1,120 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Insert Scanner | PLA Forge</title>
+<link rel="stylesheet" href="assets/forge.css?v=0221">
+</head><body class="forge-protected"><div class="app">
+<aside class="sidebar">
+ <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
+ <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
+ <nav class="nav" id="forgeNav">
+  <div class="navgroup">Forge Control</div>
+  <a href="index.html">⌂ Dashboard</a>
+  <div class="navgroup">Inventory</div>
+  <a href="pals.html">◆ Pals</a><a href="keyrings.html">◇ Keyrings</a><a href="stickers.html">▣ Sticker Sheets</a>
+  <div class="navgroup">The Workshop</div>
+  <a href="production.html">⚙ Production Planner</a><a href="plates.html">▱ Build Plates</a><a href="assembly.html">⌁ The Bench</a><a href="rework.html">↻ Rework</a>
+  <div class="navgroup">Packing & Dispatch</div>
+  <a href="packaging.html">□ Insert Production</a><a href="insert-scanner.html">▦ Insert Scanner</a><a href="packing-station.html">▣ Packing Station</a><a href="deliveries.html">⇢ Dispatch</a>
+  <div class="navgroup">Materials</div>
+  <a href="filament.html">≋ Filament</a><a href="recipes.html">⌘ Recipes</a><a href="parts.html">◫ Printed Parts</a><a href="consumables.html">▤ Consumables</a>
+  <div class="navgroup">Administration</div>
+  <a href="new-pal.html">＋ New Pal Setup</a>
+  <a href="data-health.html">! Data Health</a>
+  <div class="navgroup">Settings</div>
+  <a href="settings.html">⚙ General</a>
+  <a href="settings-printers.html">▱ 3D Printers</a>
+  <a href="settings-availability.html">◉ Product Availability</a>
+  <a href="settings-labels.html">▤ Labels &amp; Printing</a>
+  <a href="settings-employees.html">♙ Employees</a>
+  <a href="settings-system.html">! System &amp; Data</a>
+<a href="settings-shopify.html">◈ Shopify</a>
+ </nav>
+</aside>
+<main class="bench-main scanner-main">
+  <div class="topbar">
+    <div class="pageTitle">
+      <h1>Insert Scanner</h1>
+      <div class="small">Scan the Code 128 barcode printed on each completed insert to mark Cut &amp; Score as done.</div>
+    </div>
+    <div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Scan one finished insert at a time.</div></div></div>
+  </div>
+
+  <div class="insert-scanner-grid">
+    <section class="card scanner-camera-card">
+      <div class="section-title">
+        <div><h2>Camera Scanner</h2><div class="small">Use the rear camera on your phone or tablet.</div></div>
+        <span class="badge info">CODE 128</span>
+      </div>
+
+      <div id="insertScannerCamera" class="insert-scanner-camera">
+        <div class="scanner-camera-placeholder">
+          <div class="scanner-icon">▣</div>
+          <strong>Camera is off</strong>
+          <span>Tap Start Camera to scan an insert barcode.</span>
+        </div>
+        <div class="scanner-target"><span></span></div>
+      </div>
+
+      <div class="scanner-controls">
+        <button class="btn" id="startInsertScanner">Start Camera</button>
+        <button class="btn secondary" id="stopInsertScanner" disabled>Stop Camera</button>
+      </div>
+    </section>
+
+    <section class="card scanner-result-card">
+      <div id="insertScanStatus" class="insert-scan-status scan-idle">
+        <div class="scan-status-icon">✓</div>
+        <div>
+          <div class="small">LAST SCAN</div>
+          <h2 id="insertScanStatusTitle">Ready</h2>
+          <div id="insertScanStatusDetail" class="scan-status-detail">Start the camera or scan/type a Pal barcode.</div>
+        </div>
+      </div>
+
+      <div class="scanner-pal-summary">
+        <div><span>SKU</span><strong id="insertScannedSku">—</strong></div>
+        <div><span>Awaiting Cut &amp; Score</span><strong id="insertScanWaitingQty">0</strong></div>
+        <div><span>Ready Inserts</span><strong id="insertScanReadyQty">0</strong></div>
+      </div>
+
+      <div class="manual-scan-card">
+        <label><span>Manual / USB Scanner</span>
+          <div class="manual-scan-row">
+            <input id="insertManualScan" class="search" autocomplete="off" autocapitalize="characters" placeholder="Scan or type PLA001">
+            <button class="btn secondary" id="insertManualScanBtn">Complete Insert</button>
+          </div>
+        </label>
+      </div>
+    </section>
+  </div>
+
+  <section class="card scanner-recent-card">
+    <div class="section-title">
+      <div><h2>Recent Scans</h2><div class="small">The last completed inserts scanned on Forge.</div></div>
+      <a class="small accent" href="packaging.html">Open Insert Production →</a>
+    </div>
+    <div id="insertScanRecent"></div>
+  </section>
+
+  <div class="footer-note">PLA Forge v0.22.1 · Manufacturing &amp; Inventory System</div>
+</main></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.12.1/dist/quagga.min.js"></script>
+<script src="assets/forge.js?v=0221"></script>
+<script>forgeBoot(async function(){ insertScannerPage() })</script>
+<script id="legacyBootFailsafe">
+(function(){
+  window.setTimeout(function(){
+    var splash=document.getElementById('forgeBootSplash');
+    if(!splash) return;
+    var body=document.body;
+    if(body && body.className.indexOf('forge-protected') !== -1){
+      var status=splash.querySelector('.forge-boot-status');
+      var detail=splash.querySelector('.forge-boot-detail');
+      if(status) status.textContent='PLA Forge could not finish loading.';
+      if(detail) detail.textContent='Tap refresh to try again.';
+    }
+  },15000);
+})();
+</script>
+</body></html>

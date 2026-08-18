@@ -1761,3 +1761,17 @@ No Worker or D1 schema change is required.
 Requires Worker v3w and Print Bridge v1.0.
 Adds cloud print queue, Print Bridge discovery, test silent print, and Packing Station Silent Print Box button.
 Worker auto-creates print queue tables. Add Cloudflare secret PRINT_BRIDGE_KEY.
+
+## v0.22.1 — Insert Scanner
+- Added `insert-scanner.html`.
+- Added Insert Scanner to the Packing & Dispatch navigation.
+- Phone/tablet camera scans Code 128 Pal SKUs printed on insert sheets.
+- Each successful scan completes exactly ONE printed insert from Cut & Score:
+  - `awaiting_cut` decreases by 1.
+  - normal production increases Ready Inserts by 1.
+  - damage replacement demand is routed correctly.
+  - Cornwall spare demand is routed directly to Awaiting Dispatch, matching Insert Production behaviour.
+- A scan is rejected if that SKU has no printed insert waiting for Cut & Score, preventing accidental duplicate stock.
+- Includes vibration/beep feedback, recent scan history, duplicate-scan cooldown, and manual/USB scanner fallback.
+- Camera scanner uses Quagga2 from jsDelivr and requests the rear camera.
+- No Worker change or D1 migration is required beyond the existing v3x/v3w-compatible production state API.

@@ -1078,6 +1078,323 @@ async function assemblyPage() {
         render();
     });
 }
+async function insertScannerPage() {
+    installForgeCloudSyncBadge();
+    if (!forgeProductionCloudReady) {
+        try {
+            await hydrateProductionCloud();
+        }
+        catch (e) {
+            showCloudRequiredError(e.message);
+            return;
+        }
+    }
+    let s = cloudOperationalState();
+    const ps = await load('products');
+    const pals = ps.filter(p => p.type === 'pal');
+    const palBySku = Object.fromEntries(pals.map(p => [String(p.sku || '').toUpperCase(), p]));
+    const cameraHost = document.querySelector('#insertScannerCamera');
+    const statusCard = document.querySelector('#insertScanStatus');
+    const statusTitle = document.querySelector('#insertScanStatusTitle');
+    const statusDetail = document.querySelector('#insertScanStatusDetail');
+    const scannedSku = document.querySelector('#insertScannedSku');
+    const waitingQty = document.querySelector('#insertScanWaitingQty');
+    const readyQty = document.querySelector('#insertScanReadyQty');
+    const recentHost = document.querySelector('#insertScanRecent');
+    const manualInput = document.querySelector('#insertManualScan');
+    const manualBtn = document.querySelector('#insertManualScanBtn');
+    const startBtn = document.querySelector('#startInsertScanner');
+    const stopBtn = document.querySelector('#stopInsertScanner');
+    let scannerRunning = false;
+    let scanBusy = false;
+    let lastCode = '';
+    let lastCodeAt = 0;
+    function rec(sku) {
+        s.inserts = s.inserts || {};
+        s.inserts[sku] = s.inserts[sku] || { awaiting_cut: 0, ready: 0 };
+        return s.inserts[sku];
+    }
+    function setStatus(kind, title, detail, sku) {
+        if (!statusCard)
+            return;
+        statusCard.classList.remove('scan-success', 'scan-warning', 'scan-error', 'scan-idle');
+        statusCard.classList.add(kind === 'success' ? 'scan-success' :
+            kind === 'warning' ? 'scan-warning' :
+                kind === 'error' ? 'scan-error' : 'scan-idle');
+        if (statusTitle)
+            statusTitle.textContent = title;
+        if (statusDetail)
+            statusDetail.textContent = detail;
+        if (scannedSku)
+            scannedSku.textContent = sku || '—';
+    }
+    function beep(ok) {
+        try {
+            if (navigator.vibrate)
+                navigator.vibrate(ok ? [70] : [120, 80, 120]);
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext)
+                return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = ok ? 880 : 220;
+            gain.gain.setValueAtTime(0.06, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.12);
+        }
+        catch (_v) { }
+    }
+    function renderCounters(sku) {
+        const r = sku ? rec(sku) : { awaiting_cut: 0, ready: 0 };
+        if (waitingQty)
+            waitingQty.textContent = Number(r.awaiting_cut || 0);
+        if (readyQty)
+            readyQty.textContent = Number(r.ready || 0);
+    }
+    function renderRecent() {
+        const rows = (s.insertHistory || [])
+            .filter(x => x.action === 'scanner_cut_score_complete')
+            .slice(-10)
+            .reverse();
+        if (!recentHost)
+            return;
+        recentHost.innerHTML = rows.length ? rows.map(x => `
+          <div class="scan-recent-row">
+            <div><strong>${esc(x.name || x.sku)}</strong><div class="sku">${esc(x.sku)}</div></div>
+            <div class="scan-recent-meta"><strong>+${Number(x.qty || 1)} Ready</strong><span>${fmtDate(x.created_at)}</span></div>
+          </div>
+        `).join('') : '<div class="bench-empty">No inserts scanned yet.</div>';
+    }
+    function routeCompletedInsert(sku) {
+        var _v;
+        const r = rec(sku);
+        if (Number(r.awaiting_cut || 0) <= 0) {
+            return { ok: false, reason: 'No printed inserts are waiting for Cut & Score.' };
+        }
+        r.awaiting_cut = Math.max(0, Number(r.awaiting_cut || 0) - 1);
+        let remaining = 1;
+        let route = 'factory_ready';
+        // Replacement insert demand is satisfied first.
+        s.damageInsertDemand = s.damageInsertDemand || {};
+        const damageNeed = Number(s.damageInsertDemand[sku] || 0);
+        if (remaining > 0 && damageNeed > 0) {
+            r.ready = Number(r.ready || 0) + 1;
+            s.damageInsertDemand[sku] = Math.max(0, damageNeed - 1);
+            remaining = 0;
+            route = 'damage_rework';
+        }
+        // Then Cornwall spare replenishment.
+        s.cornwallInsertReplenishment = s.cornwallInsertReplenishment || {};
+        const cornwallNeed = Number(s.cornwallInsertReplenishment[sku] || 0);
+        if (remaining > 0 && cornwallNeed > 0) {
+            const p = palBySku[String(sku).toUpperCase()];
+            const now = new Date().toISOString();
+            s.awaitingDispatch = s.awaitingDispatch || [];
+            s.awaitingDispatch.push({
+                id: makeId(),
+                item_type: 'cornwall_insert_spare',
+                sku,
+                name: (p === null || p === void 0 ? void 0 : p.name) || sku,
+                qty: 1,
+                status: 'awaiting_dispatch',
+                packed_at: now,
+                locked_destination: 'cornwall',
+                supply_label: 'Cornwall Spare Insert',
+                created_by: ((_v = currentForgeUser()) === null || _v === void 0 ? void 0 : _v.email) || ''
+            });
+            s.cornwallInsertReplenishment[sku] = Math.max(0, cornwallNeed - 1);
+            remaining = 0;
+            route = 'cornwall_spare';
+        }
+        // Normal production becomes ready factory stock.
+        if (remaining > 0) {
+            r.ready = Number(r.ready || 0) + 1;
+        }
+        return { ok: true, route };
+    }
+    async function processCode(rawCode) {
+        var _v;
+        if (scanBusy)
+            return;
+        const code = String(rawCode || '').trim().toUpperCase();
+        if (!code)
+            return;
+        const nowMs = Date.now();
+        if (code === lastCode && nowMs - lastCodeAt < 2200)
+            return;
+        lastCode = code;
+        lastCodeAt = nowMs;
+        const pal = palBySku[code];
+        if (!pal) {
+            setStatus('error', 'Barcode not recognised', `${code} is not a PLA Pal SKU in Forge.`, code);
+            renderCounters('');
+            beep(false);
+            return;
+        }
+        const r = rec(pal.sku);
+        if (Number(r.awaiting_cut || 0) <= 0) {
+            setStatus('warning', 'Nothing waiting to complete', `${pal.name} has no printed inserts currently waiting for Cut & Score.`, pal.sku);
+            renderCounters(pal.sku);
+            beep(false);
+            return;
+        }
+        scanBusy = true;
+        const before = JSON.parse(JSON.stringify(s));
+        const result = routeCompletedInsert(pal.sku);
+        if (!result.ok) {
+            scanBusy = false;
+            setStatus('warning', 'Nothing waiting to complete', result.reason, pal.sku);
+            renderCounters(pal.sku);
+            beep(false);
+            return;
+        }
+        s.insertHistory = s.insertHistory || [];
+        s.insertHistory.push({
+            id: makeId(),
+            sku: pal.sku,
+            name: pal.name,
+            qty: 1,
+            action: 'scanner_cut_score_complete',
+            route: result.route,
+            created_at: new Date().toISOString(),
+            updated_by: ((_v = currentForgeUser()) === null || _v === void 0 ? void 0 : _v.email) || ''
+        });
+        setStatus('idle', 'Saving…', `${pal.name} · ${pal.sku}`, pal.sku);
+        try {
+            await save(s);
+            const routeText = result.route === 'cornwall_spare' ? 'Completed and routed to Cornwall Dispatch.' :
+                result.route === 'damage_rework' ? 'Completed and reserved for rework.' :
+                    'Completed and added to Ready Inserts.';
+            setStatus('success', 'Insert complete ✓', `${pal.name} · ${routeText}`, pal.sku);
+            renderCounters(pal.sku);
+            renderRecent();
+            beep(true);
+        }
+        catch (e) {
+            s = before;
+            setStatus('error', 'Could not save scan', 'Cloudflare did not accept the update. Please scan again.', pal.sku);
+            renderCounters(pal.sku);
+            beep(false);
+        }
+        finally {
+            scanBusy = false;
+        }
+    }
+    function stopScanner() {
+        scannerRunning = false;
+        if (window.Quagga && Quagga.stop) {
+            try {
+                Quagga.stop();
+            }
+            catch (_v) { }
+        }
+        if (startBtn)
+            startBtn.disabled = false;
+        if (stopBtn)
+            stopBtn.disabled = true;
+        if (cameraHost)
+            cameraHost.classList.remove('camera-live');
+    }
+    async function startScanner() {
+        if (scannerRunning)
+            return;
+        if (!window.Quagga) {
+            setStatus('error', 'Scanner library unavailable', 'Check your internet connection, then refresh the page.', '');
+            return;
+        }
+        scannerRunning = true;
+        if (startBtn)
+            startBtn.disabled = true;
+        if (stopBtn)
+            stopBtn.disabled = false;
+        if (cameraHost)
+            cameraHost.classList.add('camera-live');
+        setStatus('idle', 'Camera starting…', 'Point the camera at the Code 128 barcode on the insert.', '');
+        Quagga.init({
+            inputStream: {
+                name: 'Live',
+                type: 'LiveStream',
+                target: cameraHost,
+                constraints: {
+                    facingMode: 'environment',
+                    width: { min: 640, ideal: 1280 },
+                    height: { min: 480, ideal: 720 }
+                },
+                area: {
+                    top: '20%',
+                    right: '8%',
+                    left: '8%',
+                    bottom: '20%'
+                }
+            },
+            decoder: {
+                readers: ['code_128_reader']
+            },
+            locate: true,
+            locator: {
+                patchSize: 'medium',
+                halfSample: true
+            },
+            frequency: 10
+        }, function (err) {
+            if (err) {
+                scannerRunning = false;
+                if (startBtn)
+                    startBtn.disabled = false;
+                if (stopBtn)
+                    stopBtn.disabled = true;
+                setStatus('error', 'Camera could not start', err.message || String(err), '');
+                return;
+            }
+            Quagga.start();
+            setStatus('idle', 'Ready to scan', 'Hold the barcode inside the scan window.', '');
+        });
+        Quagga.offDetected();
+        Quagga.onDetected(function (result) {
+            var _v;
+            const code = (_v = result === null || result === void 0 ? void 0 : result.codeResult) === null || _v === void 0 ? void 0 : _v.code;
+            if (code)
+                processCode(code);
+        });
+    }
+    if (manualBtn) {
+        manualBtn.onclick = () => {
+            processCode((manualInput === null || manualInput === void 0 ? void 0 : manualInput.value) || '');
+            if (manualInput) {
+                manualInput.value = '';
+                manualInput.focus();
+            }
+        };
+    }
+    if (manualInput) {
+        manualInput.onkeydown = e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                manualBtn === null || manualBtn === void 0 ? void 0 : manualBtn.click();
+            }
+        };
+    }
+    if (startBtn)
+        startBtn.onclick = startScanner;
+    if (stopBtn)
+        stopBtn.onclick = stopScanner;
+    renderRecent();
+    renderCounters('');
+    setStatus('idle', 'Ready', 'Start the camera or scan/type a Pal barcode.', '');
+    // Start automatically on phones/tablets after the first tap if browser policy allows.
+    // We leave the visible Start Camera button because iOS may require a user gesture.
+    await startForgeLiveSync(async (fresh) => {
+        s = JSON.parse(JSON.stringify(fresh));
+        renderRecent();
+        const current = String((scannedSku === null || scannedSku === void 0 ? void 0 : scannedSku.textContent) || '').trim();
+        if (current && current !== '—')
+            renderCounters(current);
+    });
+}
 async function insertProductionPage() {
     installForgeCloudSyncBadge();
     if (!forgeProductionCloudReady) {
@@ -4118,15 +4435,19 @@ async function barcodePrinterSettings() {
             saveBtn.onclick = async () => { const pr = hostEl.querySelector('#silentPrinterSelect').value; await Promise.all([cloudFetch('/settings/box_document_bridge', { method: 'PUT', body: JSON.stringify({ value: bridgeSel.value }) }), cloudFetch('/settings/box_document_printer', { method: 'PUT', body: JSON.stringify({ value: pr }) })]); setForgeCloudSync('synced', 'Silent printer saved'); render(); await renderBridgePanel(); };
             const test = hostEl.querySelector('#testSilentBridge');
             if (test)
-                test.onclick = async () => { test.disabled = true; test.textContent = 'Queuing…'; try {
-                    await queueSilentBoxPrint('TEST001', 'PLA Forge Silent Print Test', 1);
-                    test.textContent = 'Queued ✓';
-                }
-                catch (e) {
-                    alert(e.message);
-                    test.disabled = false;
-                    test.textContent = 'Test Silent Print';
-                } };
+                test.onclick = async () => {
+                    test.disabled = true;
+                    test.textContent = 'Queuing…';
+                    try {
+                        await queueSilentBoxPrint('TEST001', 'PLA Forge Silent Print Test', 1);
+                        test.textContent = 'Queued ✓';
+                    }
+                    catch (e) {
+                        alert(e.message);
+                        test.disabled = false;
+                        test.textContent = 'Test Silent Print';
+                    }
+                };
         }
         catch (e) {
             hostEl.innerHTML = `<div class="small danger-text">Bridge status unavailable: ${esc(e.message)}</div>`;
