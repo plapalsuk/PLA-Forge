@@ -4410,7 +4410,7 @@ async function packingStationPage() {
       ${stockStrip(p)}
       <div class="batch-pack-bar"><div><strong>Batch Pack</strong><div class="small">Choose how many ${esc(p.name)} you are packing together.</div></div><div class="batch-qty"><button class="iconbtn batchMinus" data-sku="${p.sku}">−</button><input class="number batchQty" id="batch-${p.sku}" data-sku="${p.sku}" type="number" min="1" max="${maxBatch(p)}" value="${job.qty}"><button class="iconbtn batchPlus" data-sku="${p.sku}">+</button></div></div>
       <div class="packing-steps">${steps.map((n, i) => `<div class="${job.step > i + 1 ? 'done' : job.step === i + 1 ? 'active' : ''}"><b>${i + 1}</b><span>${n}</span>${job.qty > 1 ? `<em>× ${job.qty}</em>` : ''}</div>`).join('')}</div>
-      <div class="packing-actions"><button class="btn secondary silentBoxPrint" data-sku="${p.sku}">Silent Print Box × ${job.qty}</button><button class="btn nextPackStep" data-sku="${p.sku}">${job.step < 8 ? `Complete Step ${job.step} for all ${job.qty}` : `Print ${job.qty} Barcode${job.qty === 1 ? '' : 's'}`}</button>${job.step === 8 ? `<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>` : ''}</div>
+      <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}">${job.step < 8 ? `Complete Step ${job.step} for all ${job.qty}` : `Print ${job.qty} Barcode${job.qty === 1 ? '' : 's'}`}</button>${job.step === 8 ? `<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>` : ''}</div>
     </div>`;
         }).join('') || '<div class="bench-empty">No Pals are currently ready to pack.</div>';
         awaitingList.innerHTML = awaiting.map(p => {
@@ -4445,23 +4445,6 @@ async function packingStationPage() {
                 j.qty = before;
                 render();
                 alert('Packing quantity could not be saved to Cloudflare.');
-            }
-        });
-        document.querySelectorAll('.silentBoxPrint').forEach(b => b.onclick = async () => {
-            const sku = b.dataset.sku, p = pals.find(x => x.sku === sku), j = s.packingJobs[sku] || { qty: 1 }, qty = Math.max(1, Number(j.qty || 1));
-            const original = b.textContent;
-            b.disabled = true;
-            b.textContent = 'Queuing…';
-            try {
-                await queueSilentBoxPrint(sku, (p === null || p === void 0 ? void 0 : p.name) || sku, qty);
-                b.textContent = `Queued × ${qty} ✓`;
-                setForgeCloudSync('synced', `Box print queued · ${sku}`);
-                setTimeout(() => { b.disabled = false; b.textContent = original; }, 1500);
-            }
-            catch (e) {
-                alert('Silent box print failed: ' + e.message);
-                b.disabled = false;
-                b.textContent = original;
             }
         });
         document.querySelectorAll('.nextPackStep').forEach(b => b.onclick = async () => {

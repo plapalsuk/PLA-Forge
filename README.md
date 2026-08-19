@@ -1857,3 +1857,8 @@ Example:
 
 No Worker or D1 migration required.
 Compatible with Worker v4.3 Pi print confirmation.
+
+## v0.22.7
+- Removed Silent Print Box from Packing Station.
+- Pi insert printing remains in Insert Production only.
+- Retains v0.22.6 pipeline-aware insert demand.
