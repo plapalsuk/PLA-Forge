@@ -3013,7 +3013,7 @@ async function buildPlatePlanner() {
     const colourDemandCards = document.querySelector('#colourDemandCards');
     const colourDemandEmpty = document.querySelector('#colourDemandEmpty');
     const checklistSearch = document.querySelector('#plateChecklistSearch');
-    let plateDraft = { id: null, colour: colours[0] || '', printer: '', name: '', items: [] };
+    let plateDraft = { id: null, code: '', colour: colours[0] || '', printer: '', name: '', items: [] };
     colourEl.innerHTML = colours.length ? colours.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('') : '<option value="">No filament colours found</option>';
     const activePrinters = (s.printers || []).filter(p => p.active !== false);
     printerEl.innerHTML = activePrinters.length
@@ -3477,20 +3477,65 @@ async function buildPlatePlanner() {
             alert('Add at least one print item to the plate.');
             return;
         }
-        const code = plateDraft.code || `PLATE-${String(s.plateSeq).padStart(4, '0')}`;
-        if (!plateDraft.code)
-            s.plateSeq++;
-        const p = Object.assign(Object.assign({}, plateDraft), { id: plateDraft.id || makeId(), code, status: startNow ? 'printing' : 'draft', created_at: plateDraft.created_at || new Date().toISOString() });
+        // Older cloud state can contain plateSeq as an object. Never stringify
+        // that into a code such as PLATE-[object Object].
+        function nextPlateNumber() {
+            const direct = Number(s.plateSeq);
+            if (Number.isFinite(direct) && direct > 0)
+                return Math.floor(direct);
+            if (s.plateSeq && typeof s.plateSeq === 'object') {
+                const candidates = [
+                    s.plateSeq.value,
+                    s.plateSeq.next,
+                    s.plateSeq.seq,
+                    s.plateSeq.number
+                ].map(Number).filter(Number.isFinite);
+                if (candidates.length)
+                    return Math.max(1, Math.floor(candidates[0]));
+            }
+            // Recover safely from existing Build Plate codes in cloud state.
+            const existingNumbers = (s.plates || [])
+                .map(p => {
+                const match = String(p.code || '').match(/^PLATE-(\d+)$/i);
+                return match ? Number(match[1]) : 0;
+            })
+                .filter(Number.isFinite);
+            return Math.max(1, ...existingNumbers.map(n => n + 1));
+        }
+        let code = String(plateDraft.code || '').trim();
+        if (!code || code === 'PLATE-[object Object]') {
+            const n = nextPlateNumber();
+            code = `PLATE-${String(n).padStart(4, '0')}`;
+            // Move the sequence forward using a plain number only.
+            s.plateSeq = n + 1;
+        }
+        // New plate drafts must always use a fresh browser id. Existing saved
+        // plates retain their id when loaded for editing.
+        const p = Object.assign(Object.assign({}, plateDraft), {
+            id: plateDraft.id || makeId(),
+            code,
+            status: startNow ? 'printing' : 'draft',
+            created_at: plateDraft.created_at || new Date().toISOString()
+        });
         if (startNow)
             p.started_at = new Date().toISOString();
         s.plates.push(JSON.parse(JSON.stringify(p)));
         try {
             await save(s);
-            plateDraft = { id: null, colour: colourEl.value, printer: printerEl.value, name: '', items: [] };
+            plateDraft = {
+                id: null,
+                code: '',
+                colour: colourEl.value,
+                printer: printerEl.value,
+                name: '',
+                items: []
+            };
             nameEl.value = '';
             drawAll();
         }
         catch (e) {
+            // Remove only the just-added local plate if the cloud save failed.
+            s.plates = (s.plates || []).filter(x => x.id !== p.id);
             alert('Build plate could not be saved to Cloudflare. Please check Cloud Sync before continuing.');
         }
     }

@@ -1797,3 +1797,13 @@ Worker auto-creates print queue tables. Add Cloudflare secret PRINT_BRIDGE_KEY.
   - the device comes back online.
 - Manual Refresh Cloud now refreshes in place instead of requiring a page reload.
 - No Worker update or D1 migration required.
+
+## v0.22.4 — Unique Build Plate Codes
+- Fixes new plates being saved as `PLATE-[object Object]`.
+- Safely converts/rebuilds the numeric plate sequence when older cloud state contains an object instead of a number.
+- New plates receive sequential codes such as PLATE-0001, PLATE-0002, PLATE-0003.
+- Every new plate receives a fresh id.
+- Editing an existing saved plate preserves its existing id/code.
+- After a successful save the local draft resets its id and code, preventing the next plate from replacing the previous one.
+- Failed saves remove only the temporary local plate.
+- No Worker or D1 migration required.
