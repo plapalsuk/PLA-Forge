@@ -2926,6 +2926,9 @@ async function buildPlatePlanner() {
     const s = cloudOperationalState();
     const ps = await load('products');
     const rs = await load('recipes');
+    // One source of truth: the same Pal demand snapshot used by
+    // Pal Inventory and Production Planner.
+    let demandSnapshot = await loadPalDemandSnapshot(s, ps);
     const pals = Object.fromEntries(ps.filter(p => p.type === 'pal').map(p => [p.sku, p]));
     const colours = [...new Set(rs.map(r => String(r.filament || '').trim()).filter(Boolean))].sort();
     const colourEl = document.querySelector('#plateColour');
@@ -2957,7 +2960,10 @@ async function buildPlatePlanner() {
         return p ? `${p.name}${p.model ? ` · ${p.model}` : ''}` : 'No printer assigned';
     }
     function recipeKey(r) { return groupKey(r); }
-    function demandFor(r) { return manufacturingNeed(s, r.sku); }
+    function demandFor(r) {
+        var _w;
+        return Math.max(0, Number(((_w = demandSnapshot.bySku[r.sku]) === null || _w === void 0 ? void 0 : _w.need_to_make) || 0));
+    }
     function draftQty(key) { return plateDraft.items.filter(i => i.inventory_key === key).reduce((a, i) => a + Number(i.qty || 0), 0); }
     function rowData() {
         const selected = String(plateDraft.colour || '').trim();
@@ -2968,6 +2974,7 @@ async function buildPlatePlanner() {
             const inv = partQty(s, key);
             const allocated = activePlateQty(s, key);
             const local = draftQty(key);
+            // Canonical Pal Need to Make minus colour-group work already covered.
             const remain = Math.max(0, demand - inv - allocated - local);
             const recoveryFiles = String(r.separate_stls || '').split(';').map(v => v.trim()).filter(Boolean);
             return { r, p, key, demand, inv, allocated, local, remain, recoveryFiles };
@@ -3433,6 +3440,14 @@ async function buildPlatePlanner() {
         // Keep the unsaved in-memory plate draft, but refresh all shared cloud state.
         Object.keys(s).forEach(k => delete s[k]);
         Object.assign(s, fresh);
+        try {
+            demandSnapshot = await loadPalDemandSnapshot(s, ps);
+        }
+        catch (e) {
+            console.error('Build Plate demand refresh failed', e);
+            setForgeCloudSync('error', 'Build Plate demand could not refresh');
+            return;
+        }
         drawAll();
     });
 }

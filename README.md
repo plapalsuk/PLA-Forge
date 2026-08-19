@@ -1775,3 +1775,11 @@ Worker auto-creates print queue tables. Add Cloudflare secret PRINT_BRIDGE_KEY.
 - Includes vibration/beep feedback, recent scan history, duplicate-scan cooldown, and manual/USB scanner fallback.
 - Camera scanner uses Quagga2 from jsDelivr and requests the rear camera.
 - No Worker change or D1 migration is required beyond the existing v3x/v3w-compatible production state API.
+
+## v0.22.2 — Canonical Build Plate Demand
+- Build Plates now uses the same canonical `need_to_make` value as Pal Inventory and Production Planner.
+- Removed Build Plates' older `manufacturingNeed()` demand source.
+- Example: Boat target 3 / stock 0 and Cornwall target 3 / stock 1 = Demand 5 everywhere.
+- Build Plates still deducts printed colour-group stock, active plate quantities and the unsaved plate draft when calculating Remaining.
+- Demand snapshot refreshes with live cloud updates.
+- No Worker update or D1 migration required.
