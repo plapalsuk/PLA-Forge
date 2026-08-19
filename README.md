@@ -1783,3 +1783,17 @@ Worker auto-creates print queue tables. Add Cloudflare secret PRINT_BRIDGE_KEY.
 - Build Plates still deducts printed colour-group stock, active plate quantities and the unsaved plate draft when calculating Remaining.
 - Demand snapshot refreshes with live cloud updates.
 - No Worker update or D1 migration required.
+
+## v0.22.3 — Resilient Live Cloud Sync
+- Live sync no longer stops behaving usefully after a transient fetch/CORS/network failure.
+- Lightweight cloud stamp check runs every 3 seconds.
+- A full cloud hydrate is forced every 20 seconds even when the lightweight stamp is unchanged.
+- This keeps Shopify stock, Forge targets and shared settings current as well as production state.
+- Failed sync attempts automatically retry; one failure does not terminate the polling loop.
+- Sync badge shows retry/error state rather than silently becoming stale.
+- Forge performs an immediate forced refresh when:
+  - the browser tab becomes visible,
+  - the window regains focus,
+  - the device comes back online.
+- Manual Refresh Cloud now refreshes in place instead of requiring a page reload.
+- No Worker update or D1 migration required.

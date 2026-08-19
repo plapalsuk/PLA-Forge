@@ -144,6 +144,10 @@ function setForgeCloudSync(state, message) {
 let forgeLiveSyncTimer = null;
 let forgeLastCloudStamp = null;
 let forgeLiveSyncBusy = false;
+let forgeLiveSyncLastFullRefresh = 0;
+let forgeLiveSyncFailures = 0;
+let forgeLiveSyncOnChange = null;
+let forgeLiveSyncWakeBound = false;
 async function forgeCloudStamp() {
     var _a, _b, _c;
     try {
@@ -180,31 +184,85 @@ async function forgeCloudStamp() {
 async function startForgeLiveSync(onChange) {
     if (forgeLiveSyncTimer)
         clearInterval(forgeLiveSyncTimer);
-    forgeLastCloudStamp = await forgeCloudStamp();
-    forgeLiveSyncTimer = setInterval(async () => {
+    forgeLiveSyncOnChange = onChange;
+    forgeLiveSyncFailures = 0;
+    forgeLiveSyncLastFullRefresh = Date.now();
+    try {
+        forgeLastCloudStamp = await forgeCloudStamp();
+    }
+    catch (_) {
+        forgeLastCloudStamp = null;
+    }
+    async function performLiveSync(forceFull = false, reason = '') {
         if (document.hidden || forgeLiveSyncBusy || forgeProductionCloudSaving)
             return;
         forgeLiveSyncBusy = true;
         try {
             const stamp = await forgeCloudStamp();
-            if (stamp && forgeLastCloudStamp && stamp !== forgeLastCloudStamp) {
-                setForgeCloudSync('syncing', 'Another device changed Forge data · refreshing');
-                const ok = await hydrateProductionCloud(true);
-                if (ok) {
-                    forgeLastCloudStamp = await forgeCloudStamp() || stamp;
-                    if (typeof onChange === 'function')
-                        await onChange(cloudOperationalState());
-                    setForgeCloudSync('synced', 'Live cloud update received');
+            const stampChanged = !!(stamp &&
+                forgeLastCloudStamp &&
+                stamp !== forgeLastCloudStamp);
+            // Full refresh is deliberately periodic even when the lightweight
+            // production stamp has not changed. Shopify inventory, location
+            // targets and shared settings can change independently of it.
+            const fullRefreshDue = forceFull ||
+                !forgeLiveSyncLastFullRefresh ||
+                (Date.now() - forgeLiveSyncLastFullRefresh >= 20000);
+            if (stampChanged || fullRefreshDue) {
+                setForgeCloudSync('syncing', reason ||
+                    (stampChanged
+                        ? 'Cloud data changed · refreshing'
+                        : 'Checking live Shopify + Forge data'));
+                const fresh = await hydrateProductionCloud(true);
+                forgeLiveSyncLastFullRefresh = Date.now();
+                if (stamp)
+                    forgeLastCloudStamp = stamp;
+                else {
+                    const refreshedStamp = await forgeCloudStamp();
+                    if (refreshedStamp)
+                        forgeLastCloudStamp = refreshedStamp;
                 }
+                if (fresh && typeof forgeLiveSyncOnChange === 'function')
+                    await forgeLiveSyncOnChange(cloudOperationalState());
+                forgeLiveSyncFailures = 0;
+                setForgeCloudSync('synced', 'Live cloud data is current');
             }
             else if (stamp && !forgeLastCloudStamp) {
                 forgeLastCloudStamp = stamp;
+                forgeLiveSyncFailures = 0;
+                setForgeCloudSync('synced', 'Cloud connection restored');
             }
+        }
+        catch (e) {
+            forgeLiveSyncFailures += 1;
+            // Do not kill live sync on a temporary Wi-Fi / Cloudflare error.
+            // The interval continues and retries automatically.
+            setForgeCloudSync(forgeLiveSyncFailures >= 2 ? 'error' : 'syncing', `Live sync retry ${forgeLiveSyncFailures} · ${e.message || e}`);
+            console.warn('PLA Forge live sync retry', forgeLiveSyncFailures, e);
         }
         finally {
             forgeLiveSyncBusy = false;
         }
-    }, 2000);
+    }
+    // Lightweight heartbeat. A full refresh is forced every 20 seconds.
+    forgeLiveSyncTimer = setInterval(() => performLiveSync(false), 3000);
+    // Browsers throttle timers when a tab sleeps/backgrounds. Refresh
+    // immediately when the user returns instead of waiting for the next cycle.
+    if (!forgeLiveSyncWakeBound) {
+        forgeLiveSyncWakeBound = true;
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && typeof forgeLiveSyncOnChange === 'function')
+                setTimeout(() => performLiveSync(true, 'Page active · refreshing cloud data'), 100);
+        });
+        window.addEventListener('focus', () => {
+            if (!document.hidden && typeof forgeLiveSyncOnChange === 'function')
+                setTimeout(() => performLiveSync(true, 'Window active · refreshing cloud data'), 100);
+        });
+        window.addEventListener('online', () => {
+            if (typeof forgeLiveSyncOnChange === 'function')
+                setTimeout(() => performLiveSync(true, 'Network restored · refreshing cloud data'), 100);
+        });
+    }
 }
 window.addEventListener('beforeunload', () => {
     if (forgeLiveSyncTimer)
@@ -221,10 +279,19 @@ function installForgeCloudSyncBadge() {
     wrap.innerHTML = '<span id="forgeCloudSyncBadge" class="badge info">Cloud Ready</span><button id="forgeCloudRefresh" class="btn ghost" type="button">Refresh Cloud</button>';
     host.appendChild(wrap);
     document.querySelector('#forgeCloudRefresh').onclick = async () => {
-        setForgeCloudSync('syncing', 'Refreshing from D1');
-        const ok = await hydrateProductionCloud(true);
-        if (ok)
-            location.reload();
+        setForgeCloudSync('syncing', 'Refreshing all live cloud data');
+        try {
+            const fresh = await hydrateProductionCloud(true);
+            forgeLiveSyncLastFullRefresh = Date.now();
+            forgeLastCloudStamp = await forgeCloudStamp();
+            if (fresh && typeof forgeLiveSyncOnChange === 'function')
+                await forgeLiveSyncOnChange(cloudOperationalState());
+            setForgeCloudSync('synced', 'Manual cloud refresh complete');
+        }
+        catch (e) {
+            setForgeCloudSync('error', e.message || 'Manual refresh failed');
+            alert('Cloud refresh failed: ' + (e.message || e));
+        }
     };
 }
 function showCloudRequiredError(message) {
