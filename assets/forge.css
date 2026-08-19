@@ -2851,3 +2851,13 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
   .insert-scan-status{grid-template-columns:44px 1fr;padding:14px}
   .scan-status-icon{width:42px;height:42px;font-size:22px}
 }
+
+/* v0.22.5 — Raspberry Pi Insert Print integration */
+.insert-queue-badges{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.insert-pi-action-row{align-items:end}
+.insert-pi-action-row .printViaPi{min-width:125px}
+@media(max-width:720px){
+  .insert-pi-action-row{display:grid!important;grid-template-columns:1fr 1fr}
+  .insert-pi-action-row .compact-label{grid-column:1/-1}
+  .insert-pi-action-row .btn,.insert-pi-action-row a.btn{width:100%;justify-content:center}
+}

@@ -1807,3 +1807,23 @@ Worker auto-creates print queue tables. Add Cloudflare secret PRINT_BRIDGE_KEY.
 - After a successful save the local draft resets its id and code, preventing the next plate from replacing the previous one.
 - Failed saves remove only the temporary local plate.
 - No Worker or D1 migration required.
+
+## v0.22.5 — Raspberry Pi Insert Printing
+Requires Worker v4.2.
+
+Flow:
+`Forge browser → Cloudflare Worker → bridge.pla-pals.co.uk → Raspberry Pi/CUPS`
+
+Security:
+- Browser never receives the Raspberry Pi API key.
+- Worker secret: `INSERT_PRINT_BRIDGE_API_KEY`
+- Optional Worker text variable: `INSERT_PRINT_BRIDGE_URL` (defaults to `https://bridge.pla-pals.co.uk`).
+
+Insert Production:
+- Print Queue keeps the existing Forge demand/UI workflow.
+- `Print via Pi` posts SKU + quantity to `/insert-print`.
+- Worker proxies to Pi `/print-insert` with secret `X-API-Key`.
+- Forge only deducts 210gsm card and increments Awaiting Cut & Score after the Pi confirms the print request.
+- `Mark Printed Manually` remains available as a fallback.
+- Pi health is displayed in the Print Queue via Worker `/insert-print/health`.
+- Existing Open PDF link remains as a troubleshooting/manual option.

@@ -1494,6 +1494,51 @@ async function insertProductionPage() {
     const urgentKpi = document.querySelector('#insertUrgentKpi');
     const printQueueCount = document.querySelector('#printQueueCount');
     const cutQueueCount = document.querySelector('#cutQueueCount');
+    const insertPrintBridgeStatus = document.querySelector('#insertPrintBridgeStatus');
+    async function refreshInsertPrintBridgeStatus() {
+        if (!insertPrintBridgeStatus)
+            return;
+        insertPrintBridgeStatus.className = 'badge info';
+        insertPrintBridgeStatus.textContent = 'Checking Pi…';
+        try {
+            const result = await cloudFetch('/insert-print/health');
+            if (result.online) {
+                insertPrintBridgeStatus.className = 'badge ok';
+                insertPrintBridgeStatus.textContent = 'Pi Printer Online';
+                insertPrintBridgeStatus.title = 'Raspberry Pi Forge Print Bridge is reachable.';
+            }
+            else {
+                insertPrintBridgeStatus.className = 'badge danger';
+                insertPrintBridgeStatus.textContent = 'Pi Printer Offline';
+                insertPrintBridgeStatus.title = result.error || 'Raspberry Pi Print Bridge is unavailable.';
+            }
+        }
+        catch (e) {
+            insertPrintBridgeStatus.className = 'badge danger';
+            insertPrintBridgeStatus.textContent = 'Pi Printer Offline';
+            insertPrintBridgeStatus.title = e.message || String(e);
+        }
+    }
+    async function recordPrintedInsert(sku, qty, reasonPrefix) {
+        var _x, _y, _z;
+        const r = rec(sku);
+        const cardStock = Number(((_y = (_x = s.consumables) === null || _x === void 0 ? void 0 : _x.card_210gsm) === null || _y === void 0 ? void 0 : _y.stock) || 0);
+        if (cardStock < qty) {
+            throw new Error(`Not enough 210gsm Card. Need ${qty} sheet${qty === 1 ? '' : 's'}, but only ${cardStock} available.`);
+        }
+        s.consumables.card_210gsm.stock = cardStock - qty;
+        s.consumableHistory = s.consumableHistory || [];
+        s.consumableHistory.push({
+            id: makeId(),
+            key: 'card_210gsm',
+            name: '210gsm Card',
+            qty: -qty,
+            reason: `${reasonPrefix || 'Insert printed'} · ${sku}`,
+            created_at: new Date().toISOString(),
+            updated_by: ((_z = currentForgeUser()) === null || _z === void 0 ? void 0 : _z.email) || ''
+        });
+        r.awaiting_cut = Number(r.awaiting_cut || 0) + qty;
+    }
     function rec(sku) {
         s.inserts[sku] = s.inserts[sku] || { awaiting_cut: 0, ready: 0 };
         return s.inserts[sku];
@@ -1533,11 +1578,12 @@ async function insertProductionPage() {
        <div><span>In Cut & Score</span><strong>${Number(x.r.awaiting_cut || 0)}</strong></div>
        <div><span>Need Print</span><strong class="accent">${x.need}</strong></div>
      </div>
-     <div class="insert-file-name">${x.file ? 'PDF linked from Google Drive' : 'No PDF mapped for this SKU'}</div>
-     <div class="insert-action-row">
-       ${x.file ? `<a class="btn secondary" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open / Print PDF</a>` : `<button class="btn secondary" disabled>No PDF</button>`}
-       <label class="compact-label"><span>Qty Printed</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" value="${Math.max(1, x.need || 1)}"></label>
-       <button class="btn markPrinted" data-sku="${x.p.sku}">Mark Printed</button>
+     <div class="insert-file-name">${x.file ? 'Artwork mapped · Pi fetches latest PDF from Google Drive' : 'Pi will resolve artwork by SKU from Google Drive'}</div>
+     <div class="insert-action-row insert-pi-action-row">
+       <label class="compact-label"><span>Qty to Print</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" value="${Math.max(1, x.need || 1)}"></label>
+       <button class="btn printViaPi" data-sku="${x.p.sku}">Print via Pi</button>
+       <button class="btn ghost markPrinted" data-sku="${x.p.sku}" title="Use only if the inserts were printed outside the Raspberry Pi workflow.">Mark Printed Manually</button>
+       ${x.file ? `<a class="btn ghost" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open PDF</a>` : ''}
      </div>
    </div>`;
     }
@@ -1589,38 +1635,64 @@ async function insertProductionPage() {
        <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
        <td><strong>${Number(x.r.ready || 0)}</strong></td>
      </tr>`).join('') || '<tr><td colspan="2">No matching On Sale Pals.</td></tr>';
-        document.querySelectorAll('.markPrinted').forEach(btn => btn.onclick = async () => {
-            var _a, _b, _c, _d;
-            const sku = btn.dataset.sku, r = rec(sku);
-            const qty = Math.max(1, Number(((_a = document.querySelector('#printed-' + sku)) === null || _a === void 0 ? void 0 : _a.value) || 1));
-            const cardStock = Number(((_c = (_b = s.consumables) === null || _b === void 0 ? void 0 : _b.card_210gsm) === null || _c === void 0 ? void 0 : _c.stock) || 0);
+        document.querySelectorAll('.printViaPi').forEach(btn => btn.onclick = async () => {
+            var _x, _y, _z;
+            const sku = btn.dataset.sku;
+            const qty = Math.max(1, Number(((_x = document.querySelector('#printed-' + sku)) === null || _x === void 0 ? void 0 : _x.value) || 1));
+            const cardStock = Number(((_z = (_y = s.consumables) === null || _y === void 0 ? void 0 : _y.card_210gsm) === null || _z === void 0 ? void 0 : _z.stock) || 0);
             if (cardStock < qty) {
                 alert(`Not enough 210gsm Card. Need ${qty} sheet${qty === 1 ? '' : 's'}, but only ${cardStock} available.`);
                 return;
             }
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Sending to Pi…';
+            try {
+                const result = await cloudFetch('/insert-print', {
+                    method: 'POST',
+                    body: JSON.stringify({ sku, quantity: qty })
+                });
+                if (!result.success || !result.printed)
+                    throw new Error(result.error || 'The Pi did not accept the print job.');
+                // Only move stock into Cut & Score AFTER the Pi confirms CUPS submission.
+                const before = JSON.parse(JSON.stringify(s));
+                try {
+                    await recordPrintedInsert(sku, qty, 'Pi insert print');
+                    await save(s);
+                }
+                catch (saveError) {
+                    s = before;
+                    throw new Error(`The Pi accepted the print job, but Forge could not record it. ` +
+                        `Do not print again until you reconcile this SKU. ${saveError.message || saveError}`);
+                }
+                btn.textContent = `Printed × ${qty} ✓`;
+                setForgeCloudSync('synced', `${sku} × ${qty} sent to Raspberry Pi printer`);
+                render();
+                refreshInsertPrintBridgeStatus();
+            }
+            catch (e) {
+                alert('Insert print failed: ' + (e.message || e));
+                btn.disabled = false;
+                btn.textContent = originalText;
+                refreshInsertPrintBridgeStatus();
+            }
+        });
+        document.querySelectorAll('.markPrinted').forEach(btn => btn.onclick = async () => {
+            var _x;
+            const sku = btn.dataset.sku;
+            const qty = Math.max(1, Number(((_x = document.querySelector('#printed-' + sku)) === null || _x === void 0 ? void 0 : _x.value) || 1));
             const before = JSON.parse(JSON.stringify(s));
-            s.consumables.card_210gsm.stock = cardStock - qty;
-            s.consumableHistory = s.consumableHistory || [];
-            s.consumableHistory.push({
-                id: makeId(),
-                key: 'card_210gsm',
-                name: '210gsm Card',
-                qty: -qty,
-                reason: `Insert printed · ${sku}`,
-                created_at: new Date().toISOString(),
-                updated_by: ((_d = currentForgeUser()) === null || _d === void 0 ? void 0 : _d.email) || ''
-            });
-            r.awaiting_cut = Number(r.awaiting_cut || 0) + qty;
             btn.disabled = true;
             btn.textContent = 'Saving…';
             try {
+                await recordPrintedInsert(sku, qty, 'Manual insert print');
                 await save(s);
                 render();
             }
             catch (e) {
                 s = before;
                 render();
-                alert('Printed inserts could not be saved to Cloudflare. Card stock and Cut & Score quantities have been rolled back.');
+                alert(e.message || 'Printed inserts could not be saved to Cloudflare.');
             }
         });
         document.querySelectorAll('.completeCut').forEach(btn => btn.onclick = async () => {
@@ -1693,6 +1765,7 @@ async function insertProductionPage() {
         setForgeCloudSync('error', e.message);
         return;
     }
+    refreshInsertPrintBridgeStatus();
     await startForgeLiveSync(async (fresh) => {
         s = JSON.parse(JSON.stringify(fresh));
         await refreshInsertDemand();
