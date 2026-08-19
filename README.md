@@ -1827,3 +1827,33 @@ Insert Production:
 - `Mark Printed Manually` remains available as a fallback.
 - Pi health is displayed in the Print Queue via Worker `/insert-print/health`.
 - Existing Open PDF link remains as a troubleshooting/manual option.
+
+## v0.22.6 — Pipeline-aware Insert Demand
+
+Insert Production no longer uses Pal `need_to_make` by itself.
+
+Normal insert requirement is now:
+  assembled Pals waiting to pack
++ Pal manufacturing `need_to_make`
++ active insert buffer requirement
++ damage/rework insert demand
++ Cornwall spare insert demand
+- Ready Inserts
+- inserts already Awaiting Cut & Score
+
+Why:
+- Packing Station consumes one Ready Insert per assembled Pal.
+- A Pal already assembled still needs an insert even though it is no longer included in manufacturing `need_to_make`.
+- Pals already Awaiting Dispatch / in transit are not counted because their insert has already been consumed at Packing completion.
+
+Example:
+- Alex gross finished-stock shortage: 9
+- 9 Alex Pals assembled in Forge
+- Manufacturing Need to Make: 0
+- Ready Alex Inserts: 4
+- Awaiting Cut & Score: 0
+- No buffer
+= Insert Production Need Print: 5
+
+No Worker or D1 migration required.
+Compatible with Worker v4.3 Pi print confirmation.

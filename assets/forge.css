@@ -2861,3 +2861,15 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
   .insert-pi-action-row .compact-label{grid-column:1/-1}
   .insert-pi-action-row .btn,.insert-pi-action-row a.btn{width:100%;justify-content:center}
 }
+
+/* v0.22.6 — Pipeline-aware Insert Demand */
+.insert-demand-reason{
+  margin-top:9px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.35;
+  background:rgba(255,255,255,.015);
+}

@@ -1547,40 +1547,88 @@ async function insertProductionPage() {
         var _r;
         return Math.max(0, Number(((_r = demandSnapshot.bySku[sku]) === null || _r === void 0 ? void 0 : _r.need_to_make) || 0));
     }
+    function assembledWaitingForInsert(sku) {
+        // Assembled Pals have been manufactured but have not yet consumed
+        // their character insert. Packing consumes one Ready Insert per Pal.
+        return Math.max(0, Number((s.assembled || {})[sku] || 0));
+    }
+    function normalInsertPipelineDemand(sku) {
+        // Inserts are required for:
+        //   1. Pals already assembled and waiting to be packed, and
+        //   2. Pals that still need to be manufactured.
+        //
+        // Awaiting Dispatch / in-transit Pals are intentionally NOT included:
+        // their insert was already consumed during Packing Station completion.
+        return assembledWaitingForInsert(sku) + currentProductionNeed(sku);
+    }
     function factoryBufferRequirement(sku) {
         const cfg = forgeInsertProductionSettings;
         const buffer = Math.max(0, Number(cfg.buffer_target || 0));
         const reorder = Math.max(0, Number(cfg.reorder_level || 0));
         if (buffer <= 0)
             return 0;
-        const ready = Math.max(0, Number(rec(sku).ready || 0));
-        return ready < reorder ? buffer : 0;
+        const r = rec(sku);
+        const ready = Math.max(0, Number(r.ready || 0));
+        const awaiting = Math.max(0, Number(r.awaiting_cut || 0));
+        // Replenish the buffer only when usable/WIP insert stock has fallen
+        // below the configured reorder point.
+        return (ready + awaiting) < reorder ? buffer : 0;
     }
-    function needPrint(sku) {
+    function insertDemandBreakdown(sku) {
         var _r, _s;
         const r = rec(sku);
-        const productionNeed = currentProductionNeed(sku);
+        const assembledNeed = assembledWaitingForInsert(sku);
+        const manufacturingNeed = currentProductionNeed(sku);
         const bufferNeed = factoryBufferRequirement(sku);
         const damageNeed = Number(((_r = s.damageInsertDemand) === null || _r === void 0 ? void 0 : _r[sku]) || 0);
         const cornwallNeed = Number(((_s = s.cornwallInsertReplenishment) === null || _s === void 0 ? void 0 : _s[sku]) || 0);
-        const required = productionNeed + bufferNeed + damageNeed + cornwallNeed;
-        return Math.max(0, required - Number(r.ready || 0) - Number(r.awaiting_cut || 0));
+        const ready = Math.max(0, Number(r.ready || 0));
+        const awaiting = Math.max(0, Number(r.awaiting_cut || 0));
+        const required = assembledNeed + manufacturingNeed + bufferNeed + damageNeed + cornwallNeed;
+        const need = Math.max(0, required - ready - awaiting);
+        return {
+            assembledNeed,
+            manufacturingNeed,
+            bufferNeed,
+            damageNeed,
+            cornwallNeed,
+            ready,
+            awaiting,
+            required,
+            need
+        };
+    }
+    function needPrint(sku) {
+        return insertDemandBreakdown(sku).need;
     }
     function renderPrintCard(x) {
         var _a;
+        const d = insertDemandBreakdown(x.p.sku);
+        const reasons = [];
+        if (d.assembledNeed > 0)
+            reasons.push(`${d.assembledNeed} assembled waiting to pack`);
+        if (d.manufacturingNeed > 0)
+            reasons.push(`${d.manufacturingNeed} still to manufacture`);
+        if (d.bufferNeed > 0)
+            reasons.push(`${d.bufferNeed} factory buffer target`);
+        if (d.damageNeed > 0)
+            reasons.push(`${d.damageNeed} rework`);
+        if (d.cornwallNeed > 0)
+            reasons.push(`${d.cornwallNeed} Cornwall spare`);
         return `<div class="insert-job-card print-job">
      <div class="assembly-card-head">
        <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
        ${Number(((_a = s.cornwallInsertReplenishment) === null || _a === void 0 ? void 0 : _a[x.p.sku]) || 0) > 0 ? badge(`CORNWALL +${Number(s.cornwallInsertReplenishment[x.p.sku] || 0)}`, 'info') : x.r.ready < 4 ? badge('URGENT', 'danger') : badge(`PRINT ${x.need}`, 'warning')}
      </div>
      <div class="insert-job-stats">
-       <div><span>Ready</span><strong>${Number(x.r.ready || 0)}</strong></div>
-       <div><span>In Cut & Score</span><strong>${Number(x.r.awaiting_cut || 0)}</strong></div>
+       <div><span>Ready</span><strong>${d.ready}</strong></div>
+       <div><span>In Cut & Score</span><strong>${d.awaiting}</strong></div>
        <div><span>Need Print</span><strong class="accent">${x.need}</strong></div>
      </div>
+     <div class="insert-demand-reason">${reasons.length ? `Required for: ${reasons.map(esc).join(' · ')}` : 'No outstanding pipeline demand.'}</div>
      <div class="insert-file-name">${x.file ? 'Artwork mapped · Pi fetches latest PDF from Google Drive' : 'Pi will resolve artwork by SKU from Google Drive'}</div>
      <div class="insert-action-row insert-pi-action-row">
-       <label class="compact-label"><span>Qty to Print</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" value="${Math.max(1, x.need || 1)}"></label>
+       <label class="compact-label"><span>Qty to Print</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" max="${Math.max(1, x.need)}" value="${Math.max(1, x.need || 1)}"></label>
        <button class="btn printViaPi" data-sku="${x.p.sku}">Print via Pi</button>
        <button class="btn ghost markPrinted" data-sku="${x.p.sku}" title="Use only if the inserts were printed outside the Raspberry Pi workflow.">Mark Printed Manually</button>
        ${x.file ? `<a class="btn ghost" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open PDF</a>` : ''}
@@ -1615,7 +1663,12 @@ async function insertProductionPage() {
         readyKpi.textContent = data.reduce((a, x) => a + Number(x.r.ready || 0), 0);
         cutKpi.textContent = data.reduce((a, x) => a + Number(x.r.awaiting_cut || 0), 0);
         printKpi.textContent = data.reduce((a, x) => a + x.need, 0);
-        urgentKpi.textContent = data.filter(x => Number(x.r.ready || 0) < 4).length;
+        urgentKpi.textContent = data.filter(x => {
+            const reorder = Math.max(0, Number(forgeInsertProductionSettings.reorder_level || 0));
+            if (reorder <= 0)
+                return false;
+            return Number(x.r.ready || 0) + Number(x.r.awaiting_cut || 0) < reorder;
+        }).length;
         if (printQueueCount)
             printQueueCount.textContent = `${printJobs.length} Job${printJobs.length === 1 ? '' : 's'}`;
         if (cutQueueCount)
