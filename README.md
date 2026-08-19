@@ -1862,3 +1862,13 @@ Compatible with Worker v4.3 Pi print confirmation.
 - Removed Silent Print Box from Packing Station.
 - Pi insert printing remains in Insert Production only.
 - Retains v0.22.6 pipeline-aware insert demand.
+
+## v0.22.8 — Raspberry Pi Thermal Pal Labels
+- Packing Station Step 8 now sends the whole batch to Cloudflare `/label-print`.
+- Cloudflare securely proxies to Pi `/print-label`; API key never reaches browser JS.
+- Payload: SKU, Pal name, batch quantity.
+- Batch is NOT completed by printing. Operator still applies labels and presses
+  `All X Barcodes Applied · Complete Batch`.
+- A failed label request leaves the batch at Step 8.
+- Insert printing remains exclusively in Insert Production.
+- Requires Worker v4.4.

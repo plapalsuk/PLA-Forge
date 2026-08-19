@@ -4410,7 +4410,7 @@ async function packingStationPage() {
       ${stockStrip(p)}
       <div class="batch-pack-bar"><div><strong>Batch Pack</strong><div class="small">Choose how many ${esc(p.name)} you are packing together.</div></div><div class="batch-qty"><button class="iconbtn batchMinus" data-sku="${p.sku}">−</button><input class="number batchQty" id="batch-${p.sku}" data-sku="${p.sku}" type="number" min="1" max="${maxBatch(p)}" value="${job.qty}"><button class="iconbtn batchPlus" data-sku="${p.sku}">+</button></div></div>
       <div class="packing-steps">${steps.map((n, i) => `<div class="${job.step > i + 1 ? 'done' : job.step === i + 1 ? 'active' : ''}"><b>${i + 1}</b><span>${n}</span>${job.qty > 1 ? `<em>× ${job.qty}</em>` : ''}</div>`).join('')}</div>
-      <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}">${job.step < 8 ? `Complete Step ${job.step} for all ${job.qty}` : `Print ${job.qty} Barcode${job.qty === 1 ? '' : 's'}`}</button>${job.step === 8 ? `<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>` : ''}</div>
+      <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}">${job.step < 8 ? `Complete Step ${job.step} for all ${job.qty}` : `Print ${job.qty} Label${job.qty === 1 ? '' : 's'} via Pi`}</button>${job.step === 8 ? `<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>` : ''}</div>
     </div>`;
         }).join('') || '<div class="bench-empty">No Pals are currently ready to pack.</div>';
         awaitingList.innerHTML = awaiting.map(p => {
@@ -4464,8 +4464,28 @@ async function packingStationPage() {
                 }
             }
             else {
-                for (let n = 0; n < j.qty; n++)
-                    printPalBarcode(sku, p.name);
+                const qty = Math.min(Number(j.qty || 1), maxBatch(p));
+                if (qty <= 0)
+                    return;
+                const originalText = b.textContent;
+                b.disabled = true;
+                b.textContent = 'Sending labels to Pi…';
+                try {
+                    const result = await cloudFetch('/label-print', {
+                        method: 'POST',
+                        body: JSON.stringify({ sku, name: p.name, quantity: qty })
+                    });
+                    if (!result.success || !result.printed)
+                        throw new Error(result.error || 'The Pi did not accept the label job.');
+                    b.textContent = `Labels sent × ${qty} ✓`;
+                    setForgeCloudSync('synced', `${sku} × ${qty} labels sent to Raspberry Pi printer`);
+                    setTimeout(() => render(), 900);
+                }
+                catch (e) {
+                    b.disabled = false;
+                    b.textContent = originalText;
+                    alert(`Labels could not be printed via the Raspberry Pi. The packing batch has NOT been completed.\n\n${e.message || e}`);
+                }
             }
         });
         document.querySelectorAll('.barcodeApplied').forEach(b => b.onclick = async () => {
