@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Insert Production | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0232"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Insert Production | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0233"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
  <nav class="nav" id="forgeNav">
@@ -39,6 +39,23 @@
 
 <div class="toolbar bench-toolbar"><input id="q" class="search" placeholder="Search On Sale Pal or SKU"><a class="btn secondary" href="insert-scanner.html">▦ Open Scanner</a></div>
 
+
+<div class="card live-printer-card">
+ <div class="section-title">
+  <div>
+   <h2>Current Printer Queue</h2>
+   <div class="small">Live Epson insert queue from CUPS. Printing jobs appear first.</div>
+  </div>
+  <div class="insert-queue-badges">
+   <span class="small" id="insertLivePrinterQueueUpdated">Loading…</span>
+   <span class="badge info" id="insertLivePrinterQueueCount">0 Jobs</span>
+  </div>
+ </div>
+ <div id="insertLivePrinterQueue" class="live-printer-list">
+  <div class="bench-empty">Loading printer queue…</div>
+ </div>
+</div>
+
 <div class="insert-workstations">
  <div class="card insert-workstation print-workstation">
    <div class="section-title">
@@ -78,8 +95,8 @@
   </table>
  </div>
 </div>
-<div class="footer-note">PLA Forge v0.23.2 · Manufacturing & Inventory System</div>
-</main></div><script src="assets/forge.js?v=0232"></script><script>forgeBoot(async function(){
+<div class="footer-note">PLA Forge v0.23.3 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=0233"></script><script>forgeBoot(async function(){
 insertProductionPage()
 })</script>
 <script id="legacyBootFailsafe">

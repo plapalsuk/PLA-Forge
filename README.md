@@ -1912,3 +1912,15 @@ Compatible with Worker v4.3 Pi print confirmation.
 - Shows `Ready for next sheet` when the same barcode is re-armed.
 - Fast optimistic scanning/background cloud saves from v0.23.1 retained.
 - No Worker or D1 change required.
+
+## v0.23.3 — Live Insert Printer Queue
+Requires Worker v4.7.
+- Adds live Current Printer Queue to Insert Production.
+- Polls the Pi/CUPS queue every 5 seconds.
+- Printing jobs sort before Waiting jobs.
+- Pal names are resolved in Forge using returned SKU metadata.
+- Legacy queue jobs with null SKU/quantity/submitted are displayed safely using CUPS job/status.
+- Empty state: No inserts waiting to print.
+- Print submissions refresh the queue immediately.
+- HTTP 202 Accepted from asynchronous /print-insert is treated as successful submission.
+- Initial print response no longer requires a CUPS job_id.

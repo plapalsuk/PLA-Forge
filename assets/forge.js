@@ -1568,6 +1568,11 @@ async function insertProductionPage() {
     const printQueueCount = document.querySelector('#printQueueCount');
     const cutQueueCount = document.querySelector('#cutQueueCount');
     const insertPrintBridgeStatus = document.querySelector('#insertPrintBridgeStatus');
+    const liveQueueHost = document.querySelector('#insertLivePrinterQueue');
+    const liveQueueCount = document.querySelector('#insertLivePrinterQueueCount');
+    const liveQueueUpdated = document.querySelector('#insertLivePrinterQueueUpdated');
+    let liveQueueTimer = null;
+    let liveQueueLoading = false;
     const extrasBtn = document.querySelector('#openInsertExtras');
     const failedBtn = document.querySelector('#openInsertFailed');
     const extrasModal = document.querySelector('#insertExtrasModal');
@@ -1597,6 +1602,84 @@ async function insertProductionPage() {
             insertPrintBridgeStatus.title = e.message || String(e);
         }
     }
+    function liveQueueRank(state) {
+        return String(state || '').toLowerCase() === 'printing' ? 0 : 1;
+    }
+
+    function liveQueueTime(value) {
+        if (!value) return '';
+        try { return new Date(value).toLocaleString(); }
+        catch { return String(value); }
+    }
+
+    function renderLiveInsertQueue(data) {
+        if (!liveQueueHost) return;
+        const jobs = (Array.isArray(data?.jobs) ? data.jobs : [])
+            .slice()
+            .sort((a,b) =>
+                liveQueueRank(a.state) - liveQueueRank(b.state) ||
+                String(a.job_id || '').localeCompare(String(b.job_id || ''))
+            );
+
+        if (liveQueueCount)
+            liveQueueCount.textContent = `${jobs.length} Job${jobs.length === 1 ? '' : 's'}`;
+        if (liveQueueUpdated)
+            liveQueueUpdated.textContent = `Updated ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+
+        if (!jobs.length) {
+            liveQueueHost.innerHTML = '<div class="bench-empty live-printer-empty">No inserts waiting to print</div>';
+            return;
+        }
+
+        liveQueueHost.innerHTML = jobs.map(job => {
+            const state = String(job.state || 'waiting').toLowerCase();
+            const sku = job.sku == null ? '' : String(job.sku).toUpperCase();
+            const pal = sku ? ps.find(p => String(p.sku || '').toUpperCase() === sku) : null;
+            const name = pal?.name || '';
+            const quantity = job.quantity == null ? null : Number(job.quantity);
+            const meta = sku ? `${esc(sku)}${quantity == null ? '' : ` · ×${quantity}`}` : '';
+            const status = job.status || (state === 'printing' ? 'Printing now' : 'Waiting to print');
+
+            return `<div class="live-printer-row ${state === 'printing' ? 'is-printing' : 'is-waiting'}">
+              <div class="live-printer-state">${state === 'printing' ? 'PRINTING' : 'WAITING'}</div>
+              <div class="live-printer-info">
+                ${name ? `<strong>${esc(name)}</strong>` : `<strong>${esc(job.job_id || 'CUPS Job')}</strong>`}
+                ${meta ? `<div class="sku">${meta}</div>` : ''}
+                <div class="live-printer-status">${esc(status)}</div>
+              </div>
+              <div class="live-printer-cups">
+                <span>CUPS JOB</span>
+                <strong>${esc(job.job_id || '—')}</strong>
+                ${job.submitted ? `<small>${esc(liveQueueTime(job.submitted))}</small>` : ''}
+              </div>
+            </div>`;
+        }).join('');
+    }
+
+    async function refreshLiveInsertQueue() {
+        if (liveQueueLoading) return;
+        liveQueueLoading = true;
+        try {
+            const data = await cloudFetch('/insert-print/queue');
+            renderLiveInsertQueue(data);
+        }
+        catch (e) {
+            if (liveQueueHost)
+                liveQueueHost.innerHTML = `<div class="bench-empty live-printer-error">Printer queue unavailable · ${esc(e.message || String(e))}</div>`;
+            if (liveQueueUpdated)
+                liveQueueUpdated.textContent = 'Queue unavailable';
+        }
+        finally {
+            liveQueueLoading = false;
+        }
+    }
+
+    function startLiveInsertQueue() {
+        if (liveQueueTimer) clearInterval(liveQueueTimer);
+        refreshLiveInsertQueue();
+        liveQueueTimer = setInterval(refreshLiveInsertQueue, 5000);
+    }
+
     async function recordPrintedInsert(sku, qty, reasonPrefix) {
         var _x, _y, _z;
         const r = rec(sku);
@@ -1651,10 +1734,16 @@ async function insertProductionPage() {
             method: 'POST',
             body: JSON.stringify({ sku, quantity: qty })
         });
-        if (!result.success || !result.printed)
+        // /print-insert is now asynchronous. HTTP 202 is success even though
+        // there is no CUPS job_id yet and printed may still be false.
+        if (!result.success || !result.accepted)
             throw new Error(result.error || 'The Pi did not accept the print job.');
+
+        refreshLiveInsertQueue();
+
         return {
             result,
+            accepted: true,
             jobId: String(result.job_id || result.bridge_response?.job_id || result.bridge_response?.id || '')
         };
     }
@@ -2041,6 +2130,7 @@ async function insertProductionPage() {
                     throw new Error(`The Pi accepted the print job, but Forge could not record it. Do not print again until reconciled. ${saveError.message || saveError}`);
                 }
                 render();
+                refreshLiveInsertQueue();
                 refreshInsertPrintBridgeStatus();
             } catch (e) {
                 btn.disabled = false; btn.textContent = originalText;
@@ -2161,6 +2251,7 @@ async function insertProductionPage() {
         return;
     }
     refreshInsertPrintBridgeStatus();
+    startLiveInsertQueue();
     await startForgeLiveSync(async (fresh) => {
         s = JSON.parse(JSON.stringify(fresh));
         await refreshInsertDemand();

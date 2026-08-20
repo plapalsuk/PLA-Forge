@@ -2935,3 +2935,26 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
   .forge-modal-actions.split>div{margin-top:8px;display:grid}
   .insert-modal-summary{grid-template-columns:1fr}
 }
+
+/* v0.23.3 — live Epson insert printer queue */
+.live-printer-card{margin-bottom:16px}
+.live-printer-list{display:grid;gap:8px;margin-top:12px}
+.live-printer-row{
+ display:grid;grid-template-columns:82px minmax(0,1fr) 190px;gap:14px;align-items:center;
+ padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.018)
+}
+.live-printer-row.is-printing{border-color:rgba(72,194,130,.38);background:rgba(72,194,130,.055)}
+.live-printer-state{font-size:9px;font-weight:800;letter-spacing:.08em;text-align:center;padding:6px 7px;border:1px solid var(--line);border-radius:999px}
+.live-printer-row.is-printing .live-printer-state{color:#73dba3;border-color:rgba(72,194,130,.4)}
+.live-printer-row.is-waiting .live-printer-state{color:var(--muted)}
+.live-printer-info strong{font-size:14px}
+.live-printer-status{font-size:11px;color:var(--muted);margin-top:4px}
+.live-printer-cups{text-align:right;min-width:0}
+.live-printer-cups span{display:block;font-size:8px;color:var(--muted);letter-spacing:.08em}
+.live-printer-cups strong{display:block;font-size:11px;overflow-wrap:anywhere;margin-top:3px}
+.live-printer-cups small{display:block;font-size:9px;color:var(--muted);margin-top:3px}
+.live-printer-empty,.live-printer-error{padding:18px}
+@media(max-width:720px){
+ .live-printer-row{grid-template-columns:74px minmax(0,1fr)}
+ .live-printer-cups{grid-column:2;text-align:left}
+}
