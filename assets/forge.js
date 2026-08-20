@@ -1460,26 +1460,28 @@ async function insertScannerPage() {
                 type: 'LiveStream',
                 target: cameraHost,
                 constraints: {
-                    facingMode: 'environment',
-                    width: { min: 640, ideal: 1280 },
-                    height: { min: 480, ideal: 720 }
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
                 },
                 area: {
-                    top: '20%',
-                    right: '8%',
-                    left: '8%',
-                    bottom: '20%'
+                    top: '10%',
+                    right: '3%',
+                    left: '3%',
+                    bottom: '10%'
                 }
             },
             decoder: {
-                readers: ['code_128_reader']
+                readers: ['code_128_reader'],
+                multiple: false
             },
             locate: true,
             locator: {
                 patchSize: 'medium',
-                halfSample: true
+                halfSample: false
             },
-            frequency: 10
+            numOfWorkers: 0,
+            frequency: 12
         }, function (err) {
             if (err) {
                 scannerRunning = false;
@@ -1497,8 +1499,11 @@ async function insertScannerPage() {
         Quagga.onDetected(function (result) {
             var _v;
             const code = (_v = result === null || result === void 0 ? void 0 : result.codeResult) === null || _v === void 0 ? void 0 : _v.code;
-            if (code)
-                processCode(code);
+            if (code) {
+                const cleanCode = String(code).replace(/[^A-Za-z0-9_-]/g, '').trim();
+                if (cleanCode)
+                    processCode(cleanCode);
+            }
         });
     }
     if (manualBtn) {

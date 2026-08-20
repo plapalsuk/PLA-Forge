@@ -1924,3 +1924,15 @@ Requires Worker v4.7.
 - Print submissions refresh the queue immediately.
 - HTTP 202 Accepted from asynchronous /print-insert is treated as successful submission.
 - Initial print response no longer requires a CUPS job_id.
+
+
+## v0.23.4 — Insert Scanner Hotfix
+Requires Worker v4.7.
+- Scanner-only reliability hotfix based on v0.23.3.
+- Preserves the exact 2.2-second same-SKU duplicate protection/re-arm behaviour.
+- Preserves immediate optimistic Forge updates and non-blocking background D1 saves.
+- Requests a higher-resolution rear-camera stream and uses a larger scan region.
+- Disables half-sampling so narrow Code 128 bars retain more image detail.
+- Uses zero Quagga workers for more predictable mobile browser camera processing.
+- Sanitises decoded barcode text before matching the PLA SKU.
+- Print Extras, Report Failed Print, async HTTP 202 printing and live Current Printer Queue are unchanged.
