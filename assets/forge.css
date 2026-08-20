@@ -2883,3 +2883,55 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
 .insert-history-row>div:first-child{display:flex;align-items:center;gap:8px}
 .insert-history-empty{color:var(--muted);font-size:12px;padding:6px 0}
 @media(max-width:760px){.insert-failure-panel{display:block}.insert-failure-actions{margin-top:10px}}
+
+/* v0.23.0 — Insert print management modals */
+.forge-modal{display:none;position:fixed;inset:0;z-index:9999}
+.forge-modal.open{display:block}
+.forge-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(3px)}
+.forge-modal-panel{
+  position:relative;
+  width:min(620px,calc(100vw - 28px));
+  margin:7vh auto 0;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:0 24px 80px rgba(0,0,0,.45);
+  overflow:hidden
+}
+.forge-modal-head,.forge-modal-actions{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px
+}
+.forge-modal-head{border-bottom:1px solid var(--line)}
+.forge-modal-head h2{margin:0}
+.forge-modal-body{padding:18px;display:grid;gap:14px}
+.forge-modal-body label>span{display:block;color:var(--muted);font-size:10px;margin-bottom:6px}
+.forge-modal-body select,.forge-modal-body input{width:100%}
+.forge-modal-actions{border-top:1px solid var(--line)}
+.forge-modal-actions.split>div{display:flex;gap:8px}
+.insert-modal-summary{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+  padding-top:4px
+}
+.insert-modal-summary>div{
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:12px;
+  background:rgba(255,255,255,.015)
+}
+.insert-modal-summary span{
+  display:block;
+  color:var(--muted);
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  margin-bottom:5px
+}
+.insert-modal-summary strong{font-size:15px}
+@media(max-width:640px){
+  .forge-modal-panel{margin-top:3vh}
+  .forge-modal-actions.split{display:block}
+  .forge-modal-actions.split>div{margin-top:8px;display:grid}
+  .insert-modal-summary{grid-template-columns:1fr}
+}

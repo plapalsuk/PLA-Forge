@@ -1872,3 +1872,18 @@ Compatible with Worker v4.3 Pi print confirmation.
 - A failed label request leaves the batch at Step 8.
 - Insert printing remains exclusively in Insert Production.
 - Requires Worker v4.4.
+
+## v0.23.0 — Insert Print Management GUI
+- Removed per-card Extras / Failed / Reprint controls.
+- Added two top-level Insert Production actions:
+  - `+ Print Extras`
+  - `Report Failed Print`
+- Print Extras opens a GUI to select any On Sale Pal and quantity.
+- Failed Print opens a GUI showing only Pals with inserts currently in Cut & Score.
+- Failed workflow offers:
+  - Remove as Waste
+  - Reprint Replacement
+- Existing normal demand cards remain focused on production printing only.
+- Existing shared insert print history remains in operational state.
+- No Worker or D1 change required.
+- Compatible with Worker v4.6.

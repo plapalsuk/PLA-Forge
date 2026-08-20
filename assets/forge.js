@@ -1495,6 +1495,11 @@ async function insertProductionPage() {
     const printQueueCount = document.querySelector('#printQueueCount');
     const cutQueueCount = document.querySelector('#cutQueueCount');
     const insertPrintBridgeStatus = document.querySelector('#insertPrintBridgeStatus');
+    const extrasBtn = document.querySelector('#openInsertExtras');
+    const failedBtn = document.querySelector('#openInsertFailed');
+    const extrasModal = document.querySelector('#insertExtrasModal');
+    const failedModal = document.querySelector('#insertFailedModal');
+
     async function refreshInsertPrintBridgeStatus() {
         if (!insertPrintBridgeStatus)
             return;
@@ -1672,19 +1677,10 @@ async function insertProductionPage() {
      <div class="insert-action-row insert-pi-action-row">
        <label class="compact-label"><span>Qty to Print</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" max="${Math.max(1, x.need)}" value="${Math.max(1, x.need || 1)}"></label>
        <button class="btn printViaPi" data-sku="${x.p.sku}">Print via Pi</button>
-       <button class="btn secondary printExtras" data-sku="${x.p.sku}">+ Print Extras</button>
+       
        <button class="btn ghost markPrinted" data-sku="${x.p.sku}">Mark Printed Manually</button>
        ${x.file ? `<a class="btn ghost" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open PDF</a>` : ''}
      </div>
-     <div class="insert-failure-panel">
-       <div><strong>Print problem?</strong><div class="small">Remove bad sheets from Cut & Score, or replace them immediately.</div></div>
-       <div class="insert-failure-actions">
-         <label class="compact-label"><span>Qty Failed</span><input class="number failedQty" id="failed-${x.p.sku}" type="number" min="1" max="${Math.max(1, d.awaiting)}" value="1"></label>
-         <button class="btn ghost markPrintFailed" data-sku="${x.p.sku}" ${d.awaiting <= 0 ? 'disabled' : ''}>Mark Failed</button>
-         <button class="btn secondary reprintFailed" data-sku="${x.p.sku}" ${d.awaiting <= 0 ? 'disabled' : ''}>Failed + Reprint</button>
-       </div>
-     </div>
-     <details class="insert-history"><summary>Print History</summary><div class="insert-history-list">${renderPrintHistoryRows(x.p.sku)}</div></details>
    </div>`;
     }
     function renderCutCard(x) {
@@ -1704,6 +1700,218 @@ async function insertProductionPage() {
      </div>
    </div>`;
     }
+    function closeInsertModal(modal) {
+        if (!modal) return;
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function openInsertModal(modal) {
+        if (!modal) return;
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function palOptionRows({ onlyAwaiting = false } = {}) {
+        return pals
+            .map(p => {
+                const r = rec(p.sku);
+                const awaiting = Number(r.awaiting_cut || 0);
+                if (onlyAwaiting && awaiting <= 0)
+                    return null;
+                return {
+                    p,
+                    awaiting,
+                    ready: Number(r.ready || 0),
+                    need: needPrint(p.sku)
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.p.name.localeCompare(b.p.name));
+    }
+
+    function populateExtrasModal() {
+        const select = document.querySelector('#extrasPalSelect');
+        const qty = document.querySelector('#extrasQty');
+        const summary = document.querySelector('#extrasSummary');
+        if (!select || !qty || !summary) return;
+
+        const rows = palOptionRows();
+        select.innerHTML = rows.map(x =>
+            `<option value="${esc(x.p.sku)}">${esc(x.p.name)} · ${x.p.sku}</option>`
+        ).join('');
+
+        function update() {
+            const sku = select.value;
+            const p = pals.find(x => x.sku === sku);
+            const r = rec(sku);
+            const need = needPrint(sku);
+            summary.innerHTML = p ? `
+              <div><span>Pal</span><strong>${esc(p.name)}</strong></div>
+              <div><span>Need Print</span><strong>${need}</strong></div>
+              <div><span>Cut & Score</span><strong>${Number(r.awaiting_cut || 0)}</strong></div>
+              <div><span>Ready</span><strong>${Number(r.ready || 0)}</strong></div>
+            ` : '';
+        }
+
+        select.onchange = update;
+        qty.value = 1;
+        update();
+    }
+
+    function populateFailedModal() {
+        const select = document.querySelector('#failedPalSelect');
+        const qty = document.querySelector('#failedModalQty');
+        const summary = document.querySelector('#failedSummary');
+        const submitWaste = document.querySelector('#failedWasteBtn');
+        const submitReprint = document.querySelector('#failedReprintBtn');
+        if (!select || !qty || !summary) return;
+
+        const rows = palOptionRows({ onlyAwaiting: true });
+        select.innerHTML = rows.length
+            ? rows.map(x => `<option value="${esc(x.p.sku)}">${esc(x.p.name)} · ${x.p.sku} · ${x.awaiting} waiting</option>`).join('')
+            : '<option value="">No inserts currently in Cut & Score</option>';
+
+        function update() {
+            const sku = select.value;
+            const p = pals.find(x => x.sku === sku);
+            const r = sku ? rec(sku) : { awaiting_cut: 0, ready: 0 };
+            const awaiting = Number(r.awaiting_cut || 0);
+
+            qty.max = Math.max(1, awaiting);
+            qty.value = awaiting > 0 ? 1 : 0;
+
+            summary.innerHTML = p ? `
+              <div><span>Pal</span><strong>${esc(p.name)}</strong></div>
+              <div><span>In Cut & Score</span><strong>${awaiting}</strong></div>
+              <div><span>Ready</span><strong>${Number(r.ready || 0)}</strong></div>
+              <div><span>Action</span><strong>Choose below</strong></div>
+            ` : '<div class="bench-empty">Nothing is currently waiting in Cut & Score.</div>';
+
+            if (submitWaste) submitWaste.disabled = awaiting <= 0;
+            if (submitReprint) submitReprint.disabled = awaiting <= 0;
+        }
+
+        select.onchange = update;
+        update();
+    }
+
+    async function printExtraFromModal() {
+        const select = document.querySelector('#extrasPalSelect');
+        const qtyEl = document.querySelector('#extrasQty');
+        const submit = document.querySelector('#extrasPrintBtn');
+
+        const sku = String(select?.value || '');
+        const p = pals.find(x => x.sku === sku);
+        const qty = Math.max(1, Math.min(100, Number(qtyEl?.value || 1)));
+        if (!sku || !p) return;
+
+        const cardStock = Number(s.consumables?.card_210gsm?.stock || 0);
+        if (cardStock < qty) {
+            alert(`Not enough 210gsm Card. Need ${qty}, only ${cardStock} available.`);
+            return;
+        }
+
+        const original = submit.textContent;
+        submit.disabled = true;
+        submit.textContent = 'Sending to Pi…';
+
+        try {
+            const printed = await sendInsertPrintToPi(sku, qty);
+            const before = JSON.parse(JSON.stringify(s));
+
+            try {
+                await recordPrintedInsert(sku, qty, 'Pi extra insert print');
+                addInsertPrintHistory({
+                    sku,
+                    quantity: qty,
+                    mode: 'extra',
+                    status: 'submitted',
+                    job_id: printed.jobId
+                });
+                await save(s);
+            }
+            catch (saveError) {
+                s = before;
+                throw new Error(`Extra job printed, but Forge could not record it. ${saveError.message || saveError}`);
+            }
+
+            closeInsertModal(extrasModal);
+            render();
+        }
+        catch (e) {
+            alert('Extra insert print failed: ' + (e.message || e));
+        }
+        finally {
+            submit.disabled = false;
+            submit.textContent = original;
+        }
+    }
+
+    async function processFailedFromModal(reprint) {
+        const select = document.querySelector('#failedPalSelect');
+        const qtyEl = document.querySelector('#failedModalQty');
+        const button = document.querySelector(reprint ? '#failedReprintBtn' : '#failedWasteBtn');
+
+        const sku = String(select?.value || '');
+        const r = sku ? rec(sku) : null;
+        const available = Number(r?.awaiting_cut || 0);
+        const qty = Math.max(1, Math.min(available, Number(qtyEl?.value || 1)));
+
+        if (!sku || !r || available <= 0)
+            return;
+
+        if (reprint) {
+            const cardStock = Number(s.consumables?.card_210gsm?.stock || 0);
+            if (cardStock < qty) {
+                alert(`Not enough 210gsm Card for replacement. Need ${qty}, only ${cardStock} available.`);
+                return;
+            }
+        }
+
+        const original = button.textContent;
+        button.disabled = true;
+        button.textContent = reprint ? 'Reprinting…' : 'Recording…';
+
+        const before = JSON.parse(JSON.stringify(s));
+
+        try {
+            r.awaiting_cut = Math.max(0, available - qty);
+            addInsertPrintHistory({
+                sku,
+                quantity: qty,
+                mode: 'failed',
+                status: 'waste',
+                job_id: ''
+            });
+
+            if (reprint) {
+                const printed = await sendInsertPrintToPi(sku, qty);
+                await recordPrintedInsert(sku, qty, 'Pi replacement insert print');
+                addInsertPrintHistory({
+                    sku,
+                    quantity: qty,
+                    mode: 'reprint',
+                    status: 'submitted',
+                    job_id: printed.jobId
+                });
+            }
+
+            await save(s);
+            closeInsertModal(failedModal);
+            render();
+        }
+        catch (e) {
+            s = before;
+            render();
+            alert((reprint ? 'Replacement print failed: ' : 'Failed print could not be recorded: ') + (e.message || e));
+        }
+        finally {
+            button.disabled = false;
+            button.textContent = original;
+        }
+    }
+
     function render() {
         const text = (q.value || '').toLowerCase();
         const data = pals.map(p => ({ p, r: rec(p.sku), need: needPrint(p.sku), file: files[p.sku] || null }))
@@ -1767,73 +1975,6 @@ async function insertProductionPage() {
             }
         });
 
-        document.querySelectorAll('.printExtras').forEach(btn => btn.onclick = async () => {
-            const sku = btn.dataset.sku;
-            const p = pals.find(x => x.sku === sku);
-            const raw = prompt(`How many EXTRA ${p?.name || sku} inserts do you want to print?`, '1');
-            if (raw === null) return;
-            const qty = Math.max(1, Math.min(100, Number(raw || 1)));
-            const cardStock = Number(s.consumables?.card_210gsm?.stock || 0);
-            if (cardStock < qty) return alert(`Not enough 210gsm Card. Need ${qty}, only ${cardStock} available.`);
-            const original = btn.textContent;
-            btn.disabled = true; btn.textContent = 'Sending extras…';
-            try {
-                const printed = await sendInsertPrintToPi(sku, qty);
-                const before = JSON.parse(JSON.stringify(s));
-                try {
-                    await recordPrintedInsert(sku, qty, 'Pi extra insert print');
-                    addInsertPrintHistory({sku, quantity:qty, mode:'extra', status:'submitted', job_id:printed.jobId});
-                    await save(s);
-                } catch (saveError) {
-                    s = before;
-                    throw new Error(`Extra job printed, but Forge could not record it. ${saveError.message || saveError}`);
-                }
-                render();
-            } catch (e) {
-                btn.disabled = false; btn.textContent = original;
-                alert('Extra insert print failed: ' + (e.message || e));
-            }
-        });
-
-        document.querySelectorAll('.markPrintFailed').forEach(btn => btn.onclick = async () => {
-            const sku = btn.dataset.sku, r = rec(sku);
-            const available = Number(r.awaiting_cut || 0);
-            const qty = Math.max(1, Math.min(available, Number(document.querySelector('#failed-' + sku)?.value || 1)));
-            if (available <= 0) return;
-            const before = JSON.parse(JSON.stringify(s));
-            r.awaiting_cut = Math.max(0, available - qty);
-            addInsertPrintHistory({sku, quantity:qty, mode:'failed', status:'waste', job_id:''});
-            try { await save(s); render(); }
-            catch (e) { s = before; render(); alert('Failed print could not be recorded.'); }
-        });
-
-        document.querySelectorAll('.reprintFailed').forEach(btn => btn.onclick = async () => {
-            const sku = btn.dataset.sku, r = rec(sku);
-            const available = Number(r.awaiting_cut || 0);
-            const qty = Math.max(1, Math.min(available, Number(document.querySelector('#failed-' + sku)?.value || 1)));
-            if (available <= 0) return;
-            const cardStock = Number(s.consumables?.card_210gsm?.stock || 0);
-            if (cardStock < qty) return alert(`Not enough 210gsm Card for replacement. Need ${qty}, only ${cardStock} available.`);
-            const before = JSON.parse(JSON.stringify(s));
-            const original = btn.textContent;
-            btn.disabled = true; btn.textContent = 'Reprinting…';
-            try {
-                r.awaiting_cut = Math.max(0, available - qty);
-                addInsertPrintHistory({sku, quantity:qty, mode:'failed', status:'waste', job_id:''});
-                const printed = await sendInsertPrintToPi(sku, qty);
-                await recordPrintedInsert(sku, qty, 'Pi replacement insert print');
-                addInsertPrintHistory({sku, quantity:qty, mode:'reprint', status:'submitted', job_id:printed.jobId});
-                try { await save(s); }
-                catch (saveError) {
-                    s = before;
-                    throw new Error(`Replacement printed, but Forge could not record it. Do not reprint again until reconciled. ${saveError.message || saveError}`);
-                }
-                render();
-            } catch (e) {
-                btn.disabled = false; btn.textContent = original;
-                alert('Replacement print failed: ' + (e.message || e));
-            }
-        });
 
         document.querySelectorAll('.markPrinted').forEach(btn => btn.onclick = async () => {
             var _x;
@@ -1910,6 +2051,28 @@ async function insertProductionPage() {
             }
         });
     }
+    if (extrasBtn) extrasBtn.onclick = () => {
+        populateExtrasModal();
+        openInsertModal(extrasModal);
+    };
+    if (failedBtn) failedBtn.onclick = () => {
+        populateFailedModal();
+        openInsertModal(failedModal);
+    };
+
+    document.querySelectorAll('[data-close-insert-modal]').forEach(btn => {
+        btn.onclick = () => closeInsertModal(btn.closest('.forge-modal'));
+    });
+
+    const extrasPrintBtn = document.querySelector('#extrasPrintBtn');
+    if (extrasPrintBtn) extrasPrintBtn.onclick = printExtraFromModal;
+
+    const failedWasteBtn = document.querySelector('#failedWasteBtn');
+    if (failedWasteBtn) failedWasteBtn.onclick = () => processFailedFromModal(false);
+
+    const failedReprintBtn = document.querySelector('#failedReprintBtn');
+    if (failedReprintBtn) failedReprintBtn.onclick = () => processFailedFromModal(true);
+
     q.oninput = render;
     if (inventorySearch)
         inventorySearch.oninput = render;

@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Insert Production | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0229"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Insert Production | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0230"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
  <nav class="nav" id="forgeNav">
@@ -46,7 +46,7 @@
        <h2>Print Queue</h2>
        <div class="small">On Sale Pals needing inserts for assembled stock, manufacturing demand and the configured buffer.</div>
      </div>
-     <div class="insert-queue-badges"><span class="badge info" id="insertPrintBridgeStatus">Checking Pi…</span><span class="badge danger" id="printQueueCount">0 Jobs</span></div>
+     <div class="insert-queue-badges"><span class="badge info" id="insertPrintBridgeStatus">Checking Pi…</span><div class="insert-queue-badges"><button class="btn secondary" id="openInsertExtras">+ Print Extras</button><button class="btn ghost" id="openInsertFailed">Report Failed Print</button><span class="badge danger" id="printQueueCount">0 Jobs</span></div></div>
    </div>
    <div id="insertPrintCards" class="insert-column-list"></div>
  </div>
@@ -78,8 +78,8 @@
   </table>
  </div>
 </div>
-<div class="footer-note">PLA Forge v0.22.9 · Manufacturing & Inventory System</div>
-</main></div><script src="assets/forge.js?v=0229"></script><script>forgeBoot(async function(){
+<div class="footer-note">PLA Forge v0.23.0 · Manufacturing & Inventory System</div>
+</main></div><script src="assets/forge.js?v=0230"></script><script>forgeBoot(async function(){
 insertProductionPage()
 })</script>
 <script id="legacyBootFailsafe">
@@ -97,4 +97,46 @@ insertProductionPage()
   },15000);
 })();
 </script>
+
+<div class="forge-modal" id="insertExtrasModal" aria-hidden="true">
+  <div class="forge-modal-backdrop" data-close-insert-modal></div>
+  <div class="forge-modal-panel">
+    <div class="forge-modal-head">
+      <div><h2>Print Extra Inserts</h2><div class="small">Print spare inserts outside current production demand.</div></div>
+      <button class="iconbtn" data-close-insert-modal>×</button>
+    </div>
+    <div class="forge-modal-body">
+      <label><span>Choose Pal</span><select id="extrasPalSelect"></select></label>
+      <label><span>Extra Quantity</span><input class="number" id="extrasQty" type="number" min="1" max="100" value="1"></label>
+      <div class="insert-modal-summary" id="extrasSummary"></div>
+    </div>
+    <div class="forge-modal-actions">
+      <button class="btn ghost" data-close-insert-modal>Cancel</button>
+      <button class="btn" id="extrasPrintBtn">Print Extras via Pi</button>
+    </div>
+  </div>
+</div>
+
+<div class="forge-modal" id="insertFailedModal" aria-hidden="true">
+  <div class="forge-modal-backdrop" data-close-insert-modal></div>
+  <div class="forge-modal-panel">
+    <div class="forge-modal-head">
+      <div><h2>Report Failed Insert Print</h2><div class="small">Choose the failed insert and whether to waste it or print a replacement.</div></div>
+      <button class="iconbtn" data-close-insert-modal>×</button>
+    </div>
+    <div class="forge-modal-body">
+      <label><span>Choose Insert</span><select id="failedPalSelect"></select></label>
+      <label><span>Failed Quantity</span><input class="number" id="failedModalQty" type="number" min="1" value="1"></label>
+      <div class="insert-modal-summary" id="failedSummary"></div>
+    </div>
+    <div class="forge-modal-actions split">
+      <button class="btn ghost" data-close-insert-modal>Cancel</button>
+      <div>
+        <button class="btn ghost" id="failedWasteBtn">Remove as Waste</button>
+        <button class="btn" id="failedReprintBtn">Reprint Replacement</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body></html>
