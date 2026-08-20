@@ -5612,7 +5612,7 @@ async function deliveriesPage() {
                 return;
             seenDispatch.add(identity);
             const groupKey = x.item_type === 'cornwall_insert_spare'
-                ? `${x.sku}|cornwall-insert|${x.id}`
+                ? `${x.sku}|cornwall-insert`
                 : x.rework_return ? `${x.sku}|rework|${x.rework_job_id || x.id}` : `${x.sku}|normal`;
             if (!map[groupKey])
                 map[groupKey] = {
@@ -5659,61 +5659,46 @@ async function deliveriesPage() {
         const boatTarget = dispatchConfiguredTarget(g.sku, 'boat'), cornTarget = dispatchConfiguredTarget(g.sku, 'cornwall');
         const boatNeed = dispatchNeed(g.sku, 'boat'), cornNeed = dispatchNeed(g.sku, 'cornwall');
         if (g.item_type === 'cornwall_insert_spare') {
-            return `<div class="dispatch-pal-card rework-dispatch-card">
-       <div class="dispatch-pal-head">
-         <div><strong>${esc(g.name)} Insert</strong><div class="sku">${g.sku}</div><div class="small">Cornwall spare-stock replenishment</div></div>
-         <div class="dispatch-ready-total"><span>Ready to Dispatch</span><strong>${g.qty}</strong></div>
+            return `<div class="dispatch-compact-row dispatch-compact-spare">
+       <div class="dispatch-compact-product">
+         <strong>${esc(g.name)} Insert</strong><span class="sku">${g.sku}</span>
+         <span class="dispatch-compact-note">Cornwall rework spare</span>
        </div>
-       <div class="dispatch-locked-route">
-         <div><span>Destination</span><strong>Kitsune Cornwall</strong></div>
-         <div><span>Stock Type</span><strong>Rework Spare Insert</strong></div>
-       </div>
-       <div class="dispatch-allocation-footer">
-         <div class="dispatch-allocation-summary">Factory-produced spare insert for Cornwall Rework Stock.</div>
-         <button class="btn dispatchCornwallInsertSpare" data-key="${esc(g.key)}">Dispatch to Cornwall</button>
-       </div>
+       <div class="dispatch-compact-qty"><span>Ready</span><strong>${g.qty}</strong></div>
+       <div class="dispatch-route-pill">→ Kitsune Cornwall</div>
+       <button class="btn dispatchCornwallInsertSpare" data-key="${esc(g.key)}">Dispatch</button>
      </div>`;
         }
         if (g.locked_destination === 'cornwall') {
-            return `<div class="dispatch-pal-card rework-dispatch-card">
-       <div class="dispatch-pal-head">
-         <div><strong>${esc(g.name)}</strong><div class="sku">${g.sku}</div><div class="small">${esc(g.rework_label || 'Factory rework return')}</div></div>
-         <div class="dispatch-ready-total"><span>Rework Return</span><strong>${g.qty}</strong></div>
+            return `<div class="dispatch-compact-row dispatch-compact-rework">
+       <div class="dispatch-compact-product">
+         <strong>${esc(g.name)}</strong><span class="sku">${g.sku}</span>
+         <span class="dispatch-compact-note">${esc(g.rework_label || 'Factory rework return')}</span>
        </div>
-       <div class="dispatch-locked-route">
-         <div><span>Destination</span><strong>Kitsune Cornwall</strong></div>
-         <div><span>Route</span><strong>Factory Replacement → Cornwall</strong></div>
-       </div>
-       <div class="dispatch-allocation-footer">
-         <div class="dispatch-allocation-summary">This rework replacement is locked to Cornwall.</div>
-         <button class="btn dispatchReworkCornwall" data-key="${esc(g.key)}">Dispatch to Cornwall</button>
-       </div>
+       <div class="dispatch-compact-qty"><span>Ready</span><strong>${g.qty}</strong></div>
+       <div class="dispatch-route-pill">→ Kitsune Cornwall</div>
+       <button class="btn dispatchReworkCornwall" data-key="${esc(g.key)}">Dispatch</button>
      </div>`;
         }
-        return `<div class="dispatch-pal-card">
-     <div class="dispatch-pal-head">
-       <div><strong>${esc(g.name)}</strong><div class="sku">${g.sku}</div><div class="small">Oldest packed ${fmtDate(g.oldest)}</div></div>
-       <div class="dispatch-ready-total"><span>Ready to Dispatch</span><strong>${g.qty}</strong></div>
+        const defaultBoat = Math.min(g.qty, boatNeed);
+        const defaultCorn = Math.min(Math.max(0, g.qty - defaultBoat), cornNeed);
+        return `<div class="dispatch-compact-row dispatch-compact-pal">
+     <div class="dispatch-compact-product">
+       <strong>${esc(g.name)}</strong><span class="sku">${g.sku}</span>
+       <span class="dispatch-compact-note">Packed ${fmtDate(g.oldest)}</span>
      </div>
-     <div class="dispatch-location-grid">
-       <div class="dispatch-location-card">
-         <div class="dispatch-location-title"><strong>Kitsune Boat</strong>${boatNeed > 0 ? badge(`NEED ${boatNeed}`, 'warning') : badge('TARGET MET', 'ok')}</div>
-         <div class="dispatch-stock-line"><span>Current</span><strong>${boatStock}</strong></div>
-         <div class="dispatch-stock-line"><span>Target</span><strong>${boatTarget}</strong></div>
-         <div class="dispatch-stock-line need-line"><span>Need</span><strong>${boatNeed}</strong></div>
-         <label class="dispatch-qty-label"><span>Send Qty</span><input class="number dispatchBoatQty" id="boat-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${Math.min(g.qty, boatNeed)}"></label>
-       </div>
-       <div class="dispatch-location-card">
-         <div class="dispatch-location-title"><strong>Kitsune Cornwall</strong>${cornNeed > 0 ? badge(`NEED ${cornNeed}`, 'warning') : badge('TARGET MET', 'ok')}</div>
-         <div class="dispatch-stock-line"><span>Current</span><strong>${cornStock}</strong></div>
-         <div class="dispatch-stock-line"><span>Target</span><strong>${cornTarget}</strong></div>
-         <div class="dispatch-stock-line need-line"><span>Need</span><strong>${cornNeed}</strong></div>
-         <label class="dispatch-qty-label"><span>Send Qty</span><input class="number dispatchCornQty" id="cornwall-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${Math.min(Math.max(0, g.qty - Math.min(g.qty, boatNeed)), cornNeed)}"></label>
-       </div>
-     </div>
-     <div class="dispatch-allocation-footer">
+     <div class="dispatch-compact-qty"><span>Ready</span><strong>${g.qty}</strong></div>
+     <label class="dispatch-compact-destination">
+       <span><strong>Boat</strong><small>${boatStock}/${boatTarget} · need ${boatNeed}</small></span>
+       <input class="number dispatchBoatQty" id="boat-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${defaultBoat}">
+     </label>
+     <label class="dispatch-compact-destination">
+       <span><strong>Cornwall</strong><small>${cornStock}/${cornTarget} · need ${cornNeed}</small></span>
+       <input class="number dispatchCornQty" id="cornwall-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${defaultCorn}">
+     </label>
+     <div class="dispatch-compact-action">
        <div class="dispatch-allocation-summary" id="summary-${g.sku}"></div>
-       <button class="btn allocateSplit" data-key="${esc(g.key)}" data-sku="${g.sku}">Confirm Dispatch Allocation</button>
+       <button class="btn allocateSplit" data-key="${esc(g.key)}" data-sku="${g.sku}">Confirm</button>
      </div>
    </div>`;
     }
