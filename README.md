@@ -2040,3 +2040,19 @@ Preserved:
 - Print Extras / Failed Print
 - async HTTP 202 printing
 - live CUPS queue
+
+
+## v0.23.10 — Consumable Pack Buttons
+Requires Worker v4.8.3.
+
+New quick actions:
+- Flat Clear Boxes: +20 Box Pack
+- 210gsm Card: +50 Card Pack
+- Bottom Card Squares: Make 6 · Use 1 Card
+
+Bottom-card manufacture is one database action:
+- +6 Bottom Card Squares
+- -1 sheet of 210gsm Card
+
+All quick actions are recorded in Consumable History.
+Automatic insert-print and packing deductions from v0.23.9 remain unchanged.

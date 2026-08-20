@@ -4624,6 +4624,23 @@ async function consumablesPage() {
     const totalKpi = document.querySelector('#consumableTotalKpi');
     const lowKpi = document.querySelector('#consumableLowKpi');
     const okKpi = document.querySelector('#consumableOkKpi');
+    async function runPackAction(action, successMessage) {
+        try {
+            await cloudFetch('/consumables/pack-action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+            const data = await cloudConsumables();
+            applyCloudConsumables(s, data);
+            setForgeCloudSync('synced', successMessage);
+            render();
+        }
+        catch (e) {
+            alert(e.message || e);
+        }
+    }
+
     function render() {
         const entries = Object.entries(s.consumables || {});
         const low = entries.filter(([k, x]) => Number(x.stock || 0) <= Number(x.reorder || 0));
@@ -4646,6 +4663,9 @@ async function consumablesPage() {
          <label><span>Reorder Level</span><input class="number reorderLevel" data-key="${key}" type="number" min="0" value="${reorder}"></label>
          <label><span>Qty</span><input class="number restockQty" id="restock-${key}" type="number" min="1" value="25"></label>
          <button class="btn addConsumable" data-key="${key}">Add Stock</button>
+         ${key === 'clear_boxes' ? `<button class="btn secondary consumablePackAction" data-action="add_clear_box_pack">+20 Box Pack</button>` : ''}
+         ${key === 'card_210gsm' ? `<button class="btn secondary consumablePackAction" data-action="add_card_pack">+50 Card Pack</button>` : ''}
+         ${key === 'bottom_cards' ? `<button class="btn secondary consumablePackAction" data-action="make_bottom_cards">Make 6 · Use 1 Card</button>` : ''}
        </div>
        <div class="consumable-adjust">
          <button class="iconbtn adjustConsumable" data-key="${key}" data-d="-1">−1</button>
@@ -4692,6 +4712,22 @@ async function consumablesPage() {
                 render();
             }
         });
+        document.querySelectorAll('.consumablePackAction').forEach(btn => btn.onclick = async () => {
+            const action = btn.dataset.action;
+            btn.disabled = true;
+            try {
+                if (action === 'add_clear_box_pack')
+                    await runPackAction(action, 'Added a delivery pack of 20 flat clear boxes');
+                else if (action === 'add_card_pack')
+                    await runPackAction(action, 'Added a delivery pack of 50 sheets of 210gsm card');
+                else if (action === 'make_bottom_cards')
+                    await runPackAction(action, 'Made 6 bottom cards and used 1 sheet of 210gsm card');
+            }
+            finally {
+                btn.disabled = false;
+            }
+        });
+
         document.querySelectorAll('.adjustConsumable').forEach(btn => btn.onclick = async () => {
             const key = btn.dataset.key;
             const d = Number(btn.dataset.d || 0);
