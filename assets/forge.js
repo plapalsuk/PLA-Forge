@@ -1176,6 +1176,7 @@ async function insertScannerPage() {
     let scanBusy = false;
     let lastCode = '';
     let lastCodeAt = 0;
+    let sameCodeRearmTimer = null;
     let scannerSaveQueue = Promise.resolve();
     let scannerPendingSaves = 0;
     function rec(sku) {
@@ -1314,6 +1315,30 @@ async function insertScannerPage() {
         return scannerSaveQueue;
     }
 
+    function armSameBarcodeAgain(code) {
+        if (sameCodeRearmTimer)
+            clearTimeout(sameCodeRearmTimer);
+
+        sameCodeRearmTimer = setTimeout(() => {
+            // Only clear if this is still the most recently accepted code.
+            // This means another sheet carrying the same SKU can be scanned
+            // after the 2.2 second duplicate-protection window.
+            if (lastCode === code) {
+                lastCode = '';
+                lastCodeAt = 0;
+
+                if (statusTitle?.textContent === 'Scanned ✓') {
+                    setStatus(
+                        'idle',
+                        'Ready for next sheet',
+                        'The same barcode can now be scanned again.',
+                        code
+                    );
+                }
+            }
+        }, 2200);
+    }
+
     async function processCode(rawCode) {
         var _v;
 
@@ -1335,6 +1360,7 @@ async function insertScannerPage() {
 
         lastCode = code;
         lastCodeAt = nowMs;
+        armSameBarcodeAgain(code);
 
         const pal = palBySku[code];
         if (!pal) {
@@ -1396,6 +1422,10 @@ async function insertScannerPage() {
 
     function stopScanner() {
         scannerRunning = false;
+        if (sameCodeRearmTimer) {
+            clearTimeout(sameCodeRearmTimer);
+            sameCodeRearmTimer = null;
+        }
         if (window.Quagga && Quagga.stop) {
             try {
                 Quagga.stop();

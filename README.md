@@ -1902,3 +1902,13 @@ Compatible with Worker v4.3 Pi print confirmation.
 - If a background save fails, Forge shows a warning and Cloud Sync error rather than silently pretending D1 confirmed it.
 - No Worker or D1 migration required.
 - Compatible with Worker v4.6.
+
+## v0.23.2 — Same Barcode Re-arm
+- Keeps the 2.2 second duplicate protection.
+- After a successful/accepted barcode detection, Forge explicitly clears the
+  duplicate lock after 2.2 seconds.
+- The same SKU can therefore be scanned repeatedly across separate physical
+  printouts, e.g. PLA019 → PLA019 → PLA019.
+- Shows `Ready for next sheet` when the same barcode is re-armed.
+- Fast optimistic scanning/background cloud saves from v0.23.1 retained.
+- No Worker or D1 change required.
