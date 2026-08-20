@@ -1887,3 +1887,18 @@ Compatible with Worker v4.3 Pi print confirmation.
 - Existing shared insert print history remains in operational state.
 - No Worker or D1 change required.
 - Compatible with Worker v4.6.
+
+## v0.23.1 — Fast Optimistic Insert Scanner
+- Keeps the existing 2.2-second same-barcode duplicate protection.
+- Valid scans now update Forge immediately:
+  - stock mutation happens locally,
+  - counters update immediately,
+  - recent scan history updates immediately,
+  - green `Scanned ✓` feedback appears immediately,
+  - success beep/vibration happens immediately.
+- The camera re-arms before Cloudflare/D1 saving begins.
+- Cloud saves run sequentially in a background scanner save queue.
+- Multiple different inserts can be scanned rapidly without waiting for each D1 save.
+- If a background save fails, Forge shows a warning and Cloud Sync error rather than silently pretending D1 confirmed it.
+- No Worker or D1 migration required.
+- Compatible with Worker v4.6.

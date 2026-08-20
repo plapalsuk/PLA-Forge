@@ -1176,6 +1176,8 @@ async function insertScannerPage() {
     let scanBusy = false;
     let lastCode = '';
     let lastCodeAt = 0;
+    let scannerSaveQueue = Promise.resolve();
+    let scannerPendingSaves = 0;
     function rec(sku) {
         s.inserts = s.inserts || {};
         s.inserts[sku] = s.inserts[sku] || { awaiting_cut: 0, ready: 0 };
@@ -1283,18 +1285,57 @@ async function insertScannerPage() {
         }
         return { ok: true, route };
     }
+    function queueScannerSave(sku, palName) {
+        scannerPendingSaves += 1;
+
+        // Capture the latest optimistic scanner state at the time this save
+        // enters the queue. save() already serialises production writes, but
+        // this extra queue lets scanning continue without awaiting Cloudflare.
+        scannerSaveQueue = scannerSaveQueue
+            .then(async () => {
+                try {
+                    await save(s);
+                }
+                catch (e) {
+                    console.error('Background scanner save failed', e);
+                    setStatus(
+                        'warning',
+                        'Scanned locally · cloud retry needed',
+                        `${palName} · ${sku} was accepted by the scanner, but Cloudflare did not confirm the save yet.`,
+                        sku
+                    );
+                    setForgeCloudSync('error', 'Scanner cloud save failed · use Refresh Cloud before rescanning uncertain stock');
+                }
+                finally {
+                    scannerPendingSaves = Math.max(0, scannerPendingSaves - 1);
+                }
+            });
+
+        return scannerSaveQueue;
+    }
+
     async function processCode(rawCode) {
         var _v;
+
+        // scanBusy now protects only the tiny synchronous stock mutation,
+        // NOT the Cloudflare save. This makes the scanner re-arm immediately.
         if (scanBusy)
             return;
+
         const code = String(rawCode || '').trim().toUpperCase();
         if (!code)
             return;
+
         const nowMs = Date.now();
+
+        // Keep the existing protection against one physical barcode being
+        // detected repeatedly while it remains in front of the camera.
         if (code === lastCode && nowMs - lastCodeAt < 2200)
             return;
+
         lastCode = code;
         lastCodeAt = nowMs;
+
         const pal = palBySku[code];
         if (!pal) {
             setStatus('error', 'Barcode not recognised', `${code} is not a PLA Pal SKU in Forge.`, code);
@@ -1302,6 +1343,7 @@ async function insertScannerPage() {
             beep(false);
             return;
         }
+
         const r = rec(pal.sku);
         if (Number(r.awaiting_cut || 0) <= 0) {
             setStatus('warning', 'Nothing waiting to complete', `${pal.name} has no printed inserts currently waiting for Cut & Score.`, pal.sku);
@@ -1309,8 +1351,9 @@ async function insertScannerPage() {
             beep(false);
             return;
         }
+
         scanBusy = true;
-        const before = JSON.parse(JSON.stringify(s));
+
         const result = routeCompletedInsert(pal.sku);
         if (!result.ok) {
             scanBusy = false;
@@ -1319,6 +1362,7 @@ async function insertScannerPage() {
             beep(false);
             return;
         }
+
         s.insertHistory = s.insertHistory || [];
         s.insertHistory.push({
             id: makeId(),
@@ -1330,27 +1374,26 @@ async function insertScannerPage() {
             created_at: new Date().toISOString(),
             updated_by: ((_v = currentForgeUser()) === null || _v === void 0 ? void 0 : _v.email) || ''
         });
-        setStatus('idle', 'Saving…', `${pal.name} · ${pal.sku}`, pal.sku);
-        try {
-            await save(s);
-            const routeText = result.route === 'cornwall_spare' ? 'Completed and routed to Cornwall Dispatch.' :
-                result.route === 'damage_rework' ? 'Completed and reserved for rework.' :
-                    'Completed and added to Ready Inserts.';
-            setStatus('success', 'Insert complete ✓', `${pal.name} · ${routeText}`, pal.sku);
-            renderCounters(pal.sku);
-            renderRecent();
-            beep(true);
-        }
-        catch (e) {
-            s = before;
-            setStatus('error', 'Could not save scan', 'Cloudflare did not accept the update. Please scan again.', pal.sku);
-            renderCounters(pal.sku);
-            beep(false);
-        }
-        finally {
-            scanBusy = false;
-        }
+
+        // Update UI immediately. The operator does not wait for D1.
+        const routeText = result.route === 'cornwall_spare'
+            ? 'Completed and routed to Cornwall Dispatch.'
+            : result.route === 'damage_rework'
+                ? 'Completed and reserved for rework.'
+                : 'Completed and added to Ready Inserts.';
+
+        setStatus('success', 'Scanned ✓', `${pal.name} · ${routeText}`, pal.sku);
+        renderCounters(pal.sku);
+        renderRecent();
+        beep(true);
+
+        // Re-arm camera BEFORE saving to Cloudflare.
+        scanBusy = false;
+
+        // Save in the background. Subsequent scans can happen immediately.
+        queueScannerSave(pal.sku, pal.name);
     }
+
     function stopScanner() {
         scannerRunning = false;
         if (window.Quagga && Quagga.stop) {
