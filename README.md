@@ -2013,3 +2013,30 @@ Preserved unchanged:
 - Report Failed Print
 - asynchronous HTTP 202 insert printing
 - live CUPS Current Printer Queue
+
+
+## v0.23.9 — Automatic Consumable Consumption
+Requires Worker v4.8.2.
+
+Authoritative consumable stock is the D1 `consumables` table.
+
+Automatic movements:
+- Pi insert print accepted: -1 `card_210gsm` per insert sheet/copy.
+- Manual insert print recorded: -1 `card_210gsm` per sheet.
+- Packing completion per Pal:
+  - -1 `clear_boxes`
+  - -1 `bottom_cards`
+  - -1 `stickers`
+
+Packing completion is now Worker-owned through POST `/packing/complete`.
+The Worker checks assembled Pal stock, ready insert stock and all three packing
+consumables before completing the batch, then writes the packing history,
+awaiting-dispatch record and consumable movements together.
+
+Preserved:
+- compact Dispatch v0.23.8
+- canonical `/pal-demand`
+- dual-engine scanner and 2.2s same-SKU re-arm
+- Print Extras / Failed Print
+- async HTTP 202 printing
+- live CUPS queue

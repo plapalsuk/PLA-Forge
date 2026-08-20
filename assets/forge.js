@@ -2292,6 +2292,14 @@ async function insertProductionPage() {
             btn.disabled = true;
             btn.textContent = 'Saving…';
             try {
+                await cloudFetch(`/consumables/${encodeURIComponent('card_210gsm')}/adjust`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        change: -qty,
+                        type: 'manual_insert_print',
+                        reason: `Manual insert print · ${sku}`
+                    })
+                });
                 await recordPrintedInsert(sku, qty, 'Manual insert print');
                 addInsertPrintHistory({sku, quantity:qty, mode:'production', status:'manual', job_id:''});
                 await save(s);
@@ -5052,32 +5060,29 @@ async function packingStationPage() {
             const qty = Math.min(j.qty, maxBatch(p));
             if (qty <= 0)
                 return;
-            const before = JSON.parse(JSON.stringify(s));
-            setAssembled(sku, assembled(sku) - qty);
-            s.inserts[sku].ready = Math.max(0, ins(sku) - qty);
-            ['clear_boxes', 'bottom_cards', 'stickers'].forEach(k => s.consumables[k].stock = Math.max(0, cs(k) - qty));
-            s.awaitingDispatch = s.awaitingDispatch || [];
-            const packedAt = new Date().toISOString(), historyId = makeId();
-            s.packingHistory.push({
-                id: historyId, sku, name: p.name, qty,
-                created_at: packedAt, status: 'complete',
-                packed_by: ((_a = currentForgeUser()) === null || _a === void 0 ? void 0 : _a.email) || ''
-            });
-            s.awaitingDispatch.push({
-                id: makeId(), source_history_id: historyId, sku: sku, name: p.name, qty: Number(qty),
-                status: 'awaiting_dispatch', packed_at: packedAt, destination: null
-            });
-            delete s.packingJobs[sku];
             b.disabled = true;
-            b.textContent = 'Saving to Cloud…';
+            b.textContent = 'Completing pack…';
             try {
-                await save(s);
+                const result = await cloudFetch('/packing/complete', {
+                    method: 'POST',
+                    body: JSON.stringify({ sku, name: p.name, quantity: qty })
+                });
+                if (!result.success)
+                    throw new Error(result.error || 'Packing completion failed.');
+
+                // Worker owns the authoritative write. Use the returned state
+                // immediately so the UI reflects the exact committed D1 result.
+                s = JSON.parse(JSON.stringify(result.state || s));
+                const consumableData = await cloudConsumables();
+                applyCloudConsumables(s, consumableData);
+                demandSnapshot = await loadPalDemandSnapshot(s, ps);
+                setForgeCloudSync('synced', `${p.name} × ${qty} packed and consumables deducted`);
                 render();
             }
             catch (e) {
-                s = before;
-                render();
-                alert('Packed batch could not be saved to Cloudflare. No stock has been consumed.');
+                b.disabled = false;
+                b.textContent = 'Barcode Applied';
+                alert(`Packed batch could not be completed. No stock has been consumed.\n\n${e.message || e}`);
             }
         });
     }
