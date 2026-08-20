@@ -1543,6 +1543,43 @@ async function insertProductionPage() {
         s.inserts[sku] = s.inserts[sku] || { awaiting_cut: 0, ready: 0 };
         return s.inserts[sku];
     }
+    function ensureInsertPrintHistory() {
+        s.insertPrintHistory = s.insertPrintHistory || [];
+        return s.insertPrintHistory;
+    }
+    function addInsertPrintHistory(entry) {
+        const history = ensureInsertPrintHistory();
+        history.push({
+            id: makeId(),
+            created_at: new Date().toISOString(),
+            created_by: currentForgeUser()?.email || '',
+            ...entry
+        });
+        if (history.length > 1000)
+            s.insertPrintHistory = history.slice(-1000);
+    }
+    function historyForSku(sku) {
+        return ensureInsertPrintHistory()
+            .filter(x => x.sku === sku)
+            .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+            .slice(0, 8);
+    }
+    function formatHistoryTime(value) {
+        try { return new Date(value).toLocaleString(); }
+        catch { return String(value || ''); }
+    }
+    async function sendInsertPrintToPi(sku, qty) {
+        const result = await cloudFetch('/insert-print', {
+            method: 'POST',
+            body: JSON.stringify({ sku, quantity: qty })
+        });
+        if (!result.success || !result.printed)
+            throw new Error(result.error || 'The Pi did not accept the print job.');
+        return {
+            result,
+            jobId: String(result.job_id || result.bridge_response?.job_id || result.bridge_response?.id || '')
+        };
+    }
     function currentProductionNeed(sku) {
         var _r;
         return Math.max(0, Number(((_r = demandSnapshot.bySku[sku]) === null || _r === void 0 ? void 0 : _r.need_to_make) || 0));
@@ -1601,20 +1638,25 @@ async function insertProductionPage() {
     function needPrint(sku) {
         return insertDemandBreakdown(sku).need;
     }
+    function renderPrintHistoryRows(sku) {
+        const rows = historyForSku(sku);
+        if (!rows.length)
+            return '<div class="insert-history-empty">No print history yet.</div>';
+        return rows.map(h => {
+            const modeLabel = h.mode === 'extra' ? 'Extra' : h.mode === 'reprint' ? 'Reprint' : h.mode === 'failed' ? 'Failed' : 'Production';
+            const cls = h.mode === 'failed' ? 'danger' : h.mode === 'extra' ? 'info' : 'ok';
+            return `<div class="insert-history-row"><div><strong>${esc(modeLabel)} ×${Number(h.quantity || 0)}</strong><span class="badge ${cls}">${esc(String(h.status || 'recorded').toUpperCase())}</span></div><div class="small">${h.job_id ? `CUPS ${esc(h.job_id)}` : 'Manual record'} · ${esc(formatHistoryTime(h.created_at))}</div></div>`;
+        }).join('');
+    }
     function renderPrintCard(x) {
         var _a;
         const d = insertDemandBreakdown(x.p.sku);
         const reasons = [];
-        if (d.assembledNeed > 0)
-            reasons.push(`${d.assembledNeed} assembled waiting to pack`);
-        if (d.manufacturingNeed > 0)
-            reasons.push(`${d.manufacturingNeed} still to manufacture`);
-        if (d.bufferNeed > 0)
-            reasons.push(`${d.bufferNeed} factory buffer target`);
-        if (d.damageNeed > 0)
-            reasons.push(`${d.damageNeed} rework`);
-        if (d.cornwallNeed > 0)
-            reasons.push(`${d.cornwallNeed} Cornwall spare`);
+        if (d.assembledNeed > 0) reasons.push(`${d.assembledNeed} assembled waiting to pack`);
+        if (d.manufacturingNeed > 0) reasons.push(`${d.manufacturingNeed} still to manufacture`);
+        if (d.bufferNeed > 0) reasons.push(`${d.bufferNeed} factory buffer target`);
+        if (d.damageNeed > 0) reasons.push(`${d.damageNeed} rework`);
+        if (d.cornwallNeed > 0) reasons.push(`${d.cornwallNeed} Cornwall spare`);
         return `<div class="insert-job-card print-job">
      <div class="assembly-card-head">
        <div><strong>${esc(x.p.name)}</strong><div class="sku">${x.p.sku}</div></div>
@@ -1630,9 +1672,19 @@ async function insertProductionPage() {
      <div class="insert-action-row insert-pi-action-row">
        <label class="compact-label"><span>Qty to Print</span><input class="number printedQty" id="printed-${x.p.sku}" type="number" min="1" max="${Math.max(1, x.need)}" value="${Math.max(1, x.need || 1)}"></label>
        <button class="btn printViaPi" data-sku="${x.p.sku}">Print via Pi</button>
-       <button class="btn ghost markPrinted" data-sku="${x.p.sku}" title="Use only if the inserts were printed outside the Raspberry Pi workflow.">Mark Printed Manually</button>
+       <button class="btn secondary printExtras" data-sku="${x.p.sku}">+ Print Extras</button>
+       <button class="btn ghost markPrinted" data-sku="${x.p.sku}">Mark Printed Manually</button>
        ${x.file ? `<a class="btn ghost" href="${esc(x.file.view_url)}" target="_blank" rel="noopener">Open PDF</a>` : ''}
      </div>
+     <div class="insert-failure-panel">
+       <div><strong>Print problem?</strong><div class="small">Remove bad sheets from Cut & Score, or replace them immediately.</div></div>
+       <div class="insert-failure-actions">
+         <label class="compact-label"><span>Qty Failed</span><input class="number failedQty" id="failed-${x.p.sku}" type="number" min="1" max="${Math.max(1, d.awaiting)}" value="1"></label>
+         <button class="btn ghost markPrintFailed" data-sku="${x.p.sku}" ${d.awaiting <= 0 ? 'disabled' : ''}>Mark Failed</button>
+         <button class="btn secondary reprintFailed" data-sku="${x.p.sku}" ${d.awaiting <= 0 ? 'disabled' : ''}>Failed + Reprint</button>
+       </div>
+     </div>
+     <details class="insert-history"><summary>Print History</summary><div class="insert-history-list">${renderPrintHistoryRows(x.p.sku)}</div></details>
    </div>`;
     }
     function renderCutCard(x) {
@@ -1689,47 +1741,100 @@ async function insertProductionPage() {
        <td><strong>${Number(x.r.ready || 0)}</strong></td>
      </tr>`).join('') || '<tr><td colspan="2">No matching On Sale Pals.</td></tr>';
         document.querySelectorAll('.printViaPi').forEach(btn => btn.onclick = async () => {
-            var _x, _y, _z;
             const sku = btn.dataset.sku;
-            const qty = Math.max(1, Number(((_x = document.querySelector('#printed-' + sku)) === null || _x === void 0 ? void 0 : _x.value) || 1));
-            const cardStock = Number(((_z = (_y = s.consumables) === null || _y === void 0 ? void 0 : _y.card_210gsm) === null || _z === void 0 ? void 0 : _z.stock) || 0);
-            if (cardStock < qty) {
-                alert(`Not enough 210gsm Card. Need ${qty} sheet${qty === 1 ? '' : 's'}, but only ${cardStock} available.`);
-                return;
-            }
+            const qty = Math.max(1, Math.min(needPrint(sku), Number(document.querySelector('#printed-' + sku)?.value || 1)));
+            if (qty <= 0) return;
+            const cardStock = Number(s.consumables?.card_210gsm?.stock || 0);
+            if (cardStock < qty) return alert(`Not enough 210gsm Card. Need ${qty}, only ${cardStock} available.`);
             const originalText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = 'Sending to Pi…';
+            btn.disabled = true; btn.textContent = 'Sending to Pi…';
             try {
-                const result = await cloudFetch('/insert-print', {
-                    method: 'POST',
-                    body: JSON.stringify({ sku, quantity: qty })
-                });
-                if (!result.success || !result.printed)
-                    throw new Error(result.error || 'The Pi did not accept the print job.');
-                // Only move stock into Cut & Score AFTER the Pi confirms CUPS submission.
+                const printed = await sendInsertPrintToPi(sku, qty);
                 const before = JSON.parse(JSON.stringify(s));
                 try {
                     await recordPrintedInsert(sku, qty, 'Pi insert print');
+                    addInsertPrintHistory({sku, quantity:qty, mode:'production', status:'submitted', job_id:printed.jobId});
                     await save(s);
-                }
-                catch (saveError) {
+                } catch (saveError) {
                     s = before;
-                    throw new Error(`The Pi accepted the print job, but Forge could not record it. ` +
-                        `Do not print again until you reconcile this SKU. ${saveError.message || saveError}`);
+                    throw new Error(`The Pi accepted the print job, but Forge could not record it. Do not print again until reconciled. ${saveError.message || saveError}`);
                 }
-                btn.textContent = `Printed × ${qty} ✓`;
-                setForgeCloudSync('synced', `${sku} × ${qty} sent to Raspberry Pi printer`);
                 render();
                 refreshInsertPrintBridgeStatus();
-            }
-            catch (e) {
+            } catch (e) {
+                btn.disabled = false; btn.textContent = originalText;
                 alert('Insert print failed: ' + (e.message || e));
-                btn.disabled = false;
-                btn.textContent = originalText;
-                refreshInsertPrintBridgeStatus();
             }
         });
+
+        document.querySelectorAll('.printExtras').forEach(btn => btn.onclick = async () => {
+            const sku = btn.dataset.sku;
+            const p = pals.find(x => x.sku === sku);
+            const raw = prompt(`How many EXTRA ${p?.name || sku} inserts do you want to print?`, '1');
+            if (raw === null) return;
+            const qty = Math.max(1, Math.min(100, Number(raw || 1)));
+            const cardStock = Number(s.consumables?.card_210gsm?.stock || 0);
+            if (cardStock < qty) return alert(`Not enough 210gsm Card. Need ${qty}, only ${cardStock} available.`);
+            const original = btn.textContent;
+            btn.disabled = true; btn.textContent = 'Sending extras…';
+            try {
+                const printed = await sendInsertPrintToPi(sku, qty);
+                const before = JSON.parse(JSON.stringify(s));
+                try {
+                    await recordPrintedInsert(sku, qty, 'Pi extra insert print');
+                    addInsertPrintHistory({sku, quantity:qty, mode:'extra', status:'submitted', job_id:printed.jobId});
+                    await save(s);
+                } catch (saveError) {
+                    s = before;
+                    throw new Error(`Extra job printed, but Forge could not record it. ${saveError.message || saveError}`);
+                }
+                render();
+            } catch (e) {
+                btn.disabled = false; btn.textContent = original;
+                alert('Extra insert print failed: ' + (e.message || e));
+            }
+        });
+
+        document.querySelectorAll('.markPrintFailed').forEach(btn => btn.onclick = async () => {
+            const sku = btn.dataset.sku, r = rec(sku);
+            const available = Number(r.awaiting_cut || 0);
+            const qty = Math.max(1, Math.min(available, Number(document.querySelector('#failed-' + sku)?.value || 1)));
+            if (available <= 0) return;
+            const before = JSON.parse(JSON.stringify(s));
+            r.awaiting_cut = Math.max(0, available - qty);
+            addInsertPrintHistory({sku, quantity:qty, mode:'failed', status:'waste', job_id:''});
+            try { await save(s); render(); }
+            catch (e) { s = before; render(); alert('Failed print could not be recorded.'); }
+        });
+
+        document.querySelectorAll('.reprintFailed').forEach(btn => btn.onclick = async () => {
+            const sku = btn.dataset.sku, r = rec(sku);
+            const available = Number(r.awaiting_cut || 0);
+            const qty = Math.max(1, Math.min(available, Number(document.querySelector('#failed-' + sku)?.value || 1)));
+            if (available <= 0) return;
+            const cardStock = Number(s.consumables?.card_210gsm?.stock || 0);
+            if (cardStock < qty) return alert(`Not enough 210gsm Card for replacement. Need ${qty}, only ${cardStock} available.`);
+            const before = JSON.parse(JSON.stringify(s));
+            const original = btn.textContent;
+            btn.disabled = true; btn.textContent = 'Reprinting…';
+            try {
+                r.awaiting_cut = Math.max(0, available - qty);
+                addInsertPrintHistory({sku, quantity:qty, mode:'failed', status:'waste', job_id:''});
+                const printed = await sendInsertPrintToPi(sku, qty);
+                await recordPrintedInsert(sku, qty, 'Pi replacement insert print');
+                addInsertPrintHistory({sku, quantity:qty, mode:'reprint', status:'submitted', job_id:printed.jobId});
+                try { await save(s); }
+                catch (saveError) {
+                    s = before;
+                    throw new Error(`Replacement printed, but Forge could not record it. Do not reprint again until reconciled. ${saveError.message || saveError}`);
+                }
+                render();
+            } catch (e) {
+                btn.disabled = false; btn.textContent = original;
+                alert('Replacement print failed: ' + (e.message || e));
+            }
+        });
+
         document.querySelectorAll('.markPrinted').forEach(btn => btn.onclick = async () => {
             var _x;
             const sku = btn.dataset.sku;
@@ -1739,6 +1844,7 @@ async function insertProductionPage() {
             btn.textContent = 'Saving…';
             try {
                 await recordPrintedInsert(sku, qty, 'Manual insert print');
+                addInsertPrintHistory({sku, quantity:qty, mode:'production', status:'manual', job_id:''});
                 await save(s);
                 render();
             }

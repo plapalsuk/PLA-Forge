@@ -2873,3 +2873,13 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
   line-height:1.35;
   background:rgba(255,255,255,.015);
 }
+
+.insert-failure-panel{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;display:flex;align-items:end;justify-content:space-between;gap:14px;background:rgba(255,255,255,.018)}
+.insert-failure-actions{display:flex;align-items:end;gap:8px;flex-wrap:wrap}
+.insert-history{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}
+.insert-history summary{cursor:pointer;color:var(--muted);font-weight:700}
+.insert-history-list{display:grid;gap:7px;margin-top:8px}
+.insert-history-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:9px}
+.insert-history-row>div:first-child{display:flex;align-items:center;gap:8px}
+.insert-history-empty{color:var(--muted);font-size:12px;padding:6px 0}
+@media(max-width:760px){.insert-failure-panel{display:block}.insert-failure-actions{margin-top:10px}}
