@@ -984,6 +984,7 @@ async function assemblyPage() {
     const ps = await load('products');
     const rs = await load('recipes');
     const pals = ps.filter(p => p.type === 'pal');
+    let demandSnapshot = await loadPalDemandSnapshot(s, ps);
     const q = document.querySelector('#q');
     const readyBox = document.querySelector('#assemblyReady');
     const awaitingBox = document.querySelector('#assemblyAwaiting');
@@ -996,9 +997,15 @@ async function assemblyPage() {
     const awaitingSectionCount = document.querySelector('#awaitingSectionCount');
     function recipeGroups(sku) { return rs.filter(r => r.sku === sku); }
     function assembledQty(sku) { var _a; return Number(((_a = s.assembled) === null || _a === void 0 ? void 0 : _a[sku]) || 0); }
-    function plannerNeed(sku) { return Math.max(0, totalNeed(s, sku) - awaitingDispatchQty(s, sku)); }
+    function plannerNeed(sku) {
+        const d = demandSnapshot.bySku[sku];
+        if (!d)
+            return 0;
+        return Math.max(0, Number(d.need_to_make || 0) + assembledQty(sku));
+    }
     function remainingAssemblyNeed(sku) {
-        return Math.max(0, plannerNeed(sku) - assembledQty(sku));
+        const d = demandSnapshot.bySku[sku];
+        return Math.max(0, Number((d === null || d === void 0 ? void 0 : d.need_to_make) || 0));
     }
     function readyQty(p) {
         const groups = recipeGroups(p.sku);
@@ -1142,6 +1149,14 @@ async function assemblyPage() {
     await startForgeLiveSync(async (fresh) => {
         // Replace the Bench state reference completely with the D1-hydrated state.
         s = JSON.parse(JSON.stringify(fresh));
+        try {
+            demandSnapshot = await loadPalDemandSnapshot(s, ps);
+        }
+        catch (e) {
+            console.error('Bench demand refresh failed', e);
+            setForgeCloudSync('error', 'Bench demand could not refresh');
+            return;
+        }
         render();
     });
 }
@@ -2610,14 +2625,17 @@ async function dashboard() {
             <small>reorder ${c.reorder}</small>
           </a>`).join('') : `<div class="dashboard-clear-state"><strong>Consumables healthy.</strong><span>No consumable is at or below its reorder level.</span></div>`;
     }
-    const shortages = pals.map(p => ({
-        p,
-        boatTarget: getTarget(s, p.sku, 'boat'),
-        cornwallTarget: getTarget(s, p.sku, 'cornwall'),
-        boatStock: stock(s, p.sku, 'boat'),
-        cornwallStock: stock(s, p.sku, 'cornwall'),
-        short: totalNeed(s, p.sku)
-    })).filter(x => x.short > 0).sort((a, b) => b.short - a.short);
+    const shortages = pals.map(p => {
+        const d = dashboardDemandSnapshot.bySku[p.sku] || {};
+        return {
+            p,
+            boatTarget: Number(d.boat_target || 0),
+            cornwallTarget: Number(d.cornwall_target || 0),
+            boatStock: Number(d.boat_stock || 0),
+            cornwallStock: Number(d.cornwall_stock || 0),
+            short: Number(d.gross_need || 0)
+        };
+    }).filter(x => x.short > 0).sort((a, b) => b.short - a.short);
     const lowFinishedHost = document.getElementById('dashLowFinished');
     if (lowFinishedHost) {
         lowFinishedHost.innerHTML = shortages.length ? shortages.slice(0, 6).map(x => `
@@ -2831,63 +2849,16 @@ function inTransitCornwallPalQty(s, sku) {
         .reduce((a, t) => a + Number(t.qty || 0), 0);
 }
 async function loadPalDemandSnapshot(s, products) {
-    const [palInventoryData, settingsData] = await Promise.all([
-        cloudFetch('/shopify/pal-inventory'),
-        cloudFetch('/settings')
-    ]);
-    const shopifyBySku = Object.fromEntries((palInventoryData.inventory || []).map(x => [x.sku, x]));
-    const defaults = stockTargetDefaultsFromSettings(settingsData.settings || {});
-    const overrides = palTargetOverrideMap(settingsData.settings || {});
-    function configuredTarget(sku, loc) {
-        if ((overrides === null || overrides === void 0 ? void 0 : overrides[sku]) && Object.prototype.hasOwnProperty.call(overrides[sku], loc)) {
-            return Math.max(0, Number(overrides[sku][loc] || 0));
-        }
-        return Math.max(0, Number(defaults[loc] || 0));
-    }
-    function shopStock(sku, loc) {
-        var _k, _l;
-        return Math.max(0, Number(((_l = (_k = shopifyBySku[sku]) === null || _k === void 0 ? void 0 : _k[loc]) === null || _l === void 0 ? void 0 : _l.available) || 0));
-    }
-    const bySku = {};
-    (products || []).filter(p => p.type === 'pal').forEach(p => {
-        const boatStock = shopStock(p.sku, 'boat');
-        const cornwallStock = shopStock(p.sku, 'cornwall');
-        const boatTarget = configuredTarget(p.sku, 'boat');
-        const cornwallTarget = configuredTarget(p.sku, 'cornwall');
-        const boatShortage = Math.max(0, boatTarget - boatStock);
-        const cornwallShortage = Math.max(0, cornwallTarget - cornwallStock);
-        const grossNeed = boatShortage + cornwallShortage;
-        const assembled = assembledQtyForDemand(s, p.sku);
-        const awaitingDispatch = awaitingDispatchQty(s, p.sku);
-        const inTransitCornwall = inTransitCornwallPalQty(s, p.sku);
-        const intactRework = intactDamageReworkQty(s, p.sku);
-        const alreadyInForge = assembled + awaitingDispatch + inTransitCornwall + intactRework;
-        bySku[p.sku] = {
-            sku: p.sku,
-            name: p.name,
-            on_sale: isOnSale(s, p.sku),
-            mapped: !!shopifyBySku[p.sku],
-            boat_stock: boatStock,
-            cornwall_stock: cornwallStock,
-            boat_target: boatTarget,
-            cornwall_target: cornwallTarget,
-            boat_shortage: boatShortage,
-            cornwall_shortage: cornwallShortage,
-            gross_need: grossNeed,
-            assembled,
-            awaiting_dispatch: awaitingDispatch,
-            in_transit_cornwall: inTransitCornwall,
-            intact_rework: intactRework,
-            already_in_forge: alreadyInForge,
-            need_to_make: Math.max(0, grossNeed - alreadyInForge)
-        };
-    });
+    const data = await cloudFetch('/pal-demand');
+    const bySku = (data && data.by_sku && typeof data.by_sku === 'object') ? data.by_sku : {};
     return {
         bySku,
-        defaults,
-        overrides,
-        mapped_variants: Number(palInventoryData.mapped_variants || 0),
-        synced_at: palInventoryData.synced_at || null
+        defaults: data.defaults || { boat: 3, cornwall: 3 },
+        overrides: data.overrides || {},
+        mapped_variants: Number(data.mapped_variants || 0),
+        synced_at: data.shopify_synced_at || null,
+        operational_updated_at: data.operational_updated_at || null,
+        source_of_truth: data.source_of_truth || null
     };
 }
 function insertProductionSettingsFromSettings(settings) {
@@ -3041,6 +3012,7 @@ async function inventory(type) {
     let shopifyBySku = {};
     let targetDefaults = { boat: 3, cornwall: 3 };
     let targetOverrides = {};
+    let demandSnapshot = { bySku: {} };
     async function loadTargetSettings() {
         if (type !== 'pal')
             return;
@@ -3103,6 +3075,9 @@ async function inventory(type) {
         return shopNeed(sku, 'boat') + shopNeed(sku, 'cornwall');
     }
     function netManufacturingNeed(sku) {
+        const d = demandSnapshot.bySku[sku];
+        if (d)
+            return Math.max(0, Number(d.need_to_make || 0));
         return Math.max(0, totalShopNeed(sku)
             - assembledQtyForDemand(s, sku)
             - awaitingDispatchQty(s, sku)
@@ -3139,6 +3114,7 @@ async function inventory(type) {
             const ct = useShopify ? effectiveTarget(x.sku, 'cornwall') : getTarget(s, x.sku, 'cornwall');
             const rawNeed = useShopify ? totalShopNeed(x.sku) : needed(s, x.sku, 'boat') + needed(s, x.sku, 'cornwall');
             const need = useShopify ? netManufacturingNeed(x.sku) : rawNeed;
+            const demand = useShopify ? demandSnapshot.bySku[x.sku] : null;
             const sale = isOnSale(s, x.sku);
             const mapped = !!shopifyBySku[x.sku];
             return `<tr class="pal-inventory-card ${sale ? 'on-sale-row' : ''}">
@@ -3153,7 +3129,7 @@ async function inventory(type) {
               <td class="target-cell" data-label="Boat Target">${useShopify ? targetControl(x.sku, 'boat') : `<input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}">`}</td>
               <td class="stock-cell shopify-stock-cell" data-label="Cornwall Shopify Stock"><strong>${c}</strong>${useShopify ? '<small>available</small>' : ''}</td>
               <td class="target-cell" data-label="Cornwall Target">${useShopify ? targetControl(x.sku, 'cornwall') : `<input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}">`}</td>
-              <td class="need-cell" data-label="Need to Make"><strong>${need}</strong>${useShopify && rawNeed !== need ? `<small>${rawNeed} shortage · ${rawNeed - need} in Forge</small>` : ''}</td>
+              <td class="need-cell" data-label="Need to Make"><strong>${need}</strong>${useShopify && demand ? `<small>${demand.gross_need} shortage · ${demand.assembled} assembled · ${demand.awaiting_dispatch} dispatch · ${demand.in_transit_cornwall} transit · ${demand.intact_rework} rework</small>` : ''}</td>
             </tr>`;
         }).join('');
         if (useShopifyPage()) {
@@ -3224,10 +3200,22 @@ async function inventory(type) {
     function useShopifyPage() { return type === 'pal'; }
     q.oninput = draw;
     await Promise.all([refreshShopifyInventory(), loadTargetSettings()]);
+    if (type === 'pal')
+        demandSnapshot = await loadPalDemandSnapshot(s, ps);
     draw();
     await startForgeLiveSync(async (fresh) => {
         s = fresh;
         await Promise.all([refreshShopifyInventory(), loadTargetSettings()]);
+        if (type === 'pal') {
+            try {
+                demandSnapshot = await loadPalDemandSnapshot(s, ps);
+            }
+            catch (e) {
+                console.error('Pal Inventory demand refresh failed', e);
+                setForgeCloudSync('error', 'Pal Inventory demand could not refresh');
+                return;
+            }
+        }
         draw();
     });
 }
@@ -4827,7 +4815,12 @@ async function packingStationPage() {
     // Packing Station is cloud-only: all inventory and workflow state comes from D1.
     let s = cloudOperationalState();
     const ps = await load('products');
+    let demandSnapshot = await loadPalDemandSnapshot(s, ps);
     let pals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku));
+    function canonicalManufacturingNeed(sku) {
+        const d = demandSnapshot.bySku[sku];
+        return Math.max(0, Number((d === null || d === void 0 ? void 0 : d.need_to_make) || 0));
+    }
     const readyList = document.querySelector('#packingReadyList'), awaitingList = document.querySelector('#packingAwaitingList'), q = document.querySelector('#q');
     const readyCount = document.querySelector('#packingReadyCount'), awaitingCount = document.querySelector('#packingAwaitingCount');
     const damageReworkList = document.querySelector('#damageReworkList');
@@ -4955,7 +4948,7 @@ async function packingStationPage() {
             // Packing Station must use pipeline-aware manufacturing demand.
             // If the target is already covered by assembled / packed / dispatched stock,
             // the Pal must not reappear here as "needed".
-            if (manufacturingNeed(s, p.sku) <= 0)
+            if (canonicalManufacturingNeed(p.sku) <= 0)
                 return false;
             const allBlockers = blockers(p);
             const packagingBlockers = allBlockers.filter(x => x !== 'Awaiting assembled Pal');
@@ -4978,7 +4971,7 @@ async function packingStationPage() {
         }).join('') || '<div class="bench-empty">No Pals are currently ready to pack.</div>';
         awaitingList.innerHTML = awaiting.map(p => {
             const packagingBlockers = blockers(p).filter(x => x !== 'Awaiting assembled Pal');
-            return `<div class="packing-card awaiting-pack-card"><div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge(`PRODUCTION NEED ${manufacturingNeed(s, p.sku)}`, 'warning')}</div>${stockStrip(p)}<div class="packing-blockers">${packagingBlockers.map(x => `<span>! ${esc(x)}</span>`).join('')}</div></div>`;
+            return `<div class="packing-card awaiting-pack-card"><div class="assembly-card-head"><div><strong>${esc(p.name)}</strong><div class="sku">${p.sku}</div></div>${badge(`PRODUCTION NEED ${canonicalManufacturingNeed(p.sku)}`, 'warning')}</div>${stockStrip(p)}<div class="packing-blockers">${packagingBlockers.map(x => `<span>! ${esc(x)}</span>`).join('')}</div></div>`;
         }).join('') || '<div class="bench-empty">Nothing in the Production Planner is currently waiting for packaging materials or inserts.</div>';
         document.querySelectorAll('.batchQty').forEach(el => el.onchange = async () => {
             const sku = el.dataset.sku, p = pals.find(x => x.sku === sku), j = s.packingJobs[sku] || { step: 1, qty: 1 };
@@ -5092,6 +5085,14 @@ async function packingStationPage() {
     render();
     await startForgeLiveSync(async (fresh) => {
         s = JSON.parse(JSON.stringify(fresh));
+        try {
+            demandSnapshot = await loadPalDemandSnapshot(s, ps);
+        }
+        catch (e) {
+            console.error('Packing demand refresh failed', e);
+            setForgeCloudSync('error', 'Packing demand could not refresh');
+            return;
+        }
         pals = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku));
         render();
     });

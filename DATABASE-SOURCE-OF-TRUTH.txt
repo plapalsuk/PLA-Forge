@@ -1,0 +1,42 @@
+PLA Forge v0.23.7 / Worker v4.8 — Source of Truth
+====================================================
+
+PAL FINISHED STOCK
+  Shopify available inventory
+  Worker endpoint: /shopify/pal-inventory
+
+PAL TARGETS
+  D1 forge_settings
+  - stock_target_defaults
+  - pal_target_overrides
+
+PAL WORKFLOW / WIP
+  D1 forge_operational_state
+  state_key = production
+
+BUILD PLATES
+  D1 build_plates
+
+CANONICAL PAL DEMAND
+  Worker endpoint: /pal-demand
+
+LEGACY / NON-AUTHORITATIVE FOR LIVE PAL WORKFLOW
+  assembled_inventory
+  finished_inventory
+  insert_inventory
+
+These legacy tables are still present in Worker v4.8 for backwards compatibility,
+but the current frontend does not use /inventory for Pal manufacturing demand.
+
+Calculation:
+  gross_need =
+    max(0, boat_target - Shopify boat available)
+    + max(0, cornwall_target - Shopify cornwall available)
+
+  already_in_forge =
+    assembled
+    + awaiting_dispatch
+    + in_transit_cornwall
+    + intact_rework
+
+  need_to_make = max(0, gross_need - already_in_forge)

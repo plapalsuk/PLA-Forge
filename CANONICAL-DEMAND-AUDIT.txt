@@ -1,0 +1,32 @@
+PLA Forge v0.23.6 — Demand Consistency Audit
+================================================
+
+Canonical Pal demand function:
+  loadPalDemandSnapshot()
+
+The following legacy helper references remain only for definitions,
+legacy/non-Pal paths, or compatibility. Core Pal manufacturing screens
+listed in README now use loadPalDemandSnapshot().
+
+manufacturingNeed(s, -> 1 occurrence(s)
+  L515: function manufacturingNeed(s, sku) {
+assemblyNeed(s, -> 1 occurrence(s)
+  L520: function assemblyNeed(s, sku) {
+totalNeed(s, -> 4 occurrence(s)
+  L492: function totalNeed(s, sku) { return needed(s, sku, 'boat') + needed(s, sku, 'cornwall'); }
+  L516: return Math.max(0, totalNeed(s, sku) - assembledQtyForDemand(s, sku) - awaitingDispatchQty(s, sku) - intactDamageReworkQty(s, sku));
+  L521: return Math.max(0, totalNeed(s, sku) - awaitingDispatchQty(s, sku) - assembledQtyForDemand(s, sku));
+  L4991: // Production Planner itself is based on totalNeed(s, sku) > 0.
+getTarget(s, -> 5 occurrence(s)
+  L489: function getTarget(s, sku, loc) { return Number(s.targets[targetKey(sku, loc)] || 0); }
+  L491: function needed(s, sku, loc) { return Math.max(0, getTarget(s, sku, loc) - stock(s, sku, loc)); }
+  L3160: const bt = useShopify ? effectiveTarget(x.sku, 'boat') : getTarget(s, x.sku, 'boat');
+  L3161: const ct = useShopify ? effectiveTarget(x.sku, 'cornwall') : getTarget(s, x.sku, 'cornwall');
+  L3228: const previous = getTarget(s, sku, loc);
+stock(s, -> 4 occurrence(s)
+  L490: function stock(s, sku, loc) { return Number((s.stock[sku] || {})[loc] || 0); }
+  L491: function needed(s, sku, loc) { return Math.max(0, getTarget(s, sku, loc) - stock(s, sku, loc)); }
+  L3158: const b = useShopify ? shopStock(x.sku, 'boat') : stock(s, x.sku, 'boat');
+  L3159: const c = useShopify ? shopStock(x.sku, 'cornwall') : stock(s, x.sku, 'cornwall');
+
+JavaScript syntax check: PASS

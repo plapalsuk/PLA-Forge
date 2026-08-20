@@ -1947,3 +1947,69 @@ Requires Worker v4.7.
 - Adds visible scanner-engine diagnostics.
 - Restores conservative Quagga camera settings.
 - Does not change Print Extras, Report Failed Print, async HTTP 202 printing, or the live Current Printer Queue.
+
+
+## v0.23.6 — Canonical Pal Demand
+Requires Worker v4.7.
+
+All core Pal manufacturing screens now consume the same demand model:
+Shopify mapped available stock + D1 target settings + D1 Forge WIP.
+
+Canonical calculation:
+gross shortage = Boat target - Shopify Boat available
+               + Cornwall target - Shopify Cornwall available
+
+already in Forge = assembled Pals
+                 + finished Pals awaiting Dispatch
+                 + finished Pals in Cornwall transit
+                 + intact Pal rework inventory
+
+need to make = max(0, gross shortage - already in Forge)
+
+Aligned screens:
+- Pal Inventory
+- Dashboard demand
+- Dashboard finished-stock health
+- Production Planner
+- Build Plates
+- The Bench
+- Packing Station
+- Insert Production
+
+Pal Inventory now shows the full Forge breakdown instead of an opaque "X in Forge".
+Cornwall spare inserts remain a separate item_type and do not count as finished Pals.
+
+Preserved unchanged:
+- v0.23.5 dual-engine Insert Scanner
+- 2.2 second same-SKU re-arm
+- optimistic scanner updates / background D1 save
+- Print Extras
+- Report Failed Print
+- asynchronous HTTP 202 insert printing
+- live CUPS Current Printer Queue
+
+
+## v0.23.7 — Worker Canonical Demand
+Requires Worker v4.8.
+
+Pal manufacturing demand is no longer independently calculated by each frontend page.
+All core Pal demand screens consume GET /pal-demand from Worker v4.8.
+
+Worker source of truth:
+- Finished sellable stock: Shopify `available` inventory for mapped Boat/Cornwall locations.
+- Targets: D1 `forge_settings` (`stock_target_defaults` + `pal_target_overrides`).
+- Live Forge WIP: D1 `forge_operational_state` production JSON.
+- Build plates: D1 `build_plates` table.
+
+The legacy D1 tables `assembled_inventory`, `finished_inventory`, and `insert_inventory`
+are not used by the live Forge manufacturing workflow and should not be treated as
+authoritative Pal stock.
+
+Preserved unchanged:
+- dual-engine Insert Scanner
+- 2.2-second same-SKU scanner re-arm
+- optimistic scanner update/background D1 save
+- Print Extras
+- Report Failed Print
+- asynchronous HTTP 202 insert printing
+- live CUPS Current Printer Queue
