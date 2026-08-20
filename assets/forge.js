@@ -1172,7 +1172,17 @@ async function insertScannerPage() {
     const manualBtn = document.querySelector('#insertManualScanBtn');
     const startBtn = document.querySelector('#startInsertScanner');
     const stopBtn = document.querySelector('#stopInsertScanner');
+    const scannerEngineStatus = document.querySelector('#insertScannerEngineStatus');
+    let nativeStream = null;
+    let nativeVideo = null;
+    let nativeDetector = null;
+    let nativeLoopToken = 0;
     let scannerRunning = false;
+
+    function setEngineStatus(text) {
+        if (scannerEngineStatus)
+            scannerEngineStatus.textContent = 'Scanner engine: ' + text;
+    }
     let scanBusy = false;
     let lastCode = '';
     let lastCodeAt = 0;
@@ -1420,12 +1430,34 @@ async function insertScannerPage() {
         queueScannerSave(pal.sku, pal.name);
     }
 
+    function stopNativeScanner() {
+        nativeLoopToken++;
+        if (nativeStream) {
+            try {
+                nativeStream.getTracks().forEach(track => track.stop());
+            }
+            catch (_v) { }
+        }
+        nativeStream = null;
+        if (nativeVideo) {
+            try {
+                nativeVideo.pause();
+                nativeVideo.srcObject = null;
+                nativeVideo.remove();
+            }
+            catch (_v) { }
+        }
+        nativeVideo = null;
+        nativeDetector = null;
+    }
+
     function stopScanner() {
         scannerRunning = false;
         if (sameCodeRearmTimer) {
             clearTimeout(sameCodeRearmTimer);
             sameCodeRearmTimer = null;
         }
+        stopNativeScanner();
         if (window.Quagga && Quagga.stop) {
             try {
                 Quagga.stop();
@@ -1438,14 +1470,130 @@ async function insertScannerPage() {
             stopBtn.disabled = true;
         if (cameraHost)
             cameraHost.classList.remove('camera-live');
+        setEngineStatus('stopped');
     }
+
+    async function startNativeBarcodeDetector() {
+        if (!('BarcodeDetector' in window))
+            return false;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+            return false;
+
+        let formats = [];
+        try {
+            if (BarcodeDetector.getSupportedFormats)
+                formats = await BarcodeDetector.getSupportedFormats();
+        }
+        catch (_v) { }
+
+        if (formats.length && !formats.includes('code_128'))
+            return false;
+
+        nativeDetector = new BarcodeDetector({ formats: ['code_128'] });
+        nativeStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            },
+            audio: false
+        });
+
+        nativeVideo = document.createElement('video');
+        nativeVideo.setAttribute('playsinline', '');
+        nativeVideo.muted = true;
+        nativeVideo.autoplay = true;
+        nativeVideo.srcObject = nativeStream;
+        nativeVideo.style.position = 'absolute';
+        nativeVideo.style.inset = '0';
+        nativeVideo.style.width = '100%';
+        nativeVideo.style.height = '100%';
+        nativeVideo.style.objectFit = 'cover';
+        cameraHost.insertBefore(nativeVideo, cameraHost.firstChild);
+        await nativeVideo.play();
+
+        const token = ++nativeLoopToken;
+        setEngineStatus('native Code 128 detector active');
+
+        const tick = async () => {
+            if (!scannerRunning || token !== nativeLoopToken || !nativeVideo || !nativeDetector)
+                return;
+            try {
+                if (nativeVideo.readyState >= 2) {
+                    const found = await nativeDetector.detect(nativeVideo);
+                    if (found && found.length) {
+                        const raw = String(found[0].rawValue || '').trim();
+                        if (raw)
+                            processCode(raw);
+                    }
+                }
+            }
+            catch (_v) { }
+            window.setTimeout(tick, 120);
+        };
+        tick();
+        return true;
+    }
+
+    function startQuaggaScanner() {
+        return new Promise((resolve, reject) => {
+            if (!window.Quagga)
+                return reject(new Error('Quagga scanner library unavailable'));
+
+            try {
+                Quagga.offDetected();
+            }
+            catch (_v) { }
+
+            Quagga.onDetected(function (result) {
+                var _v;
+                const code = (_v = result === null || result === void 0 ? void 0 : result.codeResult) === null || _v === void 0 ? void 0 : _v.code;
+                if (code) {
+                    const cleanCode = String(code).replace(/[^A-Za-z0-9_-]/g, '').trim();
+                    if (cleanCode)
+                        processCode(cleanCode);
+                }
+            });
+
+            Quagga.init({
+                inputStream: {
+                    name: 'Live',
+                    type: 'LiveStream',
+                    target: cameraHost,
+                    constraints: {
+                        facingMode: 'environment',
+                        width: { min: 640, ideal: 1280 },
+                        height: { min: 480, ideal: 720 }
+                    }
+                },
+                decoder: {
+                    readers: ['code_128_reader']
+                },
+                locate: true,
+                locator: {
+                    patchSize: 'medium',
+                    halfSample: true
+                },
+                frequency: 10
+            }, function (err) {
+                if (err)
+                    return reject(err);
+                try {
+                    Quagga.start();
+                    setEngineStatus('Quagga Code 128 detector active');
+                    resolve(true);
+                }
+                catch (e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+
     async function startScanner() {
         if (scannerRunning)
             return;
-        if (!window.Quagga) {
-            setStatus('error', 'Scanner library unavailable', 'Check your internet connection, then refresh the page.', '');
-            return;
-        }
+
         scannerRunning = true;
         if (startBtn)
             startBtn.disabled = true;
@@ -1453,58 +1601,35 @@ async function insertScannerPage() {
             stopBtn.disabled = false;
         if (cameraHost)
             cameraHost.classList.add('camera-live');
+
         setStatus('idle', 'Camera starting…', 'Point the camera at the Code 128 barcode on the insert.', '');
-        Quagga.init({
-            inputStream: {
-                name: 'Live',
-                type: 'LiveStream',
-                target: cameraHost,
-                constraints: {
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                },
-                area: {
-                    top: '10%',
-                    right: '3%',
-                    left: '3%',
-                    bottom: '10%'
-                }
-            },
-            decoder: {
-                readers: ['code_128_reader'],
-                multiple: false
-            },
-            locate: true,
-            locator: {
-                patchSize: 'medium',
-                halfSample: false
-            },
-            numOfWorkers: 0,
-            frequency: 12
-        }, function (err) {
-            if (err) {
+        setEngineStatus('starting');
+
+        try {
+            const nativeStarted = await startNativeBarcodeDetector();
+            if (!nativeStarted)
+                await startQuaggaScanner();
+            setStatus('idle', 'Ready to scan', 'Hold the full barcode inside the orange scan window.', '');
+        }
+        catch (nativeErr) {
+            stopNativeScanner();
+            try {
+                await startQuaggaScanner();
+                setStatus('idle', 'Ready to scan', 'Hold the full barcode inside the orange scan window.', '');
+            }
+            catch (fallbackErr) {
                 scannerRunning = false;
                 if (startBtn)
                     startBtn.disabled = false;
                 if (stopBtn)
                     stopBtn.disabled = true;
-                setStatus('error', 'Camera could not start', err.message || String(err), '');
-                return;
+                if (cameraHost)
+                    cameraHost.classList.remove('camera-live');
+                const msg = (fallbackErr && fallbackErr.message) || (nativeErr && nativeErr.message) || 'Unknown camera error';
+                setEngineStatus('failed — ' + msg);
+                setStatus('error', 'Camera could not start', msg, '');
             }
-            Quagga.start();
-            setStatus('idle', 'Ready to scan', 'Hold the barcode inside the scan window.', '');
-        });
-        Quagga.offDetected();
-        Quagga.onDetected(function (result) {
-            var _v;
-            const code = (_v = result === null || result === void 0 ? void 0 : result.codeResult) === null || _v === void 0 ? void 0 : _v.code;
-            if (code) {
-                const cleanCode = String(code).replace(/[^A-Za-z0-9_-]/g, '').trim();
-                if (cleanCode)
-                    processCode(cleanCode);
-            }
-        });
+        }
     }
     if (manualBtn) {
         manualBtn.onclick = () => {

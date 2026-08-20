@@ -1936,3 +1936,14 @@ Requires Worker v4.7.
 - Uses zero Quagga workers for more predictable mobile browser camera processing.
 - Sanitises decoded barcode text before matching the PLA SKU.
 - Print Extras, Report Failed Print, async HTTP 202 printing and live Current Printer Queue are unchanged.
+
+
+## v0.23.5 — Dual Engine Insert Scanner
+Requires Worker v4.7.
+- Preserves the 2.2-second same-SKU scanner re-arm.
+- Preserves immediate optimistic stock updates and background D1 saves.
+- Uses native BarcodeDetector for Code 128 when supported by the browser.
+- Automatically falls back to Quagga2.
+- Adds visible scanner-engine diagnostics.
+- Restores conservative Quagga camera settings.
+- Does not change Print Extras, Report Failed Print, async HTTP 202 printing, or the live Current Printer Queue.
