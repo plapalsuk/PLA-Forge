@@ -1396,12 +1396,30 @@ async function insertScannerPage() {
             return;
         }
 
-        const r = rec(pal.sku);
+        let r = rec(pal.sku);
+
+        // Normal scans stay instant and use the already-hydrated live state.
+        // If this tab happens to hold a stale local zero, do one authoritative
+        // D1 refresh before rejecting the physical sheet. This avoids false
+        // "Nothing waiting" messages without making every scan wait on D1.
         if (Number(r.awaiting_cut || 0) <= 0) {
-            setStatus('warning', 'Nothing waiting to complete', `${pal.name} has no printed inserts currently waiting for Cut & Score.`, pal.sku);
-            renderCounters(pal.sku);
-            beep(false);
-            return;
+            try {
+                const fresh = await hydrateProductionCloud(true);
+                if (fresh) {
+                    s = JSON.parse(JSON.stringify(cloudOperationalState()));
+                    r = rec(pal.sku);
+                }
+            }
+            catch (e) {
+                console.warn('Scanner zero-stock verification refresh failed', e);
+            }
+
+            if (Number(r.awaiting_cut || 0) <= 0) {
+                setStatus('warning', 'Nothing waiting to complete', `${pal.name} has no printed inserts currently waiting for Cut & Score.`, pal.sku);
+                renderCounters(pal.sku);
+                beep(false);
+                return;
+            }
         }
 
         scanBusy = true;
