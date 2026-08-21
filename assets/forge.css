@@ -3095,3 +3095,28 @@ main{background:radial-gradient(circle at 82% -8%,rgba(255,106,0,.045),transpare
   color:var(--text);
   border-color:var(--line);
 }
+
+/* =========================================================
+   v0.26.0 — Kitsu AI chat
+   Existing top-right Kitsu card remains the launcher.
+   ========================================================= */
+.forge-kitsu-launcher{cursor:pointer;user-select:none;position:relative;transition:border-color .16s ease,transform .16s ease,box-shadow .16s ease}
+.forge-kitsu-launcher:hover{border-color:rgba(255,106,0,.72);box-shadow:0 8px 24px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.035);transform:translateY(-1px)}
+.forge-kitsu-launcher:focus-visible{outline:2px solid var(--orange,#ff6a00);outline-offset:3px}
+.forge-kitsu-launcher::after{content:'Ask me';font-size:10px;line-height:1;color:#ff8c33;border:1px solid rgba(255,106,0,.28);border-radius:999px;padding:4px 7px;margin-left:3px;white-space:nowrap}
+.forge-kitsu-shade{position:fixed;inset:0;background:rgba(4,5,7,.52);backdrop-filter:blur(2px);z-index:9996;opacity:0;pointer-events:none;transition:opacity .2s ease}
+.forge-kitsu-shade.open{opacity:1;pointer-events:auto}
+.forge-kitsu-drawer{position:fixed;top:0;right:0;width:min(430px,100vw);height:100dvh;z-index:9997;background:#101215;border-left:1px solid rgba(255,106,0,.32);box-shadow:-24px 0 60px rgba(0,0,0,.45);display:flex;flex-direction:column;transform:translateX(104%);transition:transform .22s ease;color:var(--text,#f2f2f2)}
+.forge-kitsu-drawer.open{transform:translateX(0)}
+.forge-kitsu-head{display:flex;justify-content:space-between;align-items:center;padding:17px 18px;background:linear-gradient(105deg,rgba(255,106,0,.16),rgba(255,106,0,.025));border-bottom:1px solid rgba(255,106,0,.22)}
+.forge-kitsu-identity{display:flex;gap:11px;align-items:center}.forge-kitsu-identity img{width:42px;height:42px;object-fit:cover;object-position:left center;border-radius:10px}.forge-kitsu-identity div{display:flex;flex-direction:column;gap:3px}.forge-kitsu-identity strong{font-size:18px}.forge-kitsu-identity span{font-size:11px;color:var(--muted,#97999f)}
+.forge-kitsu-close{border:0;background:transparent;color:#e8e8e8;font-size:29px;line-height:1;cursor:pointer;padding:5px 8px;border-radius:9px}.forge-kitsu-close:hover{background:rgba(255,255,255,.06)}
+.forge-kitsu-context{padding:9px 17px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:7px;font-size:11px;color:var(--muted,#97999f)}.forge-kitsu-context strong{color:#d8d8da;font-weight:600}
+.forge-kitsu-log{flex:1;overflow:auto;padding:17px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth}
+.forge-kitsu-message{display:flex;gap:8px;max-width:92%;align-items:flex-end}.forge-kitsu-user{align-self:flex-end;justify-content:flex-end}.forge-kitsu-assistant{align-self:flex-start}
+.forge-kitsu-bubble{padding:11px 13px;border-radius:15px;font-size:13px;line-height:1.5;border:1px solid rgba(255,255,255,.07);background:#181b20}.forge-kitsu-user .forge-kitsu-bubble{background:linear-gradient(135deg,#ff6a00,#e95d00);color:white;border-color:rgba(255,135,55,.45);border-bottom-right-radius:5px}.forge-kitsu-assistant .forge-kitsu-bubble{border-bottom-left-radius:5px}
+.forge-kitsu-message-mark{width:27px;height:27px;flex:0 0 27px;border-radius:8px;display:grid;place-items:center;background:rgba(255,106,0,.13);border:1px solid rgba(255,106,0,.25);color:#ff8c33;font-weight:800;font-size:13px}.forge-kitsu-message-mark[data-mood="concerned"]{color:#ffba66}.forge-kitsu-message-mark[data-mood="excited"]{font-size:16px}
+.forge-kitsu-suggestions{display:flex;gap:7px;overflow-x:auto;padding:0 14px 10px}.forge-kitsu-suggestion{flex:0 0 auto;border:1px solid rgba(255,106,0,.26);background:#17191d;color:#cfcfd2;border-radius:999px;padding:7px 10px;font-size:11px;cursor:pointer}.forge-kitsu-suggestion:hover{border-color:#ff6a00;color:white}
+.forge-kitsu-compose{display:flex;gap:9px;padding:12px 14px max(14px,env(safe-area-inset-bottom));background:#0d0f12;border-top:1px solid rgba(255,255,255,.08)}.forge-kitsu-compose textarea{flex:1;resize:none;min-height:45px;max-height:120px;background:#17191d;color:#f4f4f4;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 11px;font:inherit;font-size:13px;outline:none}.forge-kitsu-compose textarea:focus{border-color:rgba(255,106,0,.7);box-shadow:0 0 0 3px rgba(255,106,0,.09)}.forge-kitsu-compose .btn{min-width:72px;border-radius:12px}.forge-kitsu-compose .btn:disabled{opacity:.55;cursor:wait}
+body.forge-kitsu-open{overflow:hidden}
+@media(max-width:700px){.forge-kitsu-drawer{width:100vw}.forge-kitsu-launcher::after{display:none}.forge-kitsu-head{padding-top:max(17px,env(safe-area-inset-top))}}

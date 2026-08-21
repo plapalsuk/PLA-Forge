@@ -725,6 +725,7 @@ async function forgeBoot(initializer) {
     if (!ok)
         return;
     try {
+        forgeKitsuBoot();
         if (typeof initializer === 'function')
             await initializer();
     }
@@ -7765,6 +7766,170 @@ async function reportsPage() {
     setReportPresetActive('today');
     await refreshCostStatus();
     await loadReport();
+}
+
+/* =========================================================
+   Kitsu AI chat — v0.26.0
+   Uses the existing top-right .kitsu panel as the launcher.
+   Backend remains the authenticated /kitsu/chat Worker route.
+   ========================================================= */
+let forgeKitsuReady=false;
+let forgeKitsuBusy=false;
+let forgeKitsuHistory=[];
+
+function forgeKitsuPageContext(){
+    return {
+        page:forgeCurrentPage(),
+        path:location.pathname,
+        title:document.title,
+        heading:(document.querySelector('.pageTitle h1')?.textContent||'').trim()
+    };
+}
+
+function forgeKitsuMoodIcon(mood){
+    return ({happy:'✦',thinking:'…',concerned:'!',excited:'★',sleepy:'z'})[mood]||'✦';
+}
+
+function forgeKitsuRenderText(text){
+    return esc(String(text||'')).replace(/\n/g,'<br>');
+}
+
+function forgeKitsuAddMessage(role,text,mood='thinking'){
+    const log=document.querySelector('#forgeKitsuLog');
+    if(!log)return;
+    const row=document.createElement('div');
+    row.className=`forge-kitsu-message forge-kitsu-${role}`;
+    if(role==='assistant'){
+        row.innerHTML=`<div class="forge-kitsu-message-mark" data-mood="${esc(mood)}">${forgeKitsuMoodIcon(mood)}</div><div class="forge-kitsu-bubble">${forgeKitsuRenderText(text)}</div>`;
+    }else{
+        row.innerHTML=`<div class="forge-kitsu-bubble">${forgeKitsuRenderText(text)}</div>`;
+    }
+    log.appendChild(row);
+    log.scrollTop=log.scrollHeight;
+    forgeKitsuHistory.push({role,text:String(text||''),mood});
+    if(forgeKitsuHistory.length>30)forgeKitsuHistory=forgeKitsuHistory.slice(-30);
+}
+
+function forgeKitsuSuggestions(items=[]){
+    const host=document.querySelector('#forgeKitsuSuggestions');
+    if(!host)return;
+    host.innerHTML='';
+    items.slice(0,3).forEach(label=>{
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='forge-kitsu-suggestion';
+        btn.textContent=String(label);
+        btn.onclick=()=>{
+            const input=document.querySelector('#forgeKitsuInput');
+            if(input)input.value=String(label);
+            forgeKitsuSend();
+        };
+        host.appendChild(btn);
+    });
+}
+
+function forgeKitsuSetOpen(open){
+    const drawer=document.querySelector('#forgeKitsuDrawer');
+    const shade=document.querySelector('#forgeKitsuShade');
+    if(!drawer||!shade)return;
+    drawer.classList.toggle('open',!!open);
+    shade.classList.toggle('open',!!open);
+    drawer.setAttribute('aria-hidden',open?'false':'true');
+    document.body.classList.toggle('forge-kitsu-open',!!open);
+    if(open)setTimeout(()=>document.querySelector('#forgeKitsuInput')?.focus(),80);
+}
+
+async function forgeKitsuSend(){
+    if(forgeKitsuBusy)return;
+    const input=document.querySelector('#forgeKitsuInput');
+    const btn=document.querySelector('#forgeKitsuSend');
+    const status=document.querySelector('#forgeKitsuStatus');
+    const message=String(input?.value||'').trim();
+    if(!message)return;
+
+    forgeKitsuBusy=true;
+    input.value='';
+    forgeKitsuAddMessage('user',message);
+    forgeKitsuSuggestions([]);
+    if(btn){btn.disabled=true;btn.textContent='Thinking…';}
+    if(status)status.textContent='Kitsu is checking Forge…';
+
+    try{
+        const data=await cloudFetch('/kitsu/chat',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                message,
+                page:forgeKitsuPageContext()
+            })
+        });
+        const reply=data?.kitsu||{};
+        forgeKitsuAddMessage('assistant',reply.answer||"I checked Forge, but I came back empty-pawed.",reply.mood||'thinking');
+        forgeKitsuSuggestions(reply.suggestions||[]);
+        if(status)status.textContent=reply.read_only?'Read-only assistant · Live Forge data':'Live Forge assistant';
+    }catch(e){
+        forgeKitsuAddMessage('assistant',`I couldn't check Forge just then. ${e?.message||e}`,'concerned');
+        if(status)status.textContent='Kitsu could not connect';
+    }finally{
+        forgeKitsuBusy=false;
+        if(btn){btn.disabled=false;btn.textContent='Send';}
+        input?.focus();
+    }
+}
+
+function forgeKitsuBoot(){
+    if(forgeKitsuReady)return;
+    const launcher=document.querySelector('.topbar .kitsu');
+    if(!launcher)return;
+    forgeKitsuReady=true;
+
+    launcher.classList.add('forge-kitsu-launcher');
+    launcher.setAttribute('role','button');
+    launcher.setAttribute('tabindex','0');
+    launcher.setAttribute('aria-label','Open Kitsu AI assistant');
+    launcher.setAttribute('title','Ask Kitsu');
+    launcher.addEventListener('click',()=>forgeKitsuSetOpen(true));
+    launcher.addEventListener('keydown',e=>{
+        if(e.key==='Enter'||e.key===' '){e.preventDefault();forgeKitsuSetOpen(true);}
+    });
+
+    const shade=document.createElement('div');
+    shade.id='forgeKitsuShade';
+    shade.className='forge-kitsu-shade';
+    shade.onclick=()=>forgeKitsuSetOpen(false);
+
+    const drawer=document.createElement('aside');
+    drawer.id='forgeKitsuDrawer';
+    drawer.className='forge-kitsu-drawer';
+    drawer.setAttribute('aria-hidden','true');
+    drawer.innerHTML=`
+      <div class="forge-kitsu-head">
+        <div class="forge-kitsu-identity">
+          <img src="assets/pla-forge-mark.png" alt="" aria-hidden="true">
+          <div><strong>Kitsu</strong><span id="forgeKitsuStatus">Read-only assistant · Live Forge data</span></div>
+        </div>
+        <button type="button" class="forge-kitsu-close" id="forgeKitsuClose" aria-label="Close Kitsu">×</button>
+      </div>
+      <div class="forge-kitsu-context"><span>Currently looking at</span><strong>${esc((document.querySelector('.pageTitle h1')?.textContent||'PLA Forge').trim())}</strong></div>
+      <div class="forge-kitsu-log" id="forgeKitsuLog"></div>
+      <div class="forge-kitsu-suggestions" id="forgeKitsuSuggestions"></div>
+      <form class="forge-kitsu-compose" id="forgeKitsuForm">
+        <textarea id="forgeKitsuInput" rows="2" maxlength="2000" placeholder="Ask Kitsu about Forge…" aria-label="Message Kitsu"></textarea>
+        <button type="submit" class="btn primary" id="forgeKitsuSend">Send</button>
+      </form>`;
+
+    document.body.appendChild(shade);
+    document.body.appendChild(drawer);
+
+    document.querySelector('#forgeKitsuClose').onclick=()=>forgeKitsuSetOpen(false);
+    document.querySelector('#forgeKitsuForm').onsubmit=e=>{e.preventDefault();forgeKitsuSend();};
+    document.querySelector('#forgeKitsuInput').addEventListener('keydown',e=>{
+        if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();forgeKitsuSend();}
+    });
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')forgeKitsuSetOpen(false);});
+
+    forgeKitsuAddMessage('assistant',`Hey! I’m Kitsu. Ask me what’s happening in ${((document.querySelector('.pageTitle h1')?.textContent||'Forge').trim())}.`,'happy');
+    forgeKitsuSuggestions(['What needs printing next?','What needs my attention?','Are we short of anything?']);
 }
 
 (function () {
