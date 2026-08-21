@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reports | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0241"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reports | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0242"></head>
 <body class="forge-protected"><div class="app"><aside class="sidebar">
  <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
@@ -90,6 +90,8 @@
       <label><span>Fixed fee per card transaction (£)</span><input class="number" type="number" min="0" step="0.01" id="reportCardFeeFixed"></label>
     </div>
     <button class="btn" id="reportSaveSettings">Save Profit Settings</button>
+    <button class="btn secondary" id="reportImportMasterCosts">Load Master Costs into D1</button>
+    <div class="small report-note" id="reportCostStatus">Checking Forge product costs…</div>
     <div class="small report-note">Estimated profit = money taken − Shopify unit costs − estimated card fees.</div>
     <div id="reportMissingCosts"></div>
   </div>
@@ -100,7 +102,7 @@
   <div id="reportPaymentBreakdown"></div>
 </section>
 
-<div class="footer-note">PLA Forge v0.24.1 · Shopify Sales & Profit Reports</div>
+<div class="footer-note">PLA Forge v0.24.2 · Shopify Sales & Profit Reports</div>
 </main></div>
-<script src="assets/forge.js?v=0241"></script><script>forgeBoot(async function(){await reportsPage()})</script>
+<script src="assets/forge.js?v=0242"></script><script>forgeBoot(async function(){await reportsPage()})</script>
 </body></html>

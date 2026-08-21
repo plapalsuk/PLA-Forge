@@ -7714,6 +7714,16 @@ async function reportsPage() {
         });
         renderProducts();
     });
+    async function refreshCostStatus() {
+        try { const d = await cloudFetch('/reports/product-costs'); byId('reportCostStatus').textContent = `${Number(d.count || 0)} product costs stored in Forge D1`; }
+        catch (e) { byId('reportCostStatus').textContent = `Product cost status unavailable: ${e.message || e}`; }
+    }
+    byId('reportImportMasterCosts').onclick = async () => {
+        const btn = byId('reportImportMasterCosts'); btn.disabled = true; btn.textContent = 'Loading costs…';
+        try { const r = await cloudFetch('/reports/product-costs/import-master', {method:'POST',body:'{}'}); await refreshCostStatus(); await loadReport(); setForgeCloudSync('synced', `${Number(r.written || 0)} Master Spreadsheet costs loaded into D1`); }
+        catch (e) { alert(e.message || e); }
+        finally { btn.disabled = false; btn.textContent = 'Load Master Costs into D1'; }
+    };
     byId('reportSaveSettings').onclick = async () => {
         const btn = byId('reportSaveSettings');
         btn.disabled = true;
@@ -7739,6 +7749,7 @@ async function reportsPage() {
             btn.textContent = 'Save Profit Settings';
         }
     };
+    await refreshCostStatus();
     await loadReport();
 }
 
