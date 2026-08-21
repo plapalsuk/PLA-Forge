@@ -7574,11 +7574,22 @@ async function reportsPage() {
         }
         return { start: isoDate(start), end: isoDate(end) };
     }
-    function resetRangeButtons() {
+    function setReportPresetActive(activePreset) {
+        const todayBtn = byId('reportToday');
+        const todayActive = activePreset === 'today';
+
+        todayBtn.classList.toggle('active', todayActive);
+        todayBtn.classList.toggle('secondary', !todayActive);
+
         document.querySelectorAll('.reportRangeBtn').forEach(x => {
-            x.classList.remove('active');
-            x.classList.add('secondary');
+            const active = x.dataset.range === activePreset;
+            x.classList.toggle('active', active);
+            x.classList.toggle('secondary', !active);
         });
+    }
+
+    function resetRangeButtons() {
+        setReportPresetActive(null);
     }
     function moveDate(days) {
         const d = new Date(`${byId('reportDate').value}T12:00:00`);
@@ -7695,15 +7706,17 @@ async function reportsPage() {
     byId('reportDate').value = localToday();
     byId('reportPrevDay').onclick = () => moveDate(-1);
     byId('reportNextDay').onclick = () => moveDate(1);
-    byId('reportToday').onclick = () => { byId('reportDate').value = localToday(); reportMode = { type: 'day' }; resetRangeButtons(); loadReport(); };
+    byId('reportToday').onclick = () => {
+        byId('reportDate').value = localToday();
+        reportMode = { type: 'day' };
+        setReportPresetActive('today');
+        loadReport();
+    };
     byId('reportRefresh').onclick = loadReport;
     byId('reportDate').onchange = () => { reportMode = { type: 'day' }; resetRangeButtons(); loadReport(); };
     document.querySelectorAll('.reportRangeBtn').forEach(btn => btn.onclick = () => {
         reportMode = { type: 'range', range: btn.dataset.range };
-        document.querySelectorAll('.reportRangeBtn').forEach(x => {
-            x.classList.toggle('active', x === btn);
-            x.classList.toggle('secondary', x !== btn);
-        });
+        setReportPresetActive(btn.dataset.range);
         loadReport();
     });
     document.querySelectorAll('.reportTab').forEach(btn => btn.onclick = () => {
@@ -7749,6 +7762,7 @@ async function reportsPage() {
             btn.textContent = 'Save Profit Settings';
         }
     };
+    setReportPresetActive('today');
     await refreshCostStatus();
     await loadReport();
 }

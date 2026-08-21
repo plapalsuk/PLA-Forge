@@ -3084,3 +3084,14 @@ main{background:radial-gradient(circle at 82% -8%,rgba(255,106,0,.045),transpare
  .forge-footer{align-items:flex-start;flex-direction:column;gap:7px}
  .forge-footer small{margin-left:0}
 }
+
+#reportToday.active,.reportRangeBtn.active{
+  border-color:var(--orange);
+  background:var(--orange);
+  color:#fff;
+}
+#reportToday.secondary{
+  background:var(--panel2);
+  color:var(--text);
+  border-color:var(--line);
+}
