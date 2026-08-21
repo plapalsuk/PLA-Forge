@@ -269,7 +269,7 @@ window.addEventListener('beforeunload', () => {
         clearInterval(forgeLiveSyncTimer);
 });
 function installForgeCloudSyncBadge() {
-    if (!['production.html', 'plates.html', 'parts.html', 'assembly.html', 'pals.html', 'packing-station.html', 'packaging.html', 'availability.html', 'settings.html', 'consumables.html'].includes(forgeCurrentPage()))
+    if (!['production.html', 'plates.html', 'parts.html', 'assembly.html', 'pals.html', 'packing-station.html', 'packaging.html', 'availability.html', 'settings.html', 'consumables.html', 'reports.html'].includes(forgeCurrentPage()))
         return;
     if (document.querySelector('#forgeCloudSyncBadge'))
         return;
@@ -7532,12 +7532,173 @@ async function shopifyIntegrationPage() {
         saveLocationBtn.onclick = saveLocationMapping;
     await refreshAll();
 }
+
+async function reportsPage() {
+    const byId = id => document.getElementById(id);
+    let currentData = null;
+    let productTab = 'all';
+
+    function localToday() {
+        const d = new Date(), off = d.getTimezoneOffset();
+        return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+    }
+    function money(v, currency) {
+        try {
+            return new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency || 'GBP' }).format(Number(v || 0));
+        }
+        catch {
+            return `£${Number(v || 0).toFixed(2)}`;
+        }
+    }
+    function moveDate(days) {
+        const d = new Date(`${byId('reportDate').value}T12:00:00`);
+        d.setDate(d.getDate() + days);
+        byId('reportDate').value = d.toISOString().slice(0, 10);
+        loadReport();
+    }
+    function setLocation(prefix, data, currency) {
+        byId(`${prefix}Sales`).textContent = money(data.total_taken, currency);
+        byId(`${prefix}Items`).textContent = Number(data.items_sold || 0);
+        byId(`${prefix}Orders`).textContent = Number(data.orders || 0);
+        byId(`${prefix}Cash`).textContent = money(data.cash, currency);
+        byId(`${prefix}Card`).textContent = money(data.card, currency);
+        byId(`${prefix}Cogs`).textContent = money(data.cogs, currency);
+        byId(`${prefix}Profit`).textContent = money(data.estimated_profit, currency);
+    }
+    function combinedProducts(data) {
+        const map = {};
+        ['boat', 'cornwall'].forEach(loc => {
+            (data.report[loc].products || []).forEach(p => {
+                const key = p.sku || p.name;
+                if (!map[key])
+                    map[key] = { sku: p.sku, name: p.name, quantity: 0, sales: 0, cogs: 0 };
+                map[key].quantity += Number(p.quantity || 0);
+                map[key].sales += Number(p.sales || 0);
+                map[key].cogs += Number(p.cogs || 0);
+            });
+        });
+        return Object.values(map).sort((a, b) => b.quantity - a.quantity || b.sales - a.sales);
+    }
+    function renderProducts() {
+        if (!currentData)
+            return;
+        const currency = currentData.currency || 'GBP';
+        const products = productTab === 'all'
+            ? combinedProducts(currentData)
+            : (currentData.report[productTab].products || []);
+        byId('reportProducts').innerHTML = products.length
+            ? `<div class="report-product-list">${products.map((p, i) => `
+                <div class="report-product-row">
+                  <span class="report-rank">${i + 1}</span>
+                  <div class="report-product-name"><strong>${esc(p.name || p.sku || 'Item')}</strong><span>${esc(p.sku || '')}</span></div>
+                  <strong>${Number(p.quantity || 0)} sold</strong>
+                  <span>${money(p.sales, currency)}</span>
+                </div>`).join('')}</div>`
+            : `<div class="dashboard-clear-state"><strong>No products sold.</strong><span>No mapped retail sales were found for this date.</span></div>`;
+    }
+    function render(data) {
+        currentData = data;
+        const c = data.currency || 'GBP';
+        const total = data.report.total, boat = data.report.boat, corn = data.report.cornwall;
+        setLocation('rTotal', total, c);
+        setLocation('rBoat', boat, c);
+        setLocation('rCorn', corn, c);
+
+        byId('reportCardFeePercent').value = Number(data.profit_settings?.card_fee_percent || 0);
+        byId('reportCardFeeFixed').value = Number(data.profit_settings?.card_fee_fixed || 0);
+
+        const missing = data.missing_costs || [];
+        byId('reportMissingCosts').innerHTML = missing.length
+            ? `<div class="report-warning"><strong>${missing.length} sold SKU${missing.length === 1 ? '' : 's'} have no Shopify unit cost.</strong><div class="small">${missing.slice(0, 12).map(x => esc(x.sku || x.name)).join(' · ')}${missing.length > 12 ? ' …' : ''}</div></div>`
+            : `<div class="report-success small">✓ All sold items have a Shopify unit cost.</div>`;
+
+        const unmapped = data.report.unmapped || {};
+        const rows = [
+            ['Boat', boat],
+            ['Cornwall', corn]
+        ];
+        if (Number(unmapped.total_taken || 0) || Number(unmapped.orders || 0))
+            rows.push(['Unmapped / Other', unmapped]);
+
+        byId('reportPaymentBreakdown').innerHTML = `
+          <div class="report-payment-table">
+            <div class="report-payment-head"><span>Location</span><span>Cash</span><span>Card / Digital</span><span>Other</span><span>Refunds</span><span>Net Taken</span></div>
+            ${rows.map(([label, r]) => `<div class="report-payment-row">
+              <strong>${esc(label)}</strong><span>${money(r.cash, c)}</span><span>${money(r.card, c)}</span><span>${money(r.other, c)}</span><span>${money(r.refunds, c)}</span><strong>${money(r.total_taken, c)}</strong>
+            </div>`).join('')}
+          </div>`;
+
+        byId('reportGenerated').textContent = `${data.date} · Shopify timezone ${data.timezone} · ${Number(data.orders_scanned || 0)} orders checked`;
+        renderProducts();
+    }
+    async function loadReport() {
+        const btn = byId('reportRefresh');
+        btn.disabled = true;
+        btn.textContent = 'Loading…';
+        byId('reportError').innerHTML = '';
+        try {
+            const data = await cloudFetch(`/reports/shopify-sales?date=${encodeURIComponent(byId('reportDate').value)}`);
+            render(data);
+            setForgeCloudSync('synced', 'Shopify sales report refreshed');
+        }
+        catch (e) {
+            byId('reportError').innerHTML = `<div class="forge-startup-error"><div><strong>Report could not load.</strong><div class="small">${esc(e.message || String(e))}</div></div></div>`;
+            setForgeCloudSync('error', 'Shopify report unavailable');
+        }
+        finally {
+            btn.disabled = false;
+            btn.textContent = 'Refresh';
+        }
+    }
+
+    byId('reportDate').value = localToday();
+    byId('reportPrevDay').onclick = () => moveDate(-1);
+    byId('reportNextDay').onclick = () => moveDate(1);
+    byId('reportToday').onclick = () => { byId('reportDate').value = localToday(); loadReport(); };
+    byId('reportRefresh').onclick = loadReport;
+    byId('reportDate').onchange = loadReport;
+    document.querySelectorAll('.reportTab').forEach(btn => btn.onclick = () => {
+        productTab = btn.dataset.location;
+        document.querySelectorAll('.reportTab').forEach(x => {
+            x.classList.toggle('active', x === btn);
+            x.classList.toggle('secondary', x !== btn);
+        });
+        renderProducts();
+    });
+    byId('reportSaveSettings').onclick = async () => {
+        const btn = byId('reportSaveSettings');
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+            await cloudFetch('/settings/reports_profit_settings', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    value: {
+                        card_fee_percent: Math.max(0, Number(byId('reportCardFeePercent').value || 0)),
+                        card_fee_fixed: Math.max(0, Number(byId('reportCardFeeFixed').value || 0))
+                    }
+                })
+            });
+            await loadReport();
+            setForgeCloudSync('synced', 'Profit settings saved');
+        }
+        catch (e) {
+            alert(e.message || e);
+        }
+        finally {
+            btn.disabled = false;
+            btn.textContent = 'Save Profit Settings';
+        }
+    };
+    await loadReport();
+}
+
 (function () {
     const page = (location.pathname.split('/').pop() || 'index.html').replace('.html', '').replace(/[^a-z0-9_-]/gi, '-');
     document.body.classList.add('forge-page-' + page);
 })();
 document.addEventListener('visibilitychange', async () => {
-    if (!document.hidden && ['production.html', 'plates.html', 'parts.html', 'assembly.html', 'pals.html', 'packing-station.html', 'packaging.html', 'availability.html', 'settings.html', 'consumables.html'].includes(forgeCurrentPage())) {
+    if (!document.hidden && ['production.html', 'plates.html', 'parts.html', 'assembly.html', 'pals.html', 'packing-station.html', 'packaging.html', 'availability.html', 'settings.html', 'consumables.html', 'reports.html'].includes(forgeCurrentPage())) {
         const stamp = await forgeCloudStamp();
         if (stamp && forgeLastCloudStamp && stamp !== forgeLastCloudStamp) {
             // interval will pick this up immediately on its next tick

@@ -3006,3 +3006,37 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
   .dispatch-compact-row>.btn{grid-column:2/3}
   .dispatch-compact-action{grid-column:1/-1}
 }
+
+
+/* PLA Forge v0.24.0 — Reports */
+.report-toolbar{display:flex;align-items:end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.report-date-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap}
+.report-date-controls label{min-width:170px}
+.report-hero-grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:14px;margin:14px 0}
+.report-location-card{min-width:0}
+.report-location-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.report-location-head h2{margin:2px 0 0}
+.report-eyebrow{font-size:11px;letter-spacing:.12em;font-weight:800;color:var(--muted)}
+.report-big-value{font-size:34px;font-weight:900;letter-spacing:-.03em;margin-top:14px}
+.report-stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:16px}
+.report-stat-grid>div{padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.02)}
+.report-stat-grid span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.report-stat-grid strong{display:block;margin-top:3px;font-size:17px}
+.report-detail-grid{display:grid;grid-template-columns:1.45fr .85fr;gap:14px;margin-bottom:14px}
+.report-tabs{display:flex;gap:8px;margin-bottom:12px}
+.report-product-list{display:flex;flex-direction:column}
+.report-product-row{display:grid;grid-template-columns:32px minmax(0,1fr) 80px 90px;gap:10px;align-items:center;padding:10px 2px;border-bottom:1px solid var(--border)}
+.report-rank{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:var(--panel2);font-weight:800}
+.report-product-name{min-width:0}
+.report-product-name strong,.report-product-name span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.report-product-name span{font-size:11px;color:var(--muted)}
+.report-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.report-note{margin-top:10px}
+.report-warning{margin-top:14px;padding:12px;border-radius:12px;border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.08)}
+.report-success{margin-top:14px;padding:10px 12px;border-radius:12px;border:1px solid rgba(34,197,94,.35);background:rgba(34,197,94,.06)}
+.report-payment-table{display:flex;flex-direction:column}
+.report-payment-head,.report-payment-row{display:grid;grid-template-columns:1.2fr repeat(5,1fr);gap:10px;align-items:center;padding:10px 8px}
+.report-payment-head{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+.report-payment-row{border-bottom:1px solid var(--border)}
+@media(max-width:1050px){.report-hero-grid{grid-template-columns:1fr 1fr}.report-total{grid-column:1/-1}.report-detail-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.report-hero-grid{grid-template-columns:1fr}.report-total{grid-column:auto}.report-payment-table{overflow:auto}.report-payment-head,.report-payment-row{min-width:650px}.report-product-row{grid-template-columns:30px minmax(0,1fr) 65px}.report-product-row>span:last-child{display:none}.report-settings-grid{grid-template-columns:1fr}.report-date-controls{width:100%}.report-date-controls label{flex:1}}

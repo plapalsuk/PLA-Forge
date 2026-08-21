@@ -2056,3 +2056,27 @@ Bottom-card manufacture is one database action:
 
 All quick actions are recorded in Consumable History.
 Automatic insert-print and packing deductions from v0.23.9 remain unchanged.
+
+
+## v0.24.0 — Shopify Sales & Profit Reports
+Requires Worker v4.9.
+
+New top-level Reports section:
+- Daily date selector
+- Boat / Cornwall / combined sales
+- Items sold and order count
+- Cash vs Card / Digital vs Other payment split
+- Refunds and net money taken
+- Product sales ranking
+- Shopify InventoryItem unit cost used as COGS
+- Estimated profit
+- Configurable card processing percentage and fixed per-card-transaction estimate
+- Missing-cost warning for sold SKUs without Shopify unit cost
+
+Worker endpoint:
+GET /reports/shopify-sales?date=YYYY-MM-DD
+
+Profit estimate:
+money taken - Shopify unit costs - configured estimated card fees
+
+This is an operational gross-profit estimate, not an accounting net-profit statement.
