@@ -3120,3 +3120,59 @@ main{background:radial-gradient(circle at 82% -8%,rgba(255,106,0,.045),transpare
 .forge-kitsu-compose{display:flex;gap:9px;padding:12px 14px max(14px,env(safe-area-inset-bottom));background:#0d0f12;border-top:1px solid rgba(255,255,255,.08)}.forge-kitsu-compose textarea{flex:1;resize:none;min-height:45px;max-height:120px;background:#17191d;color:#f4f4f4;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 11px;font:inherit;font-size:13px;outline:none}.forge-kitsu-compose textarea:focus{border-color:rgba(255,106,0,.7);box-shadow:0 0 0 3px rgba(255,106,0,.09)}.forge-kitsu-compose .btn{min-width:72px;border-radius:12px}.forge-kitsu-compose .btn:disabled{opacity:.55;cursor:wait}
 body.forge-kitsu-open{overflow:hidden}
 @media(max-width:700px){.forge-kitsu-drawer{width:100vw}.forge-kitsu-launcher::after{display:none}.forge-kitsu-head{padding-top:max(17px,env(safe-area-inset-top))}}
+
+/* =========================================================
+   v0.26.1 — Kitsu universal top-right position
+   Keep the existing Kitsu launcher, but anchor it consistently
+   at the upper-right of every authenticated Forge page.
+   ========================================================= */
+main{position:relative}
+
+/* Kitsu should remain available for every signed-in role. */
+body.forge-role-retail-staff .topbar .kitsu{
+  display:flex !important;
+}
+
+@media (min-width:981px){
+  main > .topbar{
+    align-items:flex-start !important;
+    min-height:76px;
+    padding-right:330px;
+  }
+
+  main > .topbar > .kitsu{
+    position:absolute !important;
+    top:14px !important;
+    right:18px !important;
+    width:auto !important;
+    max-width:310px !important;
+    margin:0 !important;
+    z-index:20;
+    align-self:auto !important;
+  }
+}
+
+/* Tablet: keep Kitsu on the right of the heading instead of dropping below it. */
+@media (min-width:701px) and (max-width:980px){
+  main > .topbar{
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) auto !important;
+    gap:12px !important;
+    align-items:start !important;
+  }
+
+  main > .topbar > .kitsu{
+    width:auto !important;
+    max-width:300px !important;
+    min-width:220px !important;
+    margin:0 0 0 auto !important;
+    align-self:start !important;
+  }
+}
+
+/* Phones stay usable: Kitsu remains visible immediately beneath the heading. */
+@media (max-width:700px){
+  body.forge-role-retail-staff .topbar .kitsu{
+    display:flex !important;
+  }
+}
