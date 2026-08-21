@@ -1,7 +1,7 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Production Planner | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0242"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Production Planner | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0250"></head>
 <body class="forge-protected"><div class="app">
 <aside class="sidebar">
- <div class="brand"><div class="fox">🦊</div><div><div class="wordmark">PLA <b>FORGE</b></div><div class="tag">MANUFACTURING & INVENTORY</div></div></div>
+ <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
  <nav class="nav" id="forgeNav">
   <div class="navgroup">Forge Control</div>
@@ -27,14 +27,14 @@
 <a href="settings-shopify.html">◈ Shopify</a>
  </nav>
 </aside>
-<main><div class="topbar"><div class="pageTitle"><h1>Production Planner</h1><div class="small">One demand source: Shopify stock versus Forge targets, less Pals already in the workflow.</div></div><div class="kitsu"><div style="font-size:25px">🦊</div><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Pal</th><th>Need</th><th>Colour Groups</th><th>Estimated Filament</th><th>Colours</th></tr></thead><tbody id="prod"></tbody></table></div><div class="card" style="margin-top:14px">
+<main><div class="topbar"><div class="pageTitle"><h1>Production Planner</h1><div class="small">One demand source: Shopify stock versus Forge targets, less Pals already in the workflow.</div></div><div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Pal</th><th>Need</th><th>Colour Groups</th><th>Estimated Filament</th><th>Colours</th></tr></thead><tbody id="prod"></tbody></table></div><div class="card" style="margin-top:14px">
  <div class="section-title"><div><h2>Damage / Rework Requirements</h2><div class="small">Delivery damage routed back to the correct stage.</div></div><span class="badge warning">Rework</span></div>
  <div id="damageProduction" class="damage-production-list"></div>
 </div><div class="card" style="margin-top:14px">
  <div class="section-title"><div><h2>Cornwall Spare Replenishment</h2><div class="small">Factory replenishes Cornwall Pal Inserts back to a target stock of 2.</div></div><span class="badge danger">Factory Supply</span></div>
  <div id="cornwallSpareDemand" class="damage-production-list"></div>
 </div>
-<div class="footer-note">PLA Forge v0.24.2 · Manufacturing & Inventory System</div></main></div><script src="assets/forge.js?v=0242"></script><script>forgeBoot(async function(){
+<div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.25.0 · Manufacturing & Inventory System</small></div></main></div><script src="assets/forge.js?v=0250"></script><script>forgeBoot(async function(){
 production()
 })</script>
 <script id="legacyBootFailsafe">

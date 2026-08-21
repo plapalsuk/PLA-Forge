@@ -4,7 +4,7 @@
  --text:#f6f7f9; --muted:#929aa6; --orange:#ff6a00; --orange2:#ff9633;
  --good:#43c17a; --warn:#f4b942; --bad:#f05c63; --blue:#48a8ff;
 }
-*{box-sizing:border-box} html{background:var(--bg)} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+*{box-sizing:border-box} html{background:var(--bg)} body{margin:0;background:var(--bg);color:var(--text);font-family:Poppins,Inter,system-ui,-apple-system,Segoe UI,sans-serif}
 a{color:inherit;text-decoration:none}.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
 .sidebar{background:#0a0d11;border-right:1px solid var(--line);padding:20px 14px;position:sticky;top:0;height:100vh;overflow:auto}
 .brand{display:flex;gap:12px;align-items:center;padding:4px 8px 20px}.fox{width:48px;height:48px;border:1px solid #5f452e;background:linear-gradient(145deg,#19120d,#0f1114);border-radius:14px;display:grid;place-items:center;font-size:28px;box-shadow:inset 0 0 24px rgba(255,106,0,.12)}
@@ -3043,3 +3043,44 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
 
 .reportRangeBtn.active{border-color:var(--orange);background:var(--orange);color:#fff}
 @media(max-width:900px){.report-date-controls .reportRangeBtn{flex:1 1 auto}}
+
+
+/* =========================================================
+   PLA FORGE v0.25.0 — BRAND REFRESH
+   ========================================================= */
+:root{
+ --bg:#0b0f12; --panel:#14191f; --panel2:#1f2328; --line:#343b44;
+ --text:#ffffff; --muted:#a8b0ba; --orange:#ff6a00; --orange2:#ff8c33;
+}
+body{letter-spacing:-.005em}
+.sidebar{background:#090c10;border-right-color:#2a3037;padding:16px 12px}
+.forge-brand-lockup{display:block;padding:0 2px 20px;margin:0 0 8px;border-bottom:1px solid #252b32}
+.forge-brand-lockup img{display:block;width:100%;max-width:210px;height:auto;object-fit:contain;object-position:left center}
+.navgroup{color:#737c88;font-weight:600;letter-spacing:.16em}
+.nav a{font-weight:500;border:1px solid transparent;transition:background .15s,border-color .15s,color .15s}
+.nav a:hover{background:#151a20;border-color:#282f37}
+.nav a.active{background:linear-gradient(90deg,rgba(255,106,0,.16),rgba(255,106,0,.045));border:1px solid rgba(255,106,0,.26);border-left:3px solid var(--orange);color:#fff}
+main{background:radial-gradient(circle at 82% -8%,rgba(255,106,0,.045),transparent 25%),var(--bg)}
+.topbar{padding-bottom:16px;border-bottom:1px solid #242a31}
+.topbar h1{font-weight:700;letter-spacing:-.025em}
+.kitsu{border-color:rgba(255,106,0,.38);background:linear-gradient(105deg,rgba(255,106,0,.12),rgba(255,140,51,.025));box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.kitsu-mark{width:38px;height:38px;object-fit:cover;object-position:left center;border-radius:9px}
+.card,.ops-kpi{border-color:#303740;box-shadow:0 8px 24px rgba(0,0,0,.12),inset 0 1px rgba(255,255,255,.018)}
+.btn{font-family:inherit;font-weight:650;letter-spacing:-.01em}
+.btn:not(.secondary):not(.ghost){background:linear-gradient(180deg,#ff7a16,#ff6a00);box-shadow:0 4px 14px rgba(255,106,0,.14)}
+.btn:not(.secondary):not(.ghost):hover{background:linear-gradient(180deg,#ff8c33,#ff7310)}
+.badge{letter-spacing:.02em}
+.dashboard-eyebrow{color:var(--orange);font-weight:650;letter-spacing:.11em}
+.dashboard-section-heading h2,.section-title h2{font-weight:650;letter-spacing:-.02em}
+.forge-footer{margin-top:28px;padding:18px 4px 6px;border-top:1px solid #252b32;display:flex;align-items:center;gap:14px;flex-wrap:wrap;color:#9da6b1}
+.forge-footer-brand{display:inline-flex;align-items:center;gap:7px;color:#fff}
+.forge-footer-brand img{width:25px;height:25px;object-fit:cover;object-position:left center;border-radius:6px}
+.forge-footer-brand strong{font-size:12px;letter-spacing:.04em}
+.forge-footer b{color:var(--orange);font-weight:600}
+.forge-footer small{margin-left:auto;color:#69727e}
+@media(max-width:700px){
+ .forge-brand-lockup img{max-width:165px}
+ .kitsu-mark{width:32px;height:32px}
+ .forge-footer{align-items:flex-start;flex-direction:column;gap:7px}
+ .forge-footer small{margin-left:0}
+}
