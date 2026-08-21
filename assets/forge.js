@@ -7537,6 +7537,7 @@ async function reportsPage() {
     const byId = id => document.getElementById(id);
     let currentData = null;
     let productTab = 'all';
+    let reportMode = { type: 'day' };
 
     function localToday() {
         const d = new Date(), off = d.getTimezoneOffset();
@@ -7550,10 +7551,41 @@ async function reportsPage() {
             return `£${Number(v || 0).toFixed(2)}`;
         }
     }
+    function isoDate(d) {
+        const x = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+        return x.toISOString().slice(0, 10);
+    }
+    function rangeFor(kind) {
+        const end = new Date(`${byId('reportDate').value}T12:00:00`);
+        const start = new Date(end);
+        if (kind === '7')
+            start.setDate(start.getDate() - 6);
+        else if (kind === 'month') {
+            start.setMonth(start.getMonth() - 1);
+            start.setDate(start.getDate() + 1);
+        }
+        else if (kind === '3months') {
+            start.setMonth(start.getMonth() - 3);
+            start.setDate(start.getDate() + 1);
+        }
+        else if (kind === 'year') {
+            start.setFullYear(start.getFullYear() - 1);
+            start.setDate(start.getDate() + 1);
+        }
+        return { start: isoDate(start), end: isoDate(end) };
+    }
+    function resetRangeButtons() {
+        document.querySelectorAll('.reportRangeBtn').forEach(x => {
+            x.classList.remove('active');
+            x.classList.add('secondary');
+        });
+    }
     function moveDate(days) {
         const d = new Date(`${byId('reportDate').value}T12:00:00`);
         d.setDate(d.getDate() + days);
         byId('reportDate').value = d.toISOString().slice(0, 10);
+        reportMode = { type: 'day' };
+        resetRangeButtons();
         loadReport();
     }
     function setLocation(prefix, data, currency) {
@@ -7628,7 +7660,8 @@ async function reportsPage() {
             </div>`).join('')}
           </div>`;
 
-        byId('reportGenerated').textContent = `${data.date} · Shopify timezone ${data.timezone} · ${Number(data.orders_scanned || 0)} orders checked`;
+        const periodLabel = data.start_date === data.end_date ? data.start_date : `${data.start_date} → ${data.end_date} · ${Number(data.days || 0)} days`;
+        byId('reportGenerated').textContent = `${periodLabel} · Shopify timezone ${data.timezone} · ${Number(data.orders_scanned || 0)} orders checked`;
         renderProducts();
     }
     async function loadReport() {
@@ -7637,7 +7670,15 @@ async function reportsPage() {
         btn.textContent = 'Loading…';
         byId('reportError').innerHTML = '';
         try {
-            const data = await cloudFetch(`/reports/shopify-sales?date=${encodeURIComponent(byId('reportDate').value)}`);
+            let endpoint;
+            if (reportMode.type === 'range') {
+                const r = rangeFor(reportMode.range);
+                endpoint = `/reports/shopify-sales?start=${encodeURIComponent(r.start)}&end=${encodeURIComponent(r.end)}`;
+            }
+            else {
+                endpoint = `/reports/shopify-sales?date=${encodeURIComponent(byId('reportDate').value)}`;
+            }
+            const data = await cloudFetch(endpoint);
             render(data);
             setForgeCloudSync('synced', 'Shopify sales report refreshed');
         }
@@ -7654,9 +7695,17 @@ async function reportsPage() {
     byId('reportDate').value = localToday();
     byId('reportPrevDay').onclick = () => moveDate(-1);
     byId('reportNextDay').onclick = () => moveDate(1);
-    byId('reportToday').onclick = () => { byId('reportDate').value = localToday(); loadReport(); };
+    byId('reportToday').onclick = () => { byId('reportDate').value = localToday(); reportMode = { type: 'day' }; resetRangeButtons(); loadReport(); };
     byId('reportRefresh').onclick = loadReport;
-    byId('reportDate').onchange = loadReport;
+    byId('reportDate').onchange = () => { reportMode = { type: 'day' }; resetRangeButtons(); loadReport(); };
+    document.querySelectorAll('.reportRangeBtn').forEach(btn => btn.onclick = () => {
+        reportMode = { type: 'range', range: btn.dataset.range };
+        document.querySelectorAll('.reportRangeBtn').forEach(x => {
+            x.classList.toggle('active', x === btn);
+            x.classList.toggle('secondary', x !== btn);
+        });
+        loadReport();
+    });
     document.querySelectorAll('.reportTab').forEach(btn => btn.onclick = () => {
         productTab = btn.dataset.location;
         document.querySelectorAll('.reportTab').forEach(x => {

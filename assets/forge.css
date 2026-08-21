@@ -3040,3 +3040,6 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
 .report-payment-row{border-bottom:1px solid var(--border)}
 @media(max-width:1050px){.report-hero-grid{grid-template-columns:1fr 1fr}.report-total{grid-column:1/-1}.report-detail-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.report-hero-grid{grid-template-columns:1fr}.report-total{grid-column:auto}.report-payment-table{overflow:auto}.report-payment-head,.report-payment-row{min-width:650px}.report-product-row{grid-template-columns:30px minmax(0,1fr) 65px}.report-product-row>span:last-child{display:none}.report-settings-grid{grid-template-columns:1fr}.report-date-controls{width:100%}.report-date-controls label{flex:1}}
+
+.reportRangeBtn.active{border-color:var(--orange);background:var(--orange);color:#fff}
+@media(max-width:900px){.report-date-controls .reportRangeBtn{flex:1 1 auto}}

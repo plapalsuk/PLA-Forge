@@ -2080,3 +2080,17 @@ Profit estimate:
 money taken - Shopify unit costs - configured estimated card fees
 
 This is an operational gross-profit estimate, not an accounting net-profit statement.
+
+
+## v0.24.1 — Report Ranges
+Requires Worker v4.9.2.
+
+Reports can now switch between:
+- Today / selected single day
+- Last 7 Days
+- Last Month (rolling one-month period ending on selected date)
+- Last 3 Months (rolling three-month period)
+- Last Year (rolling one-year period)
+
+All sales, payment, product ranking, COGS and estimated-profit values aggregate over the selected period.
+The date field remains the period end date, so historical rolling reports are also possible.
