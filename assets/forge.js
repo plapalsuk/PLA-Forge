@@ -6244,6 +6244,22 @@ function applyReworkCloudState(data, baseState = null) {
     s.consumables = s.consumables || {};
     return s;
 }
+
+async function mergeLiveDispatchPipelineIntoReworkState(s) {
+    try {
+        const dispatch = await cloudDispatchState();
+        const ds = (dispatch && dispatch.state && typeof dispatch.state === 'object') ? dispatch.state : {};
+        s.awaitingDispatch = JSON.parse(JSON.stringify(ds.awaitingDispatch || []));
+        s.transfers = JSON.parse(JSON.stringify(ds.transfers || []));
+        return dispatch.updated_at || null;
+    }
+    catch (e) {
+        console.warn('Could not merge live Dispatch pipeline into Rework:', e);
+        s.awaitingDispatch = s.awaitingDispatch || [];
+        s.transfers = s.transfers || [];
+        return null;
+    }
+}
 async function reworkPage() {
     var _a;
     installForgeCloudSyncBadge();
@@ -6258,6 +6274,7 @@ async function reworkPage() {
     }
     let s = applyReworkCloudState(initial);
     let reworkStamp = initial.updated_at || null;
+    let dispatchPipelineStamp = await mergeLiveDispatchPipelineIntoReworkState(s);
     const ps = await load('products');
     const availability = await cloudAvailability();
     applyCloudAvailability(s, availability);
@@ -6508,18 +6525,34 @@ async function reworkPage() {
         if (document.hidden)
             return;
         try {
-            const latest = await cloudReworkStamp();
-            if (!latest || latest === reworkStamp)
+            const [latestRework, latestDispatch] = await Promise.all([
+                cloudReworkStamp(),
+                cloudDispatchStamp()
+            ]);
+
+            const reworkChanged = !!latestRework && latestRework !== reworkStamp;
+            const dispatchChanged = !!latestDispatch && latestDispatch !== dispatchPipelineStamp;
+
+            if (!reworkChanged && !dispatchChanged)
                 return;
-            const fresh = await cloudReworkState();
-            s = applyReworkCloudState(fresh, s);
-            reworkStamp = fresh.updated_at || latest;
+
+            if (reworkChanged) {
+                const fresh = await cloudReworkState();
+                s = applyReworkCloudState(fresh, s);
+                reworkStamp = fresh.updated_at || latestRework;
+            }
+
+            if (dispatchChanged || reworkChanged) {
+                const mergedStamp = await mergeLiveDispatchPipelineIntoReworkState(s);
+                dispatchPipelineStamp = mergedStamp || latestDispatch || dispatchPipelineStamp;
+            }
+
             const avail = await cloudAvailability();
             applyCloudAvailability(s, avail);
             onSale = ps.filter(p => p.type === 'pal' && isOnSale(s, p.sku)).sort((a, b) => a.name.localeCompare(b.name));
             localInsertSku.innerHTML = onSale.map(p => `<option value="${p.sku}">${esc(p.name)} · ${p.sku}</option>`).join('');
             draw();
-            setForgeCloudSync('synced', 'Rework updated live');
+            setForgeCloudSync('synced', dispatchChanged ? 'Dispatch pipeline updated live' : 'Rework updated live');
         }
         catch (e) {
             setForgeCloudSync('error', e.message || 'Rework sync failed');
