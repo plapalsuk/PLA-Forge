@@ -6347,8 +6347,48 @@ async function reworkPage() {
         localBox.textContent = boxQty;
         (_a = localBox.closest('.cornwall-current-stock')) === null || _a === void 0 ? void 0 : _a.classList.toggle('low-stock', boxQty < 1);
         localInsertInventory.innerHTML = onSale.map(p => {
-            const qty = cornwallInsertStock(s, p.sku), low = qty < cornwallInsertTarget();
-            return `<tr class="${low ? 'low-spare-row' : ''}"><td><strong>${esc(p.name)}</strong><br><span class="sku">${p.sku}</span></td><td><strong>${qty}</strong>${low ? ` ${badge(`NEED ${Math.max(0, cornwallInsertTarget() - qty)}`, 'danger')}` : ''}</td></tr>`;
+            const qty = cornwallInsertStock(s, p.sku);
+            const target = cornwallInsertTarget();
+            const low = qty < target;
+
+            const readyToDispatch = (s.awaitingDispatch || [])
+                .filter(x => x.item_type === 'cornwall_insert_spare' &&
+                    x.sku === p.sku &&
+                    x.status === 'awaiting_dispatch')
+                .reduce((a, x) => a + Number(x.qty || 0), 0);
+
+            const inTransit = (s.transfers || [])
+                .filter(x => x.transfer_type === 'cornwall_insert_spare' &&
+                    x.sku === p.sku &&
+                    x.destination === 'cornwall' &&
+                    x.status === 'awaiting_delivery')
+                .reduce((a, x) => a + Number(x.qty || 0), 0);
+
+            const pending = readyToDispatch + inTransit;
+            const pendingClass = low && pending > 0 ? 'pending-spare-row' : '';
+            const lowClass = low && pending <= 0 ? 'low-spare-row' : '';
+
+            let statusHtml = '';
+
+            if (!low) {
+                statusHtml = ` ${badge('STOCK OK', 'ok')}`;
+            }
+            else if (readyToDispatch > 0) {
+                statusHtml = ` ${badge(`${readyToDispatch} READY TO DISPATCH`, 'warning')}`;
+                if (inTransit > 0)
+                    statusHtml += ` ${badge(`${inTransit} IN TRANSIT`, 'warning')}`;
+            }
+            else if (inTransit > 0) {
+                statusHtml = ` ${badge(`${inTransit} IN TRANSIT`, 'warning')}`;
+            }
+            else {
+                statusHtml = ` ${badge(`NEED ${Math.max(0, target - qty)}`, 'danger')}`;
+            }
+
+            return `<tr class="${pendingClass || lowClass}">
+                <td><strong>${esc(p.name)}</strong><br><span class="sku">${p.sku}</span></td>
+                <td><strong>${qty}</strong>${statusHtml}</td>
+            </tr>`;
         }).join('') || '<tr><td colspan="2">No On Sale Pals.</td></tr>';
         const low = lowCornwallStock();
         if (factoryAlert) {
