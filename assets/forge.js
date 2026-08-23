@@ -602,11 +602,92 @@ async function syncCloudCoreState() {
         return { ok: false, reason: e.message };
     }
 }
+
+let forgeProductMasterCache = null;
+
+async function cloudProductMaster(force=false){
+    if(!force && forgeProductMasterCache) return forgeProductMasterCache;
+    if(!cloudToken()) throw new Error('Cloud login required.');
+    const [pd, sd] = await Promise.all([
+        cloudFetch('/products'),
+        cloudFetch('/settings')
+    ]);
+    const base = (pd.products || []).map(normaliseCloudProduct);
+    const saved = (sd.settings && sd.settings.product_master && typeof sd.settings.product_master === 'object')
+        ? sd.settings.product_master : {version:1,products:{}};
+    saved.version = 1;
+    saved.products = saved.products || {};
+
+    base.forEach((p, idx)=>{
+        const old = saved.products[p.sku] || {};
+        saved.products[p.sku] = Object.assign({
+            sku:p.sku,
+            name:p.name,
+            first_name:p.first_name || String(p.name||'').split(' the ')[0],
+            animal:p.animal || '',
+            collection:p.collection || '',
+            description:p.description || '',
+            active:p.active !== false,
+            pal_enabled:true,
+            keyring_enabled:!!p.keyring,
+            sticker_enabled:false,
+            keyring_sku:'',
+            sticker_sku:'',
+            barcode:p.barcode || p.sku,
+            box_insert_pdf:'',
+            keyring_insert_pdf:'',
+            keyring_inserts_per_sheet:7,
+            sticker_sheet_pdf:'',
+            target_boat:0,
+            target_cornwall:0
+        }, old);
+    });
+
+    forgeProductMasterCache = saved;
+    return saved;
+}
+
+async function saveCloudProductMaster(master){
+    master = master || {version:1,products:{}};
+    master.version = 1;
+    master.updated_at = new Date().toISOString();
+    await cloudFetch('/settings/product_master', {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({value:master})
+    });
+    forgeProductMasterCache = master;
+    return master;
+}
+
+function applyProductMasterToProduct(p, master){
+    const m = master && master.products ? master.products[p.sku] : null;
+    if(!m) return p;
+    return Object.assign({}, p, {
+        name:m.name || p.name,
+        collection:m.collection || p.collection || '',
+        description:m.description || p.description || '',
+        active:m.active !== false,
+        pal_enabled:m.pal_enabled !== false,
+        keyring:!!m.keyring_enabled,
+        keyring_enabled:!!m.keyring_enabled,
+        keyring_sku:m.keyring_sku || '',
+        sticker_enabled:!!m.sticker_enabled,
+        sticker_sku:m.sticker_sku || '',
+        barcode:m.barcode || p.barcode || p.sku,
+        box_insert_pdf:m.box_insert_pdf || '',
+        keyring_insert_pdf:m.keyring_insert_pdf || '',
+        keyring_inserts_per_sheet:Number(m.keyring_inserts_per_sheet || 7),
+        target_boat:Number(m.target_boat || 0),
+        target_cornwall:Number(m.target_cornwall || 0)
+    });
+}
+
 async function cloudCoreProducts() {
     if (!cloudToken())
         throw new Error('Cloud login required.');
-    const d = await cloudFetch('/products');
-    return (d.products || []).map(normaliseCloudProduct);
+    const [d, master] = await Promise.all([cloudFetch('/products'), cloudProductMaster()]);
+    return (d.products || []).map(normaliseCloudProduct).map(p => applyProductMasterToProduct(p, master));
 }
 async function cloudAvailability() {
     if (!cloudToken())
@@ -6646,7 +6727,7 @@ async function newPalPage() {
         const full = val('npFullName') || `${first}${animal ? ' the ' + animal : ''}`;
         const filaments = [...new Set(recipes.map(r => String(r.filament || '').trim()).filter(Boolean))];
         const product = {
-            sku, name: full, description: val('npShortDescription'), type: 'pal', keyring: false,
+            sku, name: full, description: val('npShortDescription'), type: 'pal', keyring: checked('npKeyringEnabled'),
             recipe_rows: recipes.length,
             recipe_weight_g: recipes.reduce((a, r) => a + Number(r.weight_g || 0), 0),
             filaments, recipe_ready: recipes.every(r => r.filament && r.parts),
@@ -6757,6 +6838,35 @@ async function newPalPage() {
         s.shopifyProducts[d.product.sku] = { status: 'pending', created_at: new Date().toISOString(), payload: d.shopify };
         s.siteSettings.shopifyBridgeUrl = shopifyBridge.value.trim();
         save(s);
+
+        try {
+            const master = await cloudProductMaster(true);
+            master.products[d.product.sku] = Object.assign({}, master.products[d.product.sku] || {}, {
+                sku: d.product.sku,
+                name: d.product.name,
+                first_name: d.product.first_name || '',
+                animal: d.product.animal || '',
+                collection: d.product.collection || '',
+                description: d.product.description || '',
+                active: true,
+                pal_enabled: checked('npPalEnabled'),
+                keyring_enabled: checked('npKeyringEnabled'),
+                sticker_enabled: checked('npStickerEnabled'),
+                barcode: d.product.barcode || d.product.sku,
+                box_insert_pdf: val('npInsertUrl'),
+                keyring_sku: val('npKeyringSku').toUpperCase(),
+                keyring_insert_pdf: val('npKeyringPdf'),
+                keyring_inserts_per_sheet: Number(val('npKeyringPerSheet') || 7),
+                sticker_sku: val('npStickerSku').toUpperCase(),
+                target_boat: Number(val('npTargetBoat') || 0),
+                target_cornwall: Number(val('npTargetCornwall') || 0)
+            });
+            await saveCloudProductMaster(master);
+        }
+        catch (e) {
+            console.warn('Product Master save during New Pal setup failed', e);
+        }
+
         status.innerHTML = badge('Forge created · sending Shopify…', 'warning');
         const result = await sendShopify(d);
         if (result.ok) {
@@ -8052,7 +8162,17 @@ async function keyringWorkspaceContext(){
     }
 
     const s = cloudOperationalState();
-    const catalog = await load('keyrings');
+    const allProducts = await load('products');
+    const catalog = allProducts
+        .filter(p => p.type === 'pal' && p.active !== false && p.keyring_enabled === true && p.keyring_sku)
+        .map(p => ({
+            sku:p.keyring_sku,
+            pal_sku:p.sku,
+            name:p.name,
+            pdf:p.keyring_insert_pdf || `${p.keyring_sku}_${String(p.first_name || p.name || '').split(' ')[0]}_Keyring.pdf`,
+            per_sheet:Number(p.keyring_inserts_per_sheet || 7)
+        }))
+        .sort((a,b)=>a.name.localeCompare(b.name));
 
     s.production = s.production || {};
     s.production.keyrings = s.production.keyrings || {};
@@ -8363,4 +8483,144 @@ async function keyringAssemblyPage(){
 
     draw();
     setTimeout(()=>$('krAsmScan').focus(),100);
+}
+
+
+/* ===== Product Master v0.28.0 ===== */
+async function productMasterPage(){
+    installForgeCloudSyncBadge();
+    if(!cloudToken()){ showCloudRequiredError('Cloud login required.'); return; }
+
+    const $ = id => document.getElementById(id);
+    let master = await cloudProductMaster(true);
+    let baseProducts = await cloudFetch('/products').then(d=>(d.products||[]).map(normaliseCloudProduct));
+    let selectedSku = baseProducts[0] ? baseProducts[0].sku : '';
+    let filter = '';
+
+    // Seed known K-SKU mapping only when a record has no mapping yet.
+    const knownKeys = {
+      PLA001:'K001', PLA002:'K002', PLA009:'K004'
+    };
+    const firstNameMap = {
+      Alex:'K001',Benny:'K002',Crush:'K003',Chip:'K004',Cranky:'K005',Dillan:'K006',
+      Daphne:'K007',Ellie:'K008',Fran:'K009',Flora:'K010',Fiona:'K011',Freddy:'K012',
+      Glen:'K013',Gloria:'K014',Henry:'K015',Laura:'K016',Mack:'K017',Mike:'K018',
+      Maisie:'K019',Nina:'K020',Oliver:'K021',Oscar:'K022',Olivia:'K023',Pablo:'K024',
+      Philip:'K025',Rolo:'K026',Rachel:'K027'
+    };
+    baseProducts.forEach(p=>{
+        const m=master.products[p.sku];
+        if(m && !m.keyring_sku){
+            const first=String(m.first_name || m.name || '').split(' ')[0];
+            if(firstNameMap[first]) m.keyring_sku=firstNameMap[first];
+        }
+        if(m && m.keyring_sku && !m.keyring_insert_pdf){
+            const first=String(m.first_name || m.name || '').split(' ')[0];
+            m.keyring_insert_pdf=`${m.keyring_sku}_${first}_Keyring.pdf`;
+        }
+    });
+
+    function records(){
+        return baseProducts.map(p=>Object.assign({},p,master.products[p.sku]||{}));
+    }
+    function selected(){
+        return records().find(x=>x.sku===selectedSku) || records()[0] || null;
+    }
+    function count(fn){ return records().filter(fn).length; }
+    function setVal(id,v){ const el=$(id); if(el) el.value = v==null?'':v; }
+    function setCheck(id,v){ const el=$(id); if(el) el.checked=!!v; }
+    function readForm(){
+        const r=selected(); if(!r) return null;
+        const m=master.products[r.sku] || {};
+        Object.assign(m,{
+            sku:r.sku,
+            name:$('pmName').value.trim(),
+            first_name:$('pmFirst').value.trim(),
+            animal:$('pmAnimal').value.trim(),
+            collection:$('pmCollection').value.trim(),
+            description:$('pmDescription').value.trim(),
+            active:$('pmActive').checked,
+            pal_enabled:$('pmPalEnabled').checked,
+            keyring_enabled:$('pmKeyringEnabled').checked,
+            sticker_enabled:$('pmStickerEnabled').checked,
+            barcode:$('pmPalBarcode').value.trim(),
+            box_insert_pdf:$('pmBoxPdf').value.trim(),
+            keyring_sku:$('pmKeyringSku').value.trim().toUpperCase(),
+            keyring_insert_pdf:$('pmKeyringPdf').value.trim(),
+            keyring_inserts_per_sheet:Math.max(1,Number($('pmKeyringPerSheet').value||7)),
+            sticker_sku:$('pmStickerSku').value.trim().toUpperCase(),
+            sticker_sheet_pdf:$('pmStickerPdf').value.trim(),
+            target_boat:Math.max(0,Number($('pmTargetBoat').value||0)),
+            target_cornwall:Math.max(0,Number($('pmTargetCornwall').value||0))
+        });
+        master.products[r.sku]=m;
+        return m;
+    }
+    function drawList(){
+        $('pmTotal').textContent=records().length;
+        $('pmPals').textContent=count(x=>x.pal_enabled!==false && x.active!==false);
+        $('pmKeyrings').textContent=count(x=>x.keyring_enabled===true && x.active!==false);
+        $('pmStickers').textContent=count(x=>x.sticker_enabled===true && x.active!==false);
+
+        const q=filter.toLowerCase();
+        $('pmRows').innerHTML=records()
+          .filter(x=>`${x.name} ${x.sku} ${x.collection||''} ${x.keyring_sku||''}`.toLowerCase().includes(q))
+          .map(x=>`<tr class="${x.sku===selectedSku?'pm-selected':''}" data-sku="${x.sku}">
+             <td><strong>${esc(x.name)}</strong></td>
+             <td>${esc(x.collection||'—')}</td>
+             <td>${x.pal_enabled!==false?'◆':'—'}</td>
+             <td>${x.keyring_enabled===true?'◇':'—'}</td>
+             <td>${x.sticker_enabled===true?'▣':'—'}</td>
+             <td><span class="sku">${esc(x.sku)}</span></td>
+             <td><span class="sku">${esc(x.keyring_sku||'—')}</span></td>
+             <td>${badge(x.active===false?'Inactive':'Active',x.active===false?'warning':'ok')}</td>
+          </tr>`).join('');
+        $('pmRows').querySelectorAll('tr[data-sku]').forEach(tr=>tr.onclick=()=>{
+            selectedSku=tr.dataset.sku;
+            drawList(); drawEditor();
+        });
+    }
+    function drawEditor(){
+        const r=selected(); if(!r) return;
+        $('pmEditorTitle').textContent=`Edit Product — ${r.name}`;
+        setVal('pmName',r.name); setVal('pmFirst',r.first_name||''); setVal('pmAnimal',r.animal||'');
+        setVal('pmCollection',r.collection||''); setVal('pmDescription',r.description||'');
+        setCheck('pmActive',r.active!==false); setCheck('pmPalEnabled',r.pal_enabled!==false);
+        setCheck('pmKeyringEnabled',r.keyring_enabled===true); setCheck('pmStickerEnabled',r.sticker_enabled===true);
+        setVal('pmPalSku',r.sku); setVal('pmPalBarcode',r.barcode||r.sku); setVal('pmBoxPdf',r.box_insert_pdf||'');
+        setVal('pmKeyringSku',r.keyring_sku||''); setVal('pmKeyringPdf',r.keyring_insert_pdf||'');
+        setVal('pmKeyringPerSheet',r.keyring_inserts_per_sheet||7);
+        setVal('pmStickerSku',r.sticker_sku||''); setVal('pmStickerPdf',r.sticker_sheet_pdf||'');
+        setVal('pmTargetBoat',r.target_boat||0); setVal('pmTargetCornwall',r.target_cornwall||0);
+        $('pmPalCard').classList.toggle('pm-disabled',r.pal_enabled===false);
+        $('pmKeyringCard').classList.toggle('pm-disabled',r.keyring_enabled!==true);
+        $('pmStickerCard').classList.toggle('pm-disabled',r.sticker_enabled!==true);
+    }
+    async function saveEditor(){
+        const m=readForm(); if(!m) return;
+        $('pmSave').disabled=true; $('pmSave').textContent='Saving…';
+        try{
+            await saveCloudProductMaster(master);
+            // Sync targets into the existing operational target source so Pal Production benefits immediately.
+            if(forgeProductionCloudReady && m.pal_enabled!==false){
+                const s=cloudOperationalState();
+                s.targets=s.targets||{};
+                s.targets[targetKey(m.sku,'boat')]=Number(m.target_boat||0);
+                s.targets[targetKey(m.sku,'cornwall')]=Number(m.target_cornwall||0);
+                await saveProductionCloud(s);
+            }
+            setForgeCloudSync('synced','Product Master saved');
+            drawList(); drawEditor();
+        }catch(e){
+            setForgeCloudSync('error',e.message||'Product Master save failed');
+            alert('Could not save Product Master: '+e.message);
+        }finally{
+            $('pmSave').disabled=false; $('pmSave').textContent='Save Product';
+        }
+    }
+
+    $('pmSearch').oninput=e=>{filter=e.target.value;drawList();};
+    $('pmSave').onclick=saveEditor;
+    ['pmPalEnabled','pmKeyringEnabled','pmStickerEnabled'].forEach(id=>$(id).onchange=()=>{readForm();drawEditor();drawList();});
+    drawList(); drawEditor();
 }

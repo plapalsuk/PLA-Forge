@@ -1,0 +1,115 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Product Master | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0280"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
+ <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
+ <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
+ <nav class="nav" id="forgeNav">
+
+  <div class="navgroup">Forge Control</div>
+  <a href="index.html">⌂ Dashboard</a>
+  <a href="reports.html">▥ Reports</a>
+  <a href="pals-production.html">◆ Pals Production</a>
+  <a href="keyring-inventory.html">◇ Keyrings Production</a>
+
+  <div class="navgroup">Inventory</div>
+  <a href="stickers.html">▣ Sticker Sheets</a>
+
+
+  <div class="navgroup">Dispatch</div>
+  <a href="deliveries.html">⇢ Dispatch</a>
+
+  <div class="navgroup">Materials</div>
+  <a href="consumables.html">▤ Consumables</a>
+
+  <div class="navgroup">Administration</div>
+  <a href="product-master.html">▦ Product Master</a>
+  <a href="new-pal.html">＋ New Pal / Product Setup</a>
+  <a href="data-health.html">! Data Health</a>
+
+  <div class="navgroup">Settings</div>
+  <a href="settings.html">⚙ General</a>
+  <a href="settings-printers.html">▱ 3D Printers</a>
+  <a href="settings-availability.html">◉ Product Availability</a>
+  <a href="settings-labels.html">▤ Labels &amp; Printing</a>
+  <a href="settings-employees.html">♙ Employees</a>
+  <a href="settings-system.html">! System &amp; Data</a>
+  <a href="settings-shopify.html">◈ Shopify</a>
+
+</nav>
+</aside><main>
+<div class="topbar">
+ <div class="pageTitle"><h1>Product Master</h1><div class="small">One source of truth for every character and every product we sell.</div></div>
+ <div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt=""><div><strong>Kitsu</strong><div class="small">One product record. Every Forge workflow.</div></div></div>
+</div>
+
+<div class="pm-kpis">
+ <div class="card pm-kpi"><span>Total Characters</span><strong id="pmTotal">0</strong></div>
+ <div class="card pm-kpi"><span>Pals For Sale</span><strong id="pmPals">0</strong></div>
+ <div class="card pm-kpi"><span>Keyrings For Sale</span><strong id="pmKeyrings">0</strong></div>
+ <div class="card pm-kpi"><span>Sticker Sheets</span><strong id="pmStickers">0</strong></div>
+ <a href="new-pal.html" class="btn pm-new">＋ New Pal / Product</a>
+</div>
+
+<div class="pm-layout">
+ <section class="card pm-list-card">
+  <div class="pm-list-tools"><input id="pmSearch" class="search" placeholder="Search characters, SKU or collection…"></div>
+  <div class="pm-table-wrap"><table><thead><tr><th>Character</th><th>Collection</th><th>Pal</th><th>Keyring</th><th>Sticker</th><th>Pal SKU</th><th>Keyring SKU</th><th>Status</th></tr></thead><tbody id="pmRows"></tbody></table></div>
+ </section>
+
+ <section class="card pm-editor">
+  <div class="section-title"><div><h2 id="pmEditorTitle">Edit Product</h2><div class="small">Edit the character once, then choose which products are available.</div></div><button id="pmSave" class="btn">Save Product</button></div>
+
+  <div class="pm-tabs">
+   <span class="active">Basic Details</span><span>Pal Details</span><span>Keyring Details</span><span>Sticker Details</span><span>Targets & Inventory</span>
+  </div>
+
+  <div class="pm-basic-grid">
+   <div>
+    <div class="newpal-grid">
+     <div class="form-field wide"><label>Character Name</label><input id="pmName"></div>
+     <div class="form-field"><label>First Name</label><input id="pmFirst"></div>
+     <div class="form-field"><label>Animal</label><input id="pmAnimal"></div>
+     <div class="form-field"><label>Collection</label><input id="pmCollection"></div>
+    </div>
+    <div class="form-field"><label>Description</label><textarea id="pmDescription" rows="3"></textarea></div>
+    <label class="newpal-check"><input id="pmActive" type="checkbox"> <span>Active character</span></label>
+   </div>
+
+   <div class="pm-products-sold">
+    <strong>Products We Sell</strong>
+    <label><input id="pmPalEnabled" type="checkbox"> PLA Pal</label>
+    <label><input id="pmKeyringEnabled" type="checkbox"> Keyring</label>
+    <label><input id="pmStickerEnabled" type="checkbox"> Sticker Sheet</label>
+   </div>
+  </div>
+
+  <div class="pm-variant-grid">
+   <div class="pm-variant-card" id="pmPalCard">
+    <div class="pm-variant-head"><strong>◆ PLA PAL</strong><span class="badge ok">Product Variant</span></div>
+    <div class="form-field"><label>Pal SKU</label><input id="pmPalSku" disabled></div>
+    <div class="form-field"><label>Barcode</label><input id="pmPalBarcode"></div>
+    <div class="form-field"><label>Box Insert PDF / Drive URL</label><input id="pmBoxPdf"></div>
+   </div>
+
+   <div class="pm-variant-card" id="pmKeyringCard">
+    <div class="pm-variant-head"><strong>◇ KEYRING</strong><span class="badge warning">Product Variant</span></div>
+    <div class="form-field"><label>Keyring SKU</label><input id="pmKeyringSku" placeholder="K001"></div>
+    <div class="form-field"><label>Insert PDF Filename</label><input id="pmKeyringPdf" placeholder="K001_Alex_Keyring.pdf"></div>
+    <div class="form-field"><label>Inserts Per Sheet</label><input id="pmKeyringPerSheet" type="number" min="1" value="7"></div>
+   </div>
+
+   <div class="pm-variant-card" id="pmStickerCard">
+    <div class="pm-variant-head"><strong>▣ STICKER SHEET</strong><span class="badge info">Product Variant</span></div>
+    <div class="form-field"><label>Sticker SKU</label><input id="pmStickerSku"></div>
+    <div class="form-field"><label>Sticker Sheet PDF</label><input id="pmStickerPdf"></div>
+   </div>
+  </div>
+
+  <div class="pm-targets">
+   <div><strong>Inventory Targets</strong><div class="small">These feed the existing Pal production planner.</div></div>
+   <div class="form-field"><label>Boat Target</label><input id="pmTargetBoat" type="number" min="0"></div>
+   <div class="form-field"><label>Cornwall Target</label><input id="pmTargetCornwall" type="number" min="0"></div>
+  </div>
+ </section>
+</div>
+
+<div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>One source of truth. Every product. Every workflow.</span><small>v0.28.0 · Product Master</small></div>
+</main></div><script src="assets/forge.js?v=0280"></script><script>forgeBoot(async function(){ productMasterPage() })</script></body></html>

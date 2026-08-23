@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>New Pal Setup | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0272"></head>
+<title>New Pal / Product Setup | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0280"></head>
 <body class="forge-protected"><div class="app"><aside class="sidebar">
  <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
@@ -22,7 +22,8 @@
   <a href="consumables.html">▤ Consumables</a>
 
   <div class="navgroup">Administration</div>
-  <a href="new-pal.html">＋ New Pal Setup</a>
+  <a href="product-master.html">▦ Product Master</a>
+  <a href="new-pal.html">＋ New Pal / Product Setup</a>
   <a href="data-health.html">! Data Health</a>
 
   <div class="navgroup">Settings</div>
@@ -36,11 +37,17 @@
 
 </nav>
 </aside><main class="bench-main">
-<div class="topbar"><div class="pageTitle"><h1>New Pal Setup</h1><div class="small">Create a Pal once and feed it into Forge production, packaging and Shopify.</div></div><div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">One setup. Every workflow.</div></div></div></div>
+<div class="topbar"><div class="pageTitle"><h1>New Pal / Product Setup</h1><div class="small">Create the character once, choose every product we sell, and feed the same data into Forge.</div></div><div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">One setup. Every workflow.</div></div></div></div>
 
 <form id="newPalForm">
 <div class="card newpal-step">
  <div class="section-title"><div><h2>1 · Pal Details</h2><div class="small">Core identity, product copy and size.</div></div><span class="badge info">Identity</span></div>
+ <div class="newpal-products-create">
+   <strong>Products to create</strong>
+   <label><input id="npPalEnabled" type="checkbox" checked> PLA Pal</label>
+   <label><input id="npKeyringEnabled" type="checkbox"> Keyring</label>
+   <label><input id="npStickerEnabled" type="checkbox"> Sticker Sheet</label>
+  </div>
  <div class="newpal-grid">
   <div class="form-field"><label>SKU</label><input id="npSku" required></div>
   <div class="form-field"><label>First Name</label><input id="npFirstName" placeholder="Phoebe"></div>
@@ -66,18 +73,30 @@
  </div>
 </div>
 
+
 <div class="card newpal-step">
- <div class="section-title"><div><h2>2 · Production Recipe</h2><div class="small">Each row becomes a colour group used by Production Planner, Build Plates and The Bench.</div></div><button type="button" class="btn ghost" id="addRecipeRow">+ Add Colour Group</button></div>
+ <div class="section-title"><div><h2>2 · Product Variants</h2><div class="small">Set the extra product SKUs that belong to this character.</div></div><span class="badge info">Product Master</span></div>
+ <div class="newpal-grid">
+  <div class="form-field"><label>Keyring SKU</label><input id="npKeyringSku" placeholder="K028"></div>
+  <div class="form-field wide"><label>Keyring Insert PDF Filename</label><input id="npKeyringPdf" placeholder="K028_Name_Keyring.pdf"></div>
+  <div class="form-field"><label>Keyring Inserts / Sheet</label><input id="npKeyringPerSheet" type="number" min="1" value="7"></div>
+  <div class="form-field"><label>Sticker SKU</label><input id="npStickerSku"></div>
+  <div class="form-field"><label>Boat Target</label><input id="npTargetBoat" type="number" min="0" value="0"></div>
+  <div class="form-field"><label>Cornwall Target</label><input id="npTargetCornwall" type="number" min="0" value="0"></div>
+ </div>
+</div>
+<div class="card newpal-step">
+ <div class="section-title"><div><h2>3 · Production Recipe</h2><div class="small">Each row becomes a colour group used by Production Planner, Build Plates and The Bench.</div></div><button type="button" class="btn ghost" id="addRecipeRow">+ Add Colour Group</button></div>
  <div id="newPalRecipeRows" class="newpal-recipes"></div>
 </div>
 
 <div class="card newpal-step">
- <div class="section-title"><div><h2>3 · Packaging</h2><div class="small">Link the Pal's folded Insert PDF. Standard PLA Pal packing consumables are inherited automatically.</div></div><span class="badge info">Packaging</span></div>
+ <div class="section-title"><div><h2>4 · Packaging</h2><div class="small">Link the Pal's folded Insert PDF. Standard PLA Pal packing consumables are inherited automatically.</div></div><span class="badge info">Packaging</span></div>
  <div class="form-field"><label>Insert PDF Google Drive URL</label><input id="npInsertUrl" placeholder="https://drive.google.com/file/d/.../view"></div>
 </div>
 
 <div class="card newpal-step">
- <div class="section-title"><div><h2>4 · Shopify</h2><div class="small">Forge sends the product through a secure Shopify Bridge. The Admin token is never stored in GitHub Pages.</div></div><span id="shopifyCreateStatus" class="badge warning">Shopify Pending</span></div>
+ <div class="section-title"><div><h2>5 · Shopify</h2><div class="small">Forge sends the product through a secure Shopify Bridge. The Admin token is never stored in GitHub Pages.</div></div><span id="shopifyCreateStatus" class="badge warning">Shopify Pending</span></div>
  <div class="newpal-grid">
   <div class="form-field"><label>Vendor</label><input id="npVendor" value="PLA Pals"></div>
   <div class="form-field"><label>Product Type</label><input id="npProductType" value="PLA Pal"></div>
@@ -87,13 +106,13 @@
 </div>
 
 <div class="card newpal-step">
- <div class="section-title"><div><h2>5 · Review & Create</h2><div class="small">This creates the product catalogue entry, recipes, packaging mapping and availability record in Forge.</div></div><span class="badge ok">Final Check</span></div>
+ <div class="section-title"><div><h2>6 · Review & Create</h2><div class="small">This creates the product catalogue entry, recipes, packaging mapping and availability record in Forge.</div></div><span class="badge ok">Final Check</span></div>
  <div id="newPalReview"></div>
  <div class="newpal-create-footer"><div id="newPalStatus"></div><button type="button" class="btn" id="createNewPal">Create New Pal</button></div>
 </div>
 </form>
-<div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.27.2 · Manufacturing & Inventory System</small></div>
-</main></div><script src="assets/forge.js?v=0272"></script><script>forgeBoot(async function(){
+<div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.28.0 · Product Master</small></div>
+</main></div><script src="assets/forge.js?v=0280"></script><script>forgeBoot(async function(){
 newPalPage()
 })</script>
 <script id="legacyBootFailsafe">
