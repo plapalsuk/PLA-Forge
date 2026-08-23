@@ -460,7 +460,7 @@ function state() {
     s.siteSettings.shopifyBridgeUrl = s.siteSettings.shopifyBridgeUrl || '';
     s.siteSettings.shopifyVendor = s.siteSettings.shopifyVendor || 'PLA Pals';
     s.siteSettings.shopifyProductType = s.siteSettings.shopifyProductType || 'PLA Pal';
-    s.siteSettings.forgeApiUrl = s.siteSettings.forgeApiUrl || 'https://pla-forge-api.plapalsuk.workers.dev';
+    s.siteSettings.forgeApiUrl = s.siteSettings.forgeApiUrl || 'https://pla-forge-api-test.plapalsuk.workers.dev';
     s.productAvailability = s.productAvailability || {};
     return s;
 }
@@ -544,7 +544,7 @@ function setCloudToken(v) {
     else
         localStorage.removeItem('plaForgeCloudToken');
 }
-const FORGE_API_URL = 'https://pla-forge-api.plapalsuk.workers.dev';
+const FORGE_API_URL = 'https://pla-forge-api-test.plapalsuk.workers.dev';
 function cloudApiBase() { return FORGE_API_URL; }
 async function cloudFetch(path, options = {}) {
     const headers = Object.assign({}, (options.headers || {}));
@@ -6788,7 +6788,7 @@ async function cloudMigrationPanel() {
     const cloudCountEl = document.querySelector('#cloudRemoteProducts');
     if (!apiInput || !migrateBtn)
         return;
-    apiInput.value = ((_a = s.siteSettings) === null || _a === void 0 ? void 0 : _a.forgeApiUrl) || 'https://pla-forge-api.plapalsuk.workers.dev';
+    apiInput.value = ((_a = s.siteSettings) === null || _a === void 0 ? void 0 : _a.forgeApiUrl) || 'https://pla-forge-api-test.plapalsuk.workers.dev';
     function apiBase() {
         return String(apiInput.value || '').trim().replace(/\/+$/, '');
     }
@@ -6846,7 +6846,7 @@ async function cloudMigrationPanel() {
         }
     }
     apiInput.onchange = () => {
-        s.siteSettings.forgeApiUrl = apiBase();
+        s.siteSettings.forgeApiUrl = s.siteSettings.forgeApiUrl || 'https://pla-forge-api-test.plapalsuk.workers.dev';
         save(s);
         checkHealth();
     };
@@ -8039,3 +8039,30 @@ document.addEventListener('visibilitychange', async () => {
 document.addEventListener('DOMContentLoaded', function () {
     installMobileForgeMenu();
 });
+
+/* ============================================================
+   FORGE TEST ENVIRONMENT
+   ============================================================ */
+(function installForgeTestEnvironmentBanner(){
+  function install(){
+    if(document.getElementById("forgeTestEnvironmentBanner")) return;
+
+    document.title = "[TEST] " + document.title.replace(/^\[TEST\]\s*/, "");
+
+    const banner = document.createElement("div");
+    banner.id = "forgeTestEnvironmentBanner";
+    banner.innerHTML = `
+      <strong>⚠ FORGE TEST ENVIRONMENT</strong>
+      <span>Changes here do not affect Live Forge</span>
+    `;
+
+    document.body.appendChild(banner);
+    document.body.classList.add("forge-test-environment");
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", install);
+  }else{
+    install();
+  }
+})();

@@ -3192,3 +3192,41 @@ body.forge-role-retail-staff .topbar .kitsu{
   border-right:1px solid rgba(245,158,11,.42);
   border-radius:0 8px 8px 0;
 }
+
+/* Forge Test Environment */
+#forgeTestEnvironmentBanner{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:999999;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:9px 16px;
+  border-radius:10px;
+  background:#ffd43b;
+  color:#181818;
+  border:2px solid #181818;
+  box-shadow:0 6px 18px rgba(0,0,0,.28);
+  font-size:12px;
+  font-weight:800;
+}
+
+#forgeTestEnvironmentBanner strong{
+  font-weight:950;
+}
+
+#forgeTestEnvironmentBanner span{
+  opacity:.78;
+}
+
+@media(max-width:700px){
+  #forgeTestEnvironmentBanner{
+    width:calc(100% - 20px);
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:3px 10px;
+    text-align:center;
+  }
+}
