@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Keyrings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0264"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Keyrings | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0270"></head>
 <body class="forge-protected"><div class="app">
 <aside class="sidebar">
  <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
@@ -27,9 +27,39 @@
 <a href="settings-shopify.html">◈ Shopify</a>
  </nav>
 </aside>
-<main><div class="topbar"><div class="pageTitle"><h1>Keyrings</h1><div class="small">Set independent targets for Kitsune Boat and Kitsune Cornwall.</div></div><div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="toolbar"><input id="q" class="search" placeholder="Search SKU or product"></div><div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Product</th><th>Recipe</th><th>Boat Stock</th><th>Boat Target</th><th>Cornwall Stock</th><th>Cornwall Target</th><th>Need</th></tr></thead><tbody id="rows"></tbody></table></div><div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.26.4 · Manufacturing & Inventory System</small></div></main></div><script src="assets/forge.js?v=0264"></script><script>forgeBoot(async function(){
-inventory('keyring')
-})</script>
+<main>
+<div class="topbar"><div class="pageTitle"><h1>Keyring Production</h1><div class="small">Print inserts · cut · assemble · finished stock</div></div><div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt=""><div><strong>Kitsu</strong><div class="small">7 inserts per A4 sheet.</div></div></div></div>
+
+<div class="kr-metrics">
+ <div class="card kr-metric"><span>To Make</span><strong id="krToMake">0</strong></div>
+ <div class="card kr-metric"><span>Sheets to Print</span><strong id="krSheets">0</strong></div>
+ <div class="card kr-metric"><span>Cut Inserts Ready</span><strong id="krReady">0</strong></div>
+ <div class="card kr-metric"><span>Ready to Assemble</span><strong id="krAssemble">0</strong></div>
+ <div class="card kr-metric"><span>Finished Stock</span><strong id="krFinished">0</strong></div>
+</div>
+
+<div class="card kr-material-card">
+ <div><strong>Blank Photo Keyrings</strong><div class="small">Bought-in keyring bodies available for assembly.</div></div>
+ <div class="kr-material-actions"><strong id="krBlankStock">0</strong><input id="krBlankAdd" class="number" type="number" min="1" value="50"><button class="btn" id="krAddBlanks">Add Blanks</button></div>
+</div>
+
+<div class="kr-section-title"><div><h2>Production Planner</h2><div class="small">Set how many finished keyrings you want. Forge accounts for finished stock and cut inserts before calculating sheets.</div></div><input id="krSearch" class="search" placeholder="Search K### or Pal"></div>
+<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Keyring</th><th>Target</th><th>Finished</th><th>Cut Inserts</th><th>Need to Make</th><th>Sheets</th><th>Printing</th></tr></thead><tbody id="krPlannerRows"></tbody></table></div>
+
+<div class="kr-section-title"><div><h2>Insert Production</h2><div class="small">One printed A4 sheet becomes 7 inserts when cutting is completed.</div></div></div>
+<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Keyring</th><th>Sheets Needed</th><th>Printed / Awaiting Cut</th><th>Cut Inserts Ready</th><th>Action</th></tr></thead><tbody id="krInsertRows"></tbody></table></div>
+
+<div class="kr-section-title"><div><h2>Assembly Station</h2><div class="small">Scan K001–K027. One scan consumes one cut insert and one blank photo keyring.</div></div></div>
+<div class="card kr-assembly-card">
+ <input id="krScan" class="kr-scan-input" autocomplete="off" inputmode="none" placeholder="SCAN KEYRING BARCODE">
+ <div id="krScanStatus" class="kr-scan-status"><strong>Waiting for keyring…</strong><span>Scan a K### barcode to complete one keyring.</span></div>
+</div>
+
+<div class="kr-section-title"><div><h2>Keyring Inventory</h2><div class="small">Component and finished stock by location.</div></div></div>
+<div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Keyring</th><th>Cut Inserts</th><th>Boat Finished</th><th>Cornwall Finished</th><th>Total Finished</th></tr></thead><tbody id="krInventoryRows"></tbody></table></div>
+
+<div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.27.0 · Manufacturing & Inventory System</small></div>
+</main></div><script src="assets/forge.js?v=0270"></script><script>forgeBoot(async function(){ keyringProductionPage() })</script>
 <script id="legacyBootFailsafe">
 (function(){
   window.setTimeout(function(){

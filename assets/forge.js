@@ -55,7 +55,8 @@ function blankOperationalState() {
             clear_boxes: { name: 'Flat Clear Boxes', stock: 0, reorder: 25, unit: 'boxes' },
             bottom_cards: { name: 'Bottom Card Squares', stock: 0, reorder: 25, unit: 'cards' },
             stickers: { name: 'Stickers', stock: 0, reorder: 25, unit: 'stickers' },
-            card_210gsm: { name: '210gsm Card', stock: 0, reorder: 25, unit: 'sheets' }
+            card_210gsm: { name: '210gsm Card', stock: 0, reorder: 25, unit: 'sheets' },
+            keyring_blanks: { name: 'Blank Photo Keyrings', stock: 0, reorder: 25, unit: 'keyrings' }
         },
         consumableHistory: [],
         packingJobs: {},
@@ -8039,3 +8040,126 @@ document.addEventListener('visibilitychange', async () => {
 document.addEventListener('DOMContentLoaded', function () {
     installMobileForgeMenu();
 });
+
+
+/* ===== Keyring Production v0.27.0 ===== */
+async function keyringProductionPage(){
+    installForgeCloudSyncBadge();
+    if(!forgeProductionCloudReady){
+        try{ await hydrateProductionCloud(); }
+        catch(e){ showCloudRequiredError(e.message); return; }
+    }
+    let s = cloudOperationalState();
+    const catalog = await load('keyrings');
+    s.production = s.production || {};
+    s.production.keyrings = s.production.keyrings || {};
+    const kp = s.production.keyrings;
+    kp.items = kp.items || {};
+    kp.finished = kp.finished || {boat:{},cornwall:{}};
+    kp.history = kp.history || [];
+    s.consumables = s.consumables || {};
+    s.consumables.keyring_blanks = s.consumables.keyring_blanks || {name:'Blank Photo Keyrings',stock:0,reorder:25,unit:'keyrings'};
+
+    const $ = id => document.getElementById(id);
+    function row(sku){
+        kp.items[sku] = kp.items[sku] || {target:0, printed_sheets:0, cut_inserts:0};
+        return kp.items[sku];
+    }
+    function finished(sku){ return Number(kp.finished.boat[sku]||0)+Number(kp.finished.cornwall[sku]||0); }
+    function need(sku){ const r=row(sku); return Math.max(0, Number(r.target||0)-finished(sku)); }
+    function usableNeed(sku){ return Math.max(0, need(sku)-Number(row(sku).cut_inserts||0)); }
+    function sheetsNeed(sku){ return Math.ceil(usableNeed(sku)/7); }
+    function printedWaiting(sku){ return Math.max(0, Number(row(sku).printed_sheets||0)*7); }
+    async function persist(msg){
+        setForgeCloudSync('syncing', msg||'Saving keyring production');
+        await saveProductionCloud(s);
+        setForgeCloudSync('synced', msg||'Keyring production saved');
+    }
+    function totals(){
+        let make=0,sheets=0,ready=0,finishedQty=0;
+        catalog.forEach(x=>{ make+=need(x.sku); sheets+=sheetsNeed(x.sku); ready+=Number(row(x.sku).cut_inserts||0); finishedQty+=finished(x.sku); });
+        $('krToMake').textContent=make;
+        $('krSheets').textContent=sheets;
+        $('krReady').textContent=ready;
+        $('krAssemble').textContent=Math.min(ready, Number(s.consumables.keyring_blanks.stock||0));
+        $('krFinished').textContent=finishedQty;
+        $('krBlankStock').textContent=Number(s.consumables.keyring_blanks.stock||0);
+    }
+    function drawPlanner(){
+        const q=($('krSearch').value||'').toLowerCase();
+        $('krPlannerRows').innerHTML=catalog.filter(x=>(x.sku+' '+x.name).toLowerCase().includes(q)).map(x=>{
+            const r=row(x.sku), n=need(x.sku), sh=sheetsNeed(x.sku);
+            return `<tr>
+              <td><strong>${esc(x.name)}</strong><br><span class="sku">${x.sku}</span></td>
+              <td><input class="number kr-target" data-sku="${x.sku}" min="0" type="number" value="${Number(r.target||0)}"></td>
+              <td><strong>${finished(x.sku)}</strong></td>
+              <td><strong>${Number(r.cut_inserts||0)}</strong></td>
+              <td><strong>${n}</strong></td>
+              <td><strong>${sh}</strong><small class="kr-sub">7 per sheet</small></td>
+              <td><button class="btn kr-printed" data-sku="${x.sku}" ${sh<=0?'disabled':''}>Mark 1 Sheet Printed</button></td>
+            </tr>`;
+        }).join('');
+        document.querySelectorAll('.kr-target').forEach(el=>el.onchange=async()=>{
+            row(el.dataset.sku).target=Math.max(0,Math.round(Number(el.value||0))); await persist('Keyring target saved'); draw();
+        });
+        document.querySelectorAll('.kr-printed').forEach(btn=>btn.onclick=async()=>{
+            row(btn.dataset.sku).printed_sheets=Number(row(btn.dataset.sku).printed_sheets||0)+1;
+            kp.history.unshift({at:new Date().toISOString(),action:'sheet_printed',sku:btn.dataset.sku,qty:7});
+            await persist('Keyring sheet marked printed'); draw();
+        });
+    }
+    function drawInsertProduction(){
+        $('krInsertRows').innerHTML=catalog.map(x=>{
+            const r=row(x.sku), waiting=printedWaiting(x.sku);
+            if(!waiting && !Number(r.cut_inserts||0) && !sheetsNeed(x.sku)) return '';
+            return `<tr>
+              <td><strong>${esc(x.name)}</strong><br><span class="sku">${x.sku}</span></td>
+              <td>${sheetsNeed(x.sku)}</td>
+              <td><strong>${Number(r.printed_sheets||0)}</strong><small class="kr-sub">${waiting} inserts</small></td>
+              <td><strong>${Number(r.cut_inserts||0)}</strong></td>
+              <td><button class="btn kr-cut" data-sku="${x.sku}" ${Number(r.printed_sheets||0)<=0?'disabled':''}>Complete 1 Sheet (+7)</button></td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="5">Nothing currently in keyring insert production.</td></tr>';
+        document.querySelectorAll('.kr-cut').forEach(btn=>btn.onclick=async()=>{
+            const r=row(btn.dataset.sku);
+            if(Number(r.printed_sheets||0)<=0)return;
+            r.printed_sheets-=1; r.cut_inserts=Number(r.cut_inserts||0)+7;
+            kp.history.unshift({at:new Date().toISOString(),action:'sheet_cut',sku:btn.dataset.sku,qty:7});
+            await persist('7 keyring inserts moved to ready stock'); draw();
+        });
+    }
+    function drawInventory(){
+        $('krInventoryRows').innerHTML=catalog.map(x=>`<tr>
+          <td><strong>${esc(x.name)}</strong><br><span class="sku">${x.sku}</span></td>
+          <td>${Number(row(x.sku).cut_inserts||0)}</td>
+          <td>${Number(kp.finished.boat[x.sku]||0)}</td>
+          <td>${Number(kp.finished.cornwall[x.sku]||0)}</td>
+          <td><strong>${finished(x.sku)}</strong></td>
+        </tr>`).join('');
+    }
+    function scannerStatus(kind,title,detail){
+        const el=$('krScanStatus'); el.className='kr-scan-status '+kind;
+        el.innerHTML=`<strong>${title}</strong><span>${detail||''}</span>`;
+    }
+    async function assemble(code){
+        code=String(code||'').trim().toUpperCase();
+        const item=catalog.find(x=>x.sku===code);
+        if(!item){ scannerStatus('bad','Barcode not recognised',code||'No barcode'); return; }
+        const r=row(code);
+        if(Number(r.cut_inserts||0)<=0){ scannerStatus('warn',`${item.name} · ${code}`,'No cut keyring inserts available.'); return; }
+        if(Number(s.consumables.keyring_blanks.stock||0)<=0){ scannerStatus('warn',`${item.name} · ${code}`,'No blank photo keyrings available.'); return; }
+        r.cut_inserts-=1;
+        s.consumables.keyring_blanks.stock=Number(s.consumables.keyring_blanks.stock||0)-1;
+        kp.finished.boat[code]=Number(kp.finished.boat[code]||0)+1;
+        kp.history.unshift({at:new Date().toISOString(),action:'assembled',sku:code,qty:1,location:'boat'});
+        await persist('Keyring assembled');
+        scannerStatus('ok',`${item.name} · ${code}`,'KEYRING COMPLETED · insert −1 · blank keyring −1 · Boat finished stock +1');
+        draw();
+    }
+    $('krScan').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); const v=e.target.value; e.target.value=''; assemble(v); }});
+    $('krAddBlanks').onclick=async()=>{ const q=Math.max(1,Math.round(Number($('krBlankAdd').value||1))); s.consumables.keyring_blanks.stock=Number(s.consumables.keyring_blanks.stock||0)+q; await persist('Blank keyrings added'); draw(); };
+    $('krSearch').oninput=drawPlanner;
+    function draw(){ totals(); drawPlanner(); drawInsertProduction(); drawInventory(); }
+    draw();
+}
+

@@ -1,0 +1,164 @@
+[
+  {
+    "sku": "K001",
+    "name": "Alex",
+    "pdf": "K001_Alex_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K002",
+    "name": "Benny",
+    "pdf": "K002_Benny_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K003",
+    "name": "Crush",
+    "pdf": "K003_Crush_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K004",
+    "name": "Chip",
+    "pdf": "K004_Chip_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K005",
+    "name": "Cranky",
+    "pdf": "K005_Cranky_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K006",
+    "name": "Dillan",
+    "pdf": "K006_Dillan_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K007",
+    "name": "Daphne",
+    "pdf": "K007_Daphne_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K008",
+    "name": "Ellie",
+    "pdf": "K008_Ellie_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K009",
+    "name": "Fran",
+    "pdf": "K009_Fran_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K010",
+    "name": "Flora",
+    "pdf": "K010_Flora_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K011",
+    "name": "Fiona",
+    "pdf": "K011_Fiona_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K012",
+    "name": "Freddy",
+    "pdf": "K012_Freddy_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K013",
+    "name": "Glen",
+    "pdf": "K013_Glen_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K014",
+    "name": "Gloria",
+    "pdf": "K014_Gloria_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K015",
+    "name": "Henry",
+    "pdf": "K015_Henry_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K016",
+    "name": "Laura",
+    "pdf": "K016_Laura_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K017",
+    "name": "Mack",
+    "pdf": "K017_Mack_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K018",
+    "name": "Mike",
+    "pdf": "K018_Mike_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K019",
+    "name": "Maisie",
+    "pdf": "K019_Maisie_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K020",
+    "name": "Nina",
+    "pdf": "K020_Nina_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K021",
+    "name": "Oliver",
+    "pdf": "K021_Oliver_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K022",
+    "name": "Oscar",
+    "pdf": "K022_Oscar_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K023",
+    "name": "Olivia",
+    "pdf": "K023_Olivia_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K024",
+    "name": "Pablo",
+    "pdf": "K024_Pablo_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K025",
+    "name": "Philip",
+    "pdf": "K025_Philip_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K026",
+    "name": "Rolo",
+    "pdf": "K026_Rolo_Keyring.pdf",
+    "per_sheet": 7
+  },
+  {
+    "sku": "K027",
+    "name": "Rachel",
+    "pdf": "K027_Rachel_Keyring.pdf",
+    "per_sheet": 7
+  }
+]
