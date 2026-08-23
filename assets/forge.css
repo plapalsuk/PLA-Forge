@@ -3203,3 +3203,13 @@ body.forge-role-retail-staff .topbar .kitsu{
 .kr-scan-input{width:100%;font-size:22px;font-weight:900;letter-spacing:.08em;text-align:center;padding:20px;border:2px solid var(--line);border-radius:14px;background:var(--panel);color:var(--text)}
 .kr-scan-status{border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:center}.kr-scan-status strong{font-size:18px}.kr-scan-status span{font-size:13px;color:var(--muted);margin-top:4px}.kr-scan-status.ok{background:rgba(34,197,94,.09);border-color:rgba(34,197,94,.4)}.kr-scan-status.warn{background:rgba(245,158,11,.09);border-color:rgba(245,158,11,.4)}.kr-scan-status.bad{background:rgba(239,68,68,.09);border-color:rgba(239,68,68,.4)}
 @media(max-width:900px){.kr-metrics{grid-template-columns:repeat(2,1fr)}.kr-assembly-card{grid-template-columns:1fr}.kr-material-card,.kr-section-title{align-items:stretch;flex-direction:column}.kr-section-title .search{max-width:none}}
+
+/* Keyring Workspace v0.27.1 */
+.keyring-workspace-nav .navgroup:first-child{color:var(--orange)}
+.keyring-workspace-nav a.active{
+  background:linear-gradient(90deg,rgba(255,106,0,.16),rgba(255,106,0,.045));
+  border:1px solid rgba(255,106,0,.26);
+  border-left:3px solid var(--orange);
+  color:#fff;
+}
+.kr-actions{display:flex;gap:8px;flex-wrap:wrap}
