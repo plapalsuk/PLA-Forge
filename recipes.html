@@ -1,42 +1,22 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recipes | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0280"></head>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recipes | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0264"></head>
 <body class="forge-protected"><div class="app">
 <aside class="sidebar">
  <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
- <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Pals Production</span><span class="mobile-nav-chevron">⌄</span></button>
- <nav class="nav pal-workspace-nav" id="forgeNav">
-
+ <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
+ <nav class="nav" id="forgeNav">
   <div class="navgroup">Forge Control</div>
-  <a href="index.html">⌂ Dashboard</a>
-  <a href="reports.html">▥ Reports</a>
-  <a href="pals-production.html">◆ Pals Production</a>
-  <a href="keyring-inventory.html">◇ Keyrings Production</a>
-
-  <div class="navgroup">Pal Production</div>
-  <a href="pals.html">◆ Inventory</a>
-  <a href="production.html">⚙ Production Planner</a>
-  <a href="plates.html">▱ Build Plates</a>
-  <a href="parts.html">◫ Printed Parts</a>
-  <a href="assembly.html">⌁ The Bench</a>
-  <a href="rework.html">↻ Rework</a>
-
-  <div class="navgroup">Packing</div>
-  <a href="packaging.html">□ Insert Production</a>
-  <a href="insert-scanner.html">▦ Insert Scanner</a>
-  <a href="packing-station.html">▣ Packing Station</a>
-
+  <a href="index.html">⌂ Dashboard</a><a href="reports.html">▥ Reports</a>
+  <div class="navgroup">Inventory</div>
+  <a href="pals.html">◆ Pals</a><a href="keyrings.html">◇ Keyrings</a><a href="stickers.html">▣ Sticker Sheets</a>
+  <div class="navgroup">The Workshop</div>
+  <a href="production.html">⚙ Production Planner</a><a href="plates.html">▱ Build Plates</a><a href="assembly.html">⌁ The Bench</a><a href="rework.html">↻ Rework</a>
+  <div class="navgroup">Packing & Dispatch</div>
+  <a href="packaging.html">□ Insert Production</a><a href="insert-scanner.html">▦ Insert Scanner</a><a href="packing-station.html">▣ Packing Station</a><a href="deliveries.html">⇢ Dispatch</a>
   <div class="navgroup">Materials</div>
-  <a href="filament.html">≋ Filament</a>
-  <a href="recipes.html">⌘ Recipes</a>
-  <a href="consumables.html">▤ Consumables</a>
-
-  <div class="navgroup">Dispatch</div>
-  <a href="deliveries.html">⇢ Dispatch</a>
-
+  <a href="filament.html">≋ Filament</a><a href="recipes.html">⌘ Recipes</a><a href="parts.html">◫ Printed Parts</a><a href="consumables.html">▤ Consumables</a>
   <div class="navgroup">Administration</div>
-  <a href="product-master.html">▦ Product Master</a>
-  <a href="new-pal.html">＋ New Pal / Product Setup</a>
+  <a href="new-pal.html">＋ New Pal Setup</a>
   <a href="data-health.html">! Data Health</a>
-
   <div class="navgroup">Settings</div>
   <a href="settings.html">⚙ General</a>
   <a href="settings-printers.html">▱ 3D Printers</a>
@@ -44,10 +24,10 @@
   <a href="settings-labels.html">▤ Labels &amp; Printing</a>
   <a href="settings-employees.html">♙ Employees</a>
   <a href="settings-system.html">! System &amp; Data</a>
-  <a href="settings-shopify.html">◈ Shopify</a>
+<a href="settings-shopify.html">◈ Shopify</a>
  </nav>
 </aside>
-<main><div class="topbar"><div class="pageTitle"><h1>Recipes</h1><div class="small">One production row per filament colour group.</div></div><div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="toolbar"><input id="q" class="search" placeholder="Search product, SKU or filament colour"></div><div class="grid recipe-grid" id="cards"></div><div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.28.0 · Manufacturing & Inventory System</small></div></main></div><script src="assets/forge.js?v=0280"></script><script>forgeBoot(async function(){
+<main><div class="topbar"><div class="pageTitle"><h1>Recipes</h1><div class="small">One production row per filament colour group.</div></div><div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">Every Pal. Every Part. Every Step.</div></div></div></div><div class="toolbar"><input id="q" class="search" placeholder="Search product, SKU or filament colour"></div><div class="grid recipe-grid" id="cards"></div><div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.26.4 · Manufacturing & Inventory System</small></div></main></div><script src="assets/forge.js?v=0264"></script><script>forgeBoot(async function(){
 recipes()
 })</script>
 <script id="legacyBootFailsafe">
