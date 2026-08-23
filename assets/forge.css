@@ -3213,3 +3213,33 @@ body.forge-role-retail-staff .topbar .kitsu{
   color:#fff;
 }
 .kr-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Production Workspaces v0.27.2 */
+.production-workspace-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  margin-top:16px;
+}
+.production-workspace-card{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  padding:20px;
+  text-decoration:none;
+  color:var(--text);
+  min-height:130px;
+  transition:transform .15s,border-color .15s,background .15s;
+}
+.production-workspace-card:hover{
+  transform:translateY(-2px);
+  border-color:rgba(255,106,0,.45);
+  background:linear-gradient(145deg,rgba(255,106,0,.08),var(--panel));
+}
+.production-workspace-card>span{font-size:24px;color:var(--orange)}
+.production-workspace-card>strong{font-size:17px}
+.production-workspace-card>small{color:var(--muted);line-height:1.35}
+.pal-workspace-nav .navgroup:first-child,
+.keyring-workspace-nav .navgroup:first-child{color:var(--muted)}
+@media(max-width:900px){.production-workspace-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.production-workspace-grid{grid-template-columns:1fr}}

@@ -1,14 +1,39 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Keyring Assembly | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0271"></head><body class="forge-protected"><div class="app">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Keyring Assembly | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0272"></head><body class="forge-protected"><div class="app">
 <aside class="sidebar">
  <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Keyrings</span><span class="mobile-nav-chevron">⌄</span></button>
  <nav class="nav keyring-workspace-nav" id="forgeNav">
+
+  <div class="navgroup">Forge Control</div>
+  <a href="index.html">⌂ Dashboard</a>
+  <a href="reports.html">▥ Reports</a>
+  <a href="pals-production.html">◆ Pals Production</a>
+  <a href="keyring-inventory.html">◇ Keyrings Production</a>
+
   <div class="navgroup">Keyring Production</div>
   <a href="keyring-inventory.html" data-keyring-page="inventory">◇ Inventory</a>
   <a href="keyring-inserts.html" data-keyring-page="inserts">▤ Insert Production</a>
   <a href="keyring-assembly.html" data-keyring-page="assembly">▦ Assembly</a>
-  <div class="navgroup">Forge</div>
-  <a href="index.html">← Back to PLA Pals Forge</a>
+
+  <div class="navgroup">Dispatch</div>
+  <a href="deliveries.html">⇢ Dispatch</a>
+
+  <div class="navgroup">Materials</div>
+  <a href="consumables.html">▤ Consumables</a>
+
+  <div class="navgroup">Administration</div>
+  <a href="new-pal.html">＋ New Pal Setup</a>
+  <a href="data-health.html">! Data Health</a>
+
+  <div class="navgroup">Settings</div>
+  <a href="settings.html">⚙ General</a>
+  <a href="settings-printers.html">▱ 3D Printers</a>
+  <a href="settings-availability.html">◉ Product Availability</a>
+  <a href="settings-labels.html">▤ Labels &amp; Printing</a>
+  <a href="settings-employees.html">♙ Employees</a>
+  <a href="settings-system.html">! System &amp; Data</a>
+  <a href="settings-shopify.html">◈ Shopify</a>
+
  </nav>
 </aside>
 <main>
@@ -30,8 +55,8 @@
 <div class="kr-section-title"><div><h2>Assembly Queue</h2><div class="small">One completed scan consumes one cut insert and one blank keyring, then adds one finished keyring to Boat stock.</div></div></div>
 <div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Keyring</th><th>Cut Inserts</th><th>Still Needed</th><th>Can Assemble</th><th>Finished</th></tr></thead><tbody id="krAsmRows"></tbody></table></div>
 
-<div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.27.1 · Keyring Production</small></div>
+<div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.27.2 · Keyring Production</small></div>
 </main></div>
-<script src="assets/forge.js?v=0271"></script><script>forgeBoot(async function(){ keyringAssemblyPage() })</script>
+<script src="assets/forge.js?v=0272"></script><script>forgeBoot(async function(){ keyringAssemblyPage() })</script>
 <script id="legacyBootFailsafe">(function(){window.setTimeout(function(){var splash=document.getElementById('forgeBootSplash');if(!splash)return;var body=document.body;if(body&&body.className.indexOf('forge-protected')!==-1){var status=splash.querySelector('.forge-boot-status');var detail=splash.querySelector('.forge-boot-detail');if(status)status.textContent='PLA Forge could not finish loading.';if(detail)detail.textContent='Tap refresh to try again.';}},15000);})();</script>
 </body></html>
