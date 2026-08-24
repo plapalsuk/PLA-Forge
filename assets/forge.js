@@ -2273,7 +2273,69 @@ async function insertProductionPage() {
             .map(x => `<tr>
        <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
        <td><strong>${Number(x.r.ready || 0)}</strong></td>
-     </tr>`).join('') || '<tr><td colspan="2">No matching On Sale Pals.</td></tr>';
+       <td><button class="btn ghost editInsertStock" data-sku="${esc(x.p.sku)}">Edit</button></td>
+     </tr>`).join('') || '<tr><td colspan="3">No matching On Sale Pals.</td></tr>';
+
+        document.querySelectorAll('.editInsertStock').forEach(btn => btn.onclick = async () => {
+            const sku = String(btn.dataset.sku || '');
+            const p = pals.find(x => x.sku === sku);
+            if (!p)
+                return;
+
+            const r = rec(sku);
+            const oldQty = Math.max(0, Number(r.ready || 0));
+
+            const entered = prompt(
+                `Insert Stock Count\n\n${p.name}\n${sku}\n\nForge currently has: ${oldQty}\n\nEnter the ACTUAL physical quantity:`,
+                String(oldQty)
+            );
+
+            if (entered === null)
+                return;
+
+            const raw = String(entered).trim();
+
+            if (!/^\d+$/.test(raw)) {
+                alert('Please enter a whole number of 0 or more.');
+                return;
+            }
+
+            const newQty = Number(raw);
+
+            if (!Number.isSafeInteger(newQty) || newQty < 0 || newQty > 9999) {
+                alert('Please enter a valid stock quantity between 0 and 9999.');
+                return;
+            }
+
+            if (newQty === oldQty)
+                return;
+
+            const difference = newQty - oldQty;
+            const differenceText = difference > 0 ? `+${difference}` : String(difference);
+
+            const confirmed = confirm(
+                `Update Insert Inventory?\n\n${p.name}\n${sku}\n\nCurrent: ${oldQty}\nActual: ${newQty}\nAdjustment: ${differenceText}\n\nThis will change the Forge insert stock count.`
+            );
+
+            if (!confirmed)
+                return;
+
+            const before = JSON.parse(JSON.stringify(s));
+
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+
+            try {
+                r.ready = newQty;
+                await save(s);
+                render();
+            }
+            catch (e) {
+                s = before;
+                render();
+                alert('Insert stock could not be updated: ' + (e.message || e));
+            }
+        });
         document.querySelectorAll('.printViaPi').forEach(btn => btn.onclick = async () => {
             const sku = btn.dataset.sku;
             const qty = Math.max(1, Math.min(needPrint(sku), Number(document.querySelector('#printed-' + sku)?.value || 1)));
