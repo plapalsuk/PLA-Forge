@@ -61,7 +61,26 @@
 </div>
 
 <div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.26.4 · Manufacturing & Inventory System</small></div>
-</main></div><script src="assets/forge.js?v=0264"></script><script>forgeBoot(async function(){
+</main></div><script src="assets/forge.js?v=0264"></script>
+<script>
+(function installTestShopifyFallback(){
+  if(typeof loadPalDemandSnapshot!=='function')return;
+  const originalLoadPalDemandSnapshot=loadPalDemandSnapshot;
+  loadPalDemandSnapshot=async function(s,products){
+    try{
+      return await originalLoadPalDemandSnapshot(s,products);
+    }catch(e){
+      const message=String((e&&e.message)||e||'');
+      if(!/Shopify is not fully configured|SHOPIFY_CLIENT_ID|SHOPIFY_CLIENT_SECRET|Shopify Stock Error/i.test(message))throw e;
+      console.warn('Forge TEST Packing Station: Shopify demand unavailable; using D1-only packing mode.',message);
+      const bySku={};
+      (products||[]).forEach(p=>{if(p&&p.sku)bySku[p.sku]={need_to_make:0,shopify_unavailable:true};});
+      return {bySku:bySku,shopify_unavailable:true,error:message};
+    }
+  };
+})();
+</script>
+<script>forgeBoot(async function(){
 await packingStationPage();
 (function packingStationKpis(){
   let busy=false;
