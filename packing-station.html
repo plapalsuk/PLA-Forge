@@ -1,4 +1,6 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Packing Station | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0264"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Packing Station | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0264"><style>
+.packing-kpis-five{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0 0 14px}.packing-kpis-five .kpi{min-width:0}.packing-kpis-five .value{font-size:clamp(28px,3vw,42px);line-height:1}.packing-kpis-five .packing-kpi-limit{box-shadow:inset 0 0 0 2px rgba(255,170,0,.55)}.packing-kpis-five .packing-kpi-capacity{box-shadow:inset 0 0 0 2px rgba(70,190,120,.45)}@media(max-width:1100px){.packing-kpis-five{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:700px){.packing-kpis-five{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style></head><body class="forge-protected"><div class="app"><aside class="sidebar">
  <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
  <nav class="nav" id="forgeNav">
@@ -30,6 +32,14 @@
  <div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">Assembly → Packaging → Barcode.</div></div></div>
 </div>
 
+<div id="packingKpiStrip" class="grid kpis packing-kpis-five">
+ <div class="card kpi" id="packingKpiPalsCard"><div class="label">Pals Ready to Pack</div><div class="value accent" id="packingKpiPals">0</div><div class="small">individual Pals with ready inserts</div></div>
+ <div class="card kpi" id="packingKpiBoxesCard"><div class="label">Clear Boxes</div><div class="value" id="packingKpiBoxes">0</div><div class="small">in inventory</div></div>
+ <div class="card kpi" id="packingKpiStickersCard"><div class="label">Stickers</div><div class="value" id="packingKpiStickers">0</div><div class="small">in inventory</div></div>
+ <div class="card kpi" id="packingKpiCardsCard"><div class="label">Bottom Cards</div><div class="value" id="packingKpiCards">0</div><div class="small">in inventory</div></div>
+ <div class="card kpi packing-kpi-capacity" id="packingKpiCapacityCard"><div class="label">Packing Capacity</div><div class="value accent" id="packingKpiCapacity">0</div><div class="small" id="packingKpiCapacityNote">checking live stock…</div></div>
+</div>
+
 <div class="toolbar bench-toolbar"><input id="q" class="search" placeholder="Search Pal or SKU"></div>
 
 <div class="packing-two-sections">
@@ -52,7 +62,45 @@
 
 <div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.26.4 · Manufacturing & Inventory System</small></div>
 </main></div><script src="assets/forge.js?v=0264"></script><script>forgeBoot(async function(){
-packingStationPage()
+await packingStationPage();
+(function packingStationKpis(){
+  let busy=false;
+  const num=v=>Math.max(0,Number(v||0));
+  function consumable(s,key){return num(s&&s.consumables&&s.consumables[key]&&s.consumables[key].stock)}
+  function assembled(s,sku){
+    if(s&&s.assembled&&s.assembled[sku]!=null)return num(s.assembled[sku]);
+    if(s&&s.assemblyStock&&s.assemblyStock[sku]!=null)return num(s.assemblyStock[sku]);
+    if(s&&s.benchStock&&s.benchStock[sku]!=null)return num(s.benchStock[sku]);
+    return 0;
+  }
+  function inserts(s,sku){return num(s&&s.inserts&&s.inserts[sku]&&s.inserts[sku].ready)}
+  async function draw(){
+    if(busy)return; busy=true;
+    try{
+      const s=cloudOperationalState();
+      const products=await load('products');
+      const pals=(products||[]).filter(p=>p.type==='pal'&&isOnSale(s,p.sku));
+      const palsReady=pals.reduce((total,p)=>total+Math.min(assembled(s,p.sku),inserts(s,p.sku)),0);
+      const boxes=consumable(s,'clear_boxes');
+      const stickers=consumable(s,'stickers');
+      const cards=consumable(s,'bottom_cards');
+      const capacity=Math.min(palsReady,boxes,stickers,cards);
+      const resources=[['Pals Ready to Pack',palsReady,'packingKpiPalsCard'],['Clear Boxes',boxes,'packingKpiBoxesCard'],['Stickers',stickers,'packingKpiStickersCard'],['Bottom Cards',cards,'packingKpiCardsCard']];
+      document.getElementById('packingKpiPals').textContent=palsReady;
+      document.getElementById('packingKpiBoxes').textContent=boxes;
+      document.getElementById('packingKpiStickers').textContent=stickers;
+      document.getElementById('packingKpiCards').textContent=cards;
+      document.getElementById('packingKpiCapacity').textContent=capacity;
+      resources.forEach(r=>document.getElementById(r[2]).classList.toggle('packing-kpi-limit',r[1]===capacity));
+      const limiting=resources.filter(r=>r[1]===capacity).map(r=>r[0]);
+      document.getElementById('packingKpiCapacityNote').textContent=capacity<=0?'packing currently blocked':'can pack now · limited by '+limiting.join(' + ');
+    }catch(e){
+      const note=document.getElementById('packingKpiCapacityNote'); if(note)note.textContent='waiting for live stock…';
+    }finally{busy=false}
+  }
+  draw();
+  window.setInterval(draw,3000);
+})();
 })</script>
 <script id="legacyBootFailsafe">
 (function(){
