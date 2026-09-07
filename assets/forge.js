@@ -3809,7 +3809,7 @@ async function buildPlatePlanner() {
      <td>${esc(x.r.parts)}</td>
      <td>${Number(x.r.weight_g || 0).toFixed(2).replace(/\.00$/, '')}g</td>
      <td>${x.demand}</td><td>${x.inv}</td><td>${x.allocated}</td><td><strong>${x.remain}</strong></td>
-     <td><input class="number addqty desktop-addqty" id="desktop-qty-${idx}" min="1" type="number" value="${Math.max(1, Math.min(x.remain || 1, 5))}"></td>
+     <td><input class="number addqty desktop-addqty" id="desktop-qty-${idx}" min="1" type="number" value="${Math.max(1, x.remain || 1)}"></td>
      <td><button class="btn secondary desktop-addgroup" data-row="${idx}">Add Required</button></td>
      <td><button class="btn ghost desktop-addextra" data-row="${idx}">+ Extra</button></td>
      <td>${x.recoveryFiles.length ? `<button class="btn ghost desktop-exactpart" data-row="${idx}">Exact Part</button>` : '<span class="small muted">—</span>'}</td>
@@ -3847,7 +3847,7 @@ async function buildPlatePlanner() {
          <div class="mobile-required-action">
            <label>
              <span class="mobile-label">Grouped Sets Qty</span>
-             <input class="number mobile-addqty" id="mobile-qty-${idx}" min="1" type="number" value="${Math.max(1, Math.min(x.remain || 1, 5))}">
+             <input class="number mobile-addqty" id="mobile-qty-${idx}" min="1" type="number" value="${Math.max(1, x.remain || 1)}">
            </label>
            <button class="btn mobile-addgroup" data-row="${idx}">Add Grouped Set${x.remain === 1 ? '' : 's'}</button>
          </div>
