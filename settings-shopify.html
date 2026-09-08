@@ -10,7 +10,7 @@
   <div class="navgroup">The Workshop</div>
   <a href="production.html">⚙ Production Planner</a><a href="plates.html">▱ Build Plates</a><a href="assembly.html">⌁ The Bench</a><a href="rework.html">↻ Rework</a>
   <div class="navgroup">Packing & Dispatch</div>
-  <a href="packaging.html">□ Insert Production</a><a href="insert-scanner.html">▦ Insert Scanner</a><a href="packing-station.html">▣ Packing Station</a><a href="deliveries.html">⇢ Dispatch</a>
+  <a href="packaging.html">□ Insert Production</a><a href="insert-scanner.html">▦ Insert Scanner</a><a href="packing-station.html">▣ Packing Station</a><a href="deliveries.html">⇢ Dispatch</a><a href="transfers.html">⇄ Transfers</a>
   <div class="navgroup">Materials</div>
   <a href="filament.html">≋ Filament</a><a href="recipes.html">⌘ Recipes</a><a href="parts.html">◫ Printed Parts</a><a href="consumables.html">▤ Consumables</a>
   <div class="navgroup">Administration</div>
@@ -77,8 +77,8 @@
   </div>
 
   <section class="card">
-    <div class="section-title"><div><h2>Shopify Location Mapping</h2><div class="small">Assign each Shopify location to Kitsune Boat, Kitsune Cornwall, or Ignore.</div></div><span class="badge info" id="shopifyLocationMappingBadge">Not saved</span></div>
-    <div class="shopify-location-help"><div><strong>Kitsune Boat</strong><span>Boat finished Pal stock.</span></div><div><strong>Kitsune Cornwall</strong><span>Cornwall finished Pal stock.</span></div><div><strong>Ignore</strong><span>Exclude this location from Forge stock calculations.</span></div></div>
+    <div class="section-title"><div><h2>Shopify Location Mapping</h2><div class="small">Assign each Shopify location to Kitsune Boat, Kitsune Cornwall, Warehouse, or Ignore.</div></div><span class="badge info" id="shopifyLocationMappingBadge">Not saved</span></div>
+    <div class="shopify-location-help"><div><strong>Kitsune Boat</strong><span>Boat finished Pal stock.</span></div><div><strong>Kitsune Cornwall</strong><span>Cornwall finished Pal stock.</span></div><div><strong>Warehouse</strong><span>Warehouse finished stock.</span></div><div><strong>Ignore</strong><span>Exclude this location from Forge stock calculations.</span></div></div>
     <div id="shopifyLocationMappingRows" class="shopify-location-mapping-list"></div>
     <div class="shopify-actions"><button class="btn" id="shopifySaveLocationMapping">Save Location Mapping</button></div>
   </section>
@@ -135,7 +135,7 @@
 </div>
 
 <div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.25.0 · Shopify Product Mapping</small></div>
-</main></div><script src="assets/forge.js?v=0264"></script><script>forgeBoot(async function(){await shopifyIntegrationPage()})</script>
+</main></div><script src="assets/forge.js?v=warehouse-1"></script><script>forgeBoot(async function(){await shopifyIntegrationPage()})</script>
 <script id="legacyBootFailsafe">
 (function(){
   window.setTimeout(function(){

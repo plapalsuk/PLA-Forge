@@ -1,0 +1,56 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Transfers | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0264"><style>
+.packing-kpis-five{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0 0 14px}.packing-kpis-five .kpi{min-width:0}.packing-kpis-five .value{font-size:clamp(28px,3vw,42px);line-height:1}.packing-kpis-five .packing-kpi-limit{box-shadow:inset 0 0 0 2px rgba(255,170,0,.55)}.packing-kpis-five .packing-kpi-capacity{box-shadow:inset 0 0 0 2px rgba(70,190,120,.45)}@media(max-width:1100px){.packing-kpis-five{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:700px){.packing-kpis-five{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style><link rel="stylesheet" href="assets/transfers.css?v=1"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
+ <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
+ <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
+ <nav class="nav" id="forgeNav">
+  <div class="navgroup">Forge Control</div>
+  <a href="index.html">⌂ Dashboard</a><a href="reports.html">▥ Reports</a>
+  <div class="navgroup">Inventory</div>
+  <a href="pals.html">◆ Pals</a><a href="keyrings.html">◇ Keyrings</a><a href="stickers.html">▣ Sticker Sheets</a>
+  <div class="navgroup">The Workshop</div>
+  <a href="production.html">⚙ Production Planner</a><a href="plates.html">▱ Build Plates</a><a href="assembly.html">⌁ The Bench</a><a href="rework.html">↻ Rework</a>
+  <div class="navgroup">Packing & Dispatch</div>
+  <a href="packaging.html">□ Insert Production</a><a href="insert-scanner.html">▦ Insert Scanner</a><a href="packing-station.html">▣ Packing Station</a><a href="deliveries.html">⇢ Dispatch</a><a href="transfers.html">⇄ Transfers</a>
+  <div class="navgroup">Materials</div>
+  <a href="filament.html">≋ Filament</a><a href="recipes.html">⌘ Recipes</a><a href="parts.html">◫ Printed Parts</a><a href="consumables.html">▤ Consumables</a>
+  <div class="navgroup">Administration</div>
+  <a href="new-pal.html">＋ New Pal Setup</a>
+  <a href="data-health.html">! Data Health</a>
+  <div class="navgroup">Settings</div>
+  <a href="settings.html">⚙ General</a>
+  <a href="settings-printers.html">▱ 3D Printers</a>
+  <a href="settings-availability.html">◉ Product Availability</a>
+  <a href="settings-labels.html">▤ Labels &amp; Printing</a>
+  <a href="settings-employees.html">♙ Employees</a>
+  <a href="settings-system.html">! System &amp; Data</a>
+<a href="settings-shopify.html">◈ Shopify</a>
+ </nav>
+</aside><main class="bench-main">
+<div class="topbar"><div class="pageTitle"><h1>Stock Transfers</h1><div class="small">Move finished stock between Boat, Cornwall and Warehouse.</div></div></div>
+<div class="transfer-kpis"><div class="card kpi"><div class="label">Boat</div><div class="value" id="transferTotalBoat">—</div><div class="small">in stock</div></div><div class="card kpi"><div class="label">Cornwall</div><div class="value" id="transferTotalCornwall">—</div><div class="small">received stock</div></div><div class="card kpi"><div class="label">Warehouse</div><div class="value" id="transferTotalWarehouse">—</div><div class="small">in stock</div></div><div class="card kpi"><div class="label">Awaiting Delivery</div><div class="value" id="transferTransit">—</div><div class="small">on the way to Cornwall</div></div></div>
+<div class="transfer-layout"><section class="card"><h2>Move stock</h2><p class="small">Transfer finished items already in stock. Packaging materials are not deducted again.</p>
+<form id="transferForm"><label for="transferProduct">Product</label><select id="transferProduct" disabled><option value="">Loading products…</option></select><div class="transfer-route"><div><label for="transferSource">From</label><select id="transferSource" disabled><option value="warehouse">Warehouse</option><option value="boat">Boat</option><option value="cornwall">Cornwall</option></select></div><div><label for="transferDestination">To</label><select id="transferDestination" disabled><option value="boat">Boat</option><option value="cornwall">Cornwall</option><option value="warehouse">Warehouse</option></select></div></div><p class="small" id="transferAvailable"></p><label for="transferQty">Quantity</label><div class="transfer-qty"><button type="button" class="btn secondary" id="transferMinus" aria-label="Decrease quantity" disabled>−</button><input id="transferQty" type="number" min="1" step="1" value="1" disabled><button type="button" class="btn secondary" id="transferPlus" aria-label="Increase quantity" disabled>+</button></div><p id="transferSummary"></p><button class="btn" id="transferConfirm" disabled>Confirm stock transfer</button></form></section>
+<section class="card"><h2>Awaiting Cornwall delivery</h2><p class="small">Confirm arrival to add good items to Cornwall stock. Use Dispatch for damaged items and detailed delivery checks.</p><div id="transferWaiting">Loading deliveries…</div></section></div>
+<div id="transferStatus" role="status" aria-live="polite">Connecting to stock…</div><button class="btn" id="transferRetry" hidden>Retry confirmation</button>
+<section class="card transfer-stock"><h2>Stock by location</h2><input id="transferSearch" type="search" placeholder="Search product or SKU" aria-label="Search stock"><table><thead><tr><th>Product</th><th>Boat</th><th>Cornwall</th><th>Warehouse</th><th>Total in stock</th></tr></thead><tbody id="transferStockRows"></tbody></table></section>
+<section class="card transfer-history"><h2>Recent transfers</h2><table><thead><tr><th>Product</th><th>Route</th><th>Quantity</th><th>Status</th><th>When</th></tr></thead><tbody id="transferHistory"></tbody></table></section>
+<div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.26.4 · Manufacturing & Inventory System</small></div>
+</main></div><script src="assets/forge.js?v=warehouse-1"></script>
+<script src="assets/transfers.js?v=1"></script><script>forgeBoot(transfersPage)</script>
+<script id="legacyBootFailsafe">
+(function(){
+  window.setTimeout(function(){
+    var splash=document.getElementById('forgeBootSplash');
+    if(!splash) return;
+    var body=document.body;
+    if(body && body.className.indexOf('forge-protected') !== -1){
+      var status=splash.querySelector('.forge-boot-status');
+      var detail=splash.querySelector('.forge-boot-detail');
+      if(status) status.textContent='PLA Forge could not finish loading.';
+      if(detail) detail.textContent='Tap refresh to try again.';
+    }
+  },15000);
+})();
+</script>
+</body></html>

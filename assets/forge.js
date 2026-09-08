@@ -60,7 +60,8 @@ function blankOperationalState() {
         consumableHistory: [],
         packingJobs: {},
         packingHistory: [],
-        finishedStock: { boat: {}, cornwall: {} },
+        stock_revision: 0,
+        finishedStock: { boat: {}, cornwall: {}, warehouse: {} },
         awaitingDispatch: [],
         transfers: [],
         damageHistory: [],
@@ -102,6 +103,7 @@ function ensureCleanResetRelease() {
 }
 ensureCleanResetRelease();
 const CLOUD_PRODUCTION_FIELDS = [
+    'stock_revision',
     'stock', 'parts', 'printHistory', 'failedParts', 'assembled', 'assemblyHistory', 'boxes', 'boxHistory',
     'packagingComponents', 'inserts', 'insertHistory', 'consumables', 'consumableHistory', 'packingJobs',
     'packingHistory', 'finishedStock', 'awaitingDispatch', 'transfers', 'damageHistory', 'damageReworkJobs',
@@ -441,7 +443,7 @@ function state() {
     s.consumableHistory = s.consumableHistory || [];
     s.packingJobs = s.packingJobs || {};
     s.packingHistory = s.packingHistory || [];
-    s.finishedStock = s.finishedStock || { boat: {}, cornwall: {} };
+    s.finishedStock = s.finishedStock || { boat: {}, cornwall: {}, warehouse: {} };
     s.transfers = s.transfers || [];
     s.awaitingDispatch = s.awaitingDispatch || [];
     s.awaitingDispatch = s.awaitingDispatch || [];
@@ -487,9 +489,9 @@ async function load(name) {
 function badge(txt, cls = 'info') { return `<span class="badge ${cls}">${txt}</span>`; }
 function targetKey(sku, loc) { return `${sku}:${loc}`; }
 function getTarget(s, sku, loc) { return Number(s.targets[targetKey(sku, loc)] || 0); }
-function stock(s, sku, loc) { return Number((s.stock[sku] || {})[loc] || 0); }
+function stock(s, sku, loc) { return Number(s.finishedStock?.[loc]?.[sku] ?? s.stock?.[sku]?.[loc] ?? 0); }
 function needed(s, sku, loc) { return Math.max(0, getTarget(s, sku, loc) - stock(s, sku, loc)); }
-function totalNeed(s, sku) { return needed(s, sku, 'boat') + needed(s, sku, 'cornwall'); }
+function totalNeed(s, sku) { return Math.max(0, needed(s, sku, 'boat') + needed(s, sku, 'cornwall') + needed(s, sku, 'warehouse') - Math.max(0,stock(s,sku,'warehouse')-getTarget(s,sku,'warehouse'))); }
 function awaitingDispatchQty(s, sku) {
     return (s.awaitingDispatch || [])
         .filter(x => x.sku === sku && x.status === 'awaiting_dispatch')
@@ -651,9 +653,9 @@ function cloudModeBadge() {
 const FORGE_ROLE_PAGES = {
     admin: ['*'],
     packing: ['packing-station.html'],
-    retail_staff: ['deliveries.html', 'rework.html']
+    retail_staff: ['deliveries.html', 'transfers.html', 'rework.html']
 };
-function forgeCurrentPage() { return location.pathname.split('/').pop() || 'index.html'; }
+function forgeCurrentPage() { const page=location.pathname.split('/').pop() || 'index.html'; return page.includes('.') ? page : page+'.html'; }
 function roleCanOpen(role, page) {
     const allowed = FORGE_ROLE_PAGES[role] || [];
     return allowed.includes('*') || allowed.includes(page);
@@ -2273,7 +2275,69 @@ async function insertProductionPage() {
             .map(x => `<tr>
        <td><strong>${esc(x.p.name)}</strong><br><span class="sku">${x.p.sku}</span></td>
        <td><strong>${Number(x.r.ready || 0)}</strong></td>
-     </tr>`).join('') || '<tr><td colspan="2">No matching On Sale Pals.</td></tr>';
+       <td><button class="btn ghost editInsertStock" data-sku="${esc(x.p.sku)}">Edit</button></td>
+     </tr>`).join('') || '<tr><td colspan="3">No matching On Sale Pals.</td></tr>';
+
+        document.querySelectorAll('.editInsertStock').forEach(btn => btn.onclick = async () => {
+            const sku = String(btn.dataset.sku || '');
+            const p = pals.find(x => x.sku === sku);
+            if (!p)
+                return;
+
+            const r = rec(sku);
+            const oldQty = Math.max(0, Number(r.ready || 0));
+
+            const entered = prompt(
+                `Insert Stock Count\n\n${p.name}\n${sku}\n\nForge currently has: ${oldQty}\n\nEnter the ACTUAL physical quantity:`,
+                String(oldQty)
+            );
+
+            if (entered === null)
+                return;
+
+            const raw = String(entered).trim();
+
+            if (!/^\d+$/.test(raw)) {
+                alert('Please enter a whole number of 0 or more.');
+                return;
+            }
+
+            const newQty = Number(raw);
+
+            if (!Number.isSafeInteger(newQty) || newQty < 0 || newQty > 9999) {
+                alert('Please enter a valid stock quantity between 0 and 9999.');
+                return;
+            }
+
+            if (newQty === oldQty)
+                return;
+
+            const difference = newQty - oldQty;
+            const differenceText = difference > 0 ? `+${difference}` : String(difference);
+
+            const confirmed = confirm(
+                `Update Insert Inventory?\n\n${p.name}\n${sku}\n\nCurrent: ${oldQty}\nActual: ${newQty}\nAdjustment: ${differenceText}\n\nThis will change the Forge insert stock count.`
+            );
+
+            if (!confirmed)
+                return;
+
+            const before = JSON.parse(JSON.stringify(s));
+
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+
+            try {
+                r.ready = newQty;
+                await save(s);
+                render();
+            }
+            catch (e) {
+                s = before;
+                render();
+                alert('Insert stock could not be updated: ' + (e.message || e));
+            }
+        });
         document.querySelectorAll('.printViaPi').forEach(btn => btn.onclick = async () => {
             const sku = btn.dataset.sku;
             const qty = Math.max(1, Math.min(needPrint(sku), Number(document.querySelector('#printed-' + sku)?.value || 1)));
@@ -2660,6 +2724,8 @@ async function dashboard() {
             cornwallTarget: Number(d.cornwall_target || 0),
             boatStock: Number(d.boat_stock || 0),
             cornwallStock: Number(d.cornwall_stock || 0),
+            warehouseStock: Number(d.warehouse_stock || 0),
+            warehouseTarget: Number(d.warehouse_target || 0),
             short: Number(d.gross_need || 0)
         };
     }).filter(x => x.short > 0).sort((a, b) => b.short - a.short);
@@ -2667,7 +2733,7 @@ async function dashboard() {
     if (lowFinishedHost) {
         lowFinishedHost.innerHTML = shortages.length ? shortages.slice(0, 6).map(x => `
           <a href="pals.html" class="health-row">
-            <div><strong>${esc(x.p.name)}</strong><span>${esc(x.p.sku)} · Boat ${x.boatStock}/${x.boatTarget} · Cornwall ${x.cornwallStock}/${x.cornwallTarget}</span></div>
+            <div><strong>${esc(x.p.name)}</strong><span>${esc(x.p.sku)} · Boat ${x.boatStock}/${x.boatTarget} · Cornwall ${x.cornwallStock}/${x.cornwallTarget} · Warehouse ${x.warehouseStock}/${x.warehouseTarget}</span></div>
             <div class="health-value danger-text">−${x.short}</div>
             <small>short</small>
           </a>`).join('') : `<div class="dashboard-clear-state"><strong>Finished stock covered.</strong><span>All Pal targets are currently met.</span></div>`;
@@ -2840,7 +2906,8 @@ function stockTargetDefaultsFromSettings(settings) {
     const cfg = (settings === null || settings === void 0 ? void 0 : settings.stock_target_defaults) || {};
     return {
         boat: Math.max(0, Number((_m = cfg.boat) !== null && _m !== void 0 ? _m : 3)),
-        cornwall: Math.max(0, Number((_o = cfg.cornwall) !== null && _o !== void 0 ? _o : 3))
+        cornwall: Math.max(0, Number((_o = cfg.cornwall) !== null && _o !== void 0 ? _o : 3)),
+        warehouse: Math.max(0, Number(cfg.warehouse ?? 0))
     };
 }
 function palTargetOverrideMap(settings) {
@@ -2880,7 +2947,7 @@ async function loadPalDemandSnapshot(s, products) {
     const bySku = (data && data.by_sku && typeof data.by_sku === 'object') ? data.by_sku : {};
     return {
         bySku,
-        defaults: data.defaults || { boat: 3, cornwall: 3 },
+        defaults: data.defaults || { boat: 3, cornwall: 3, warehouse: 0 },
         overrides: data.overrides || {},
         mapped_variants: Number(data.mapped_variants || 0),
         synced_at: data.shopify_synced_at || null,
@@ -2969,10 +3036,11 @@ async function stockTargetSettingsPage() {
     const badgeEl = document.getElementById('stockTargetSettingsBadge');
     const boatEl = document.getElementById('defaultBoatTarget');
     const cornwallEl = document.getElementById('defaultCornwallTarget');
+    const warehouseEl = document.getElementById('defaultWarehouseTarget');
     const saveBtn = document.getElementById('saveStockTargetDefaults');
     if (!boatEl || !cornwallEl || !saveBtn)
         return;
-    let current = { boat: 3, cornwall: 3 };
+    let current = { boat: 3, cornwall: 3, warehouse: 0 };
     function setBadge(state, text) {
         if (!badgeEl)
             return;
@@ -2984,6 +3052,7 @@ async function stockTargetSettingsPage() {
         current = stockTargetDefaultsFromSettings(data.settings || {});
         boatEl.value = current.boat;
         cornwallEl.value = current.cornwall;
+        if(warehouseEl) warehouseEl.value = current.warehouse;
         setBadge('ok', 'Saved');
     }
     catch (e) {
@@ -2992,7 +3061,8 @@ async function stockTargetSettingsPage() {
     async function save() {
         const next = {
             boat: Math.max(0, Math.round(Number(boatEl.value || 0))),
-            cornwall: Math.max(0, Math.round(Number(cornwallEl.value || 0)))
+            cornwall: Math.max(0, Math.round(Number(cornwallEl.value || 0))),
+            warehouse: Math.max(0, Math.round(Number(warehouseEl?.value || 0)))
         };
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving…';
@@ -3005,6 +3075,7 @@ async function stockTargetSettingsPage() {
             current = next;
             boatEl.value = current.boat;
             cornwallEl.value = current.cornwall;
+        if(warehouseEl) warehouseEl.value = current.warehouse;
             setBadge('ok', 'Saved');
             setForgeCloudSync('synced', 'Stock target defaults saved');
         }
@@ -3037,7 +3108,7 @@ async function inventory(type) {
     const q = document.querySelector('#q');
     let shopifyInventory = { inventory: [], mapped_variants: 0, synced_at: null };
     let shopifyBySku = {};
-    let targetDefaults = { boat: 3, cornwall: 3 };
+    let targetDefaults = { boat: 3, cornwall: 3, warehouse: 0 };
     let targetOverrides = {};
     let demandSnapshot = { bySku: {} };
     async function loadTargetSettings() {
@@ -3049,7 +3120,7 @@ async function inventory(type) {
             targetOverrides = palTargetOverrideMap(data.settings || {});
         }
         catch (e) {
-            targetDefaults = { boat: 3, cornwall: 3 };
+            targetDefaults = { boat: 3, cornwall: 3, warehouse: 0 };
             targetOverrides = {};
         }
     }
@@ -3070,7 +3141,7 @@ async function inventory(type) {
             rebuildShopifyIndex();
             if (sync) {
                 sync.className = 'badge success';
-                sync.textContent = `Shopify Live · ${Number(shopifyInventory.mapped_variants || 0)} mapped`;
+                sync.textContent = shopifyInventory.source || `Shopify Live · ${Number(shopifyInventory.mapped_variants || 0)} mapped`;
             }
         }
         catch (e) {
@@ -3099,7 +3170,7 @@ async function inventory(type) {
         return Math.max(0, effectiveTarget(sku, loc) - shopStock(sku, loc));
     }
     function totalShopNeed(sku) {
-        return shopNeed(sku, 'boat') + shopNeed(sku, 'cornwall');
+        return Math.max(0,shopNeed(sku, 'boat') + shopNeed(sku, 'cornwall') + shopNeed(sku, 'warehouse') - Math.max(0,shopStock(sku,'warehouse')-effectiveTarget(sku,'warehouse')));
     }
     function netManufacturingNeed(sku) {
         const d = demandSnapshot.bySku[sku];
@@ -3139,7 +3210,9 @@ async function inventory(type) {
             const c = useShopify ? shopStock(x.sku, 'cornwall') : stock(s, x.sku, 'cornwall');
             const bt = useShopify ? effectiveTarget(x.sku, 'boat') : getTarget(s, x.sku, 'boat');
             const ct = useShopify ? effectiveTarget(x.sku, 'cornwall') : getTarget(s, x.sku, 'cornwall');
-            const rawNeed = useShopify ? totalShopNeed(x.sku) : needed(s, x.sku, 'boat') + needed(s, x.sku, 'cornwall');
+            const rawNeed = useShopify ? totalShopNeed(x.sku) : totalNeed(s,x.sku);
+            const w = useShopify ? shopStock(x.sku,'warehouse') : stock(s,x.sku,'warehouse');
+            const wt = useShopify ? effectiveTarget(x.sku,'warehouse') : getTarget(s,x.sku,'warehouse');
             const need = useShopify ? netManufacturingNeed(x.sku) : rawNeed;
             const demand = useShopify ? demandSnapshot.bySku[x.sku] : null;
             const sale = isOnSale(s, x.sku);
@@ -3148,15 +3221,17 @@ async function inventory(type) {
               <td class="pal-product" data-label="Pal">
                 <div class="product-name">${esc(x.name)}</div>
                 <span class="sku">${x.sku}</span>
-                ${useShopify && !mapped ? '<div class="small warning-text">Not mapped to Shopify</div>' : ''}
+                ${useShopify && !mapped && !shopifyInventory.source ? '<div class="small warning-text">Not mapped to Shopify</div>' : ''}
               </td>
               <td data-label="On Sale">${sale ? badge('ON SALE', 'ok') : badge('NOT ON SALE', '')}</td>
               <td data-label="Recipe">${x.recipe_ready ? badge('Recipe ready', 'ok') : badge('No recipe', 'warning')}</td>
-              <td class="stock-cell shopify-stock-cell" data-label="Boat Shopify Stock"><strong>${b}</strong>${useShopify ? '<small>available</small>' : ''}</td>
+              <td class="stock-cell shopify-stock-cell" data-label="Boat Stock"><strong>${b}</strong>${useShopify ? '<small>available</small>' : ''}</td>
               <td class="target-cell" data-label="Boat Target">${useShopify ? targetControl(x.sku, 'boat') : `<input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}">`}</td>
-              <td class="stock-cell shopify-stock-cell" data-label="Cornwall Shopify Stock"><strong>${c}</strong>${useShopify ? '<small>available</small>' : ''}</td>
+              <td class="stock-cell shopify-stock-cell" data-label="Cornwall Stock"><strong>${c}</strong>${useShopify ? '<small>available</small>' : ''}</td>
               <td class="target-cell" data-label="Cornwall Target">${useShopify ? targetControl(x.sku, 'cornwall') : `<input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}">`}</td>
-              <td class="need-cell" data-label="Need to Make"><strong>${need}</strong>${useShopify && demand ? `<small>${demand.gross_need} shortage · ${demand.assembled} assembled · ${demand.awaiting_dispatch} dispatch · ${demand.in_transit_cornwall} transit · ${demand.intact_rework} rework</small>` : ''}</td>
+              <td class="stock-cell" data-label="Warehouse Stock"><strong>${w}</strong></td>
+              <td class="target-cell" data-label="Warehouse Target">${useShopify ? targetControl(x.sku,'warehouse') : `<input class="number t" data-sku="${x.sku}" data-loc="warehouse" type="number" min="0" value="${wt}">`}</td>
+              <td class="need-cell" data-label="Need to Make"><strong>${need}</strong>${useShopify && demand ? `<small>${demand.gross_need} shortage · ${demand.assembled} assembled · ${demand.awaiting_dispatch} dispatch · ${demand.in_transit_cornwall} transit · ${demand.intact_rework} rework · ${demand.warehouse_surplus || 0} Warehouse spare</small>` : ''}</td>
             </tr>`;
         }).join('');
         if (useShopifyPage()) {
@@ -3461,7 +3536,7 @@ async function production() {
           </td>
           <td>
             <strong>${x.n}</strong>
-            <div class="small">${x.demand.boat_shortage} Boat · ${x.demand.cornwall_shortage} Cornwall</div>
+            <div class="small">${x.demand.boat_shortage} Boat · ${x.demand.cornwall_shortage} Cornwall · ${x.demand.warehouse_shortage || 0} Warehouse · ${x.demand.warehouse_surplus || 0} Warehouse spare</div>
           </td>
           <td>${x.groups.length}</td>
           <td>${(x.groups.reduce((a, r) => a + Number(r.weight_g || 0), 0) * x.n).toFixed(1)}g</td>
@@ -3809,7 +3884,7 @@ async function buildPlatePlanner() {
      <td>${esc(x.r.parts)}</td>
      <td>${Number(x.r.weight_g || 0).toFixed(2).replace(/\.00$/, '')}g</td>
      <td>${x.demand}</td><td>${x.inv}</td><td>${x.allocated}</td><td><strong>${x.remain}</strong></td>
-     <td><input class="number addqty desktop-addqty" id="desktop-qty-${idx}" min="1" type="number" value="${Math.max(1, x.remain || 1)}"></td>
+     <td><input class="number addqty desktop-addqty" id="desktop-qty-${idx}" min="1" type="number" value="${Math.max(1, Math.min(x.remain || 1, 5))}"></td>
      <td><button class="btn secondary desktop-addgroup" data-row="${idx}">Add Required</button></td>
      <td><button class="btn ghost desktop-addextra" data-row="${idx}">+ Extra</button></td>
      <td>${x.recoveryFiles.length ? `<button class="btn ghost desktop-exactpart" data-row="${idx}">Exact Part</button>` : '<span class="small muted">—</span>'}</td>
@@ -3847,7 +3922,7 @@ async function buildPlatePlanner() {
          <div class="mobile-required-action">
            <label>
              <span class="mobile-label">Grouped Sets Qty</span>
-             <input class="number mobile-addqty" id="mobile-qty-${idx}" min="1" type="number" value="${Math.max(1, x.remain || 1)}">
+             <input class="number mobile-addqty" id="mobile-qty-${idx}" min="1" type="number" value="${Math.max(1, Math.min(x.remain || 1, 5))}">
            </label>
            <button class="btn mobile-addgroup" data-row="${idx}">Add Grouped Set${x.remain === 1 ? '' : 's'}</button>
          </div>
@@ -4864,6 +4939,41 @@ function printPalBarcode(sku, name) {
     w.document.close();
     setTimeout(() => w.print(), 250);
 }
+// Use the same stock snapshot and eligible Pals as the packing workflow.
+function packingKpiSummary(s, pals) {
+    const quantity = value => {
+        const n = Number(value);
+        return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+    };
+    const palsReady = [...new Set(pals.map(p => p.sku))].reduce((total, sku) => {
+        const assembled = s.assembled?.[sku] ?? s.assemblyStock?.[sku] ?? s.benchStock?.[sku];
+        return total + Math.min(quantity(assembled), quantity(s.inserts?.[sku]?.ready));
+    }, 0);
+    const boxes = quantity(s.consumables?.clear_boxes?.stock);
+    const stickers = quantity(s.consumables?.stickers?.stock);
+    const cards = quantity(s.consumables?.bottom_cards?.stock);
+    const capacity = Math.min(palsReady, boxes, stickers, cards);
+    return { palsReady, boxes, stickers, cards, capacity };
+}
+function renderPackingKpis(s, pals) {
+    if (!document.getElementById('packingKpiStrip')) return;
+    const kpi = packingKpiSummary(s, pals);
+    const resources = [
+        ['Pals', 'Pals with ready inserts', kpi.palsReady],
+        ['Boxes', 'Clear Boxes', kpi.boxes],
+        ['Stickers', 'Stickers', kpi.stickers],
+        ['Cards', 'Bottom Cards', kpi.cards]
+    ];
+    resources.forEach(([id, label, value]) => {
+        document.getElementById(`packingKpi${id}`).textContent = value;
+        document.getElementById(`packingKpi${id}Card`).classList.toggle('packing-kpi-limit', value === kpi.capacity);
+    });
+    document.getElementById('packingKpiCapacity').textContent = kpi.capacity;
+    const limiting = resources.filter(([, , value]) => value === kpi.capacity).map(([, label]) => label);
+    document.getElementById('packingKpiCapacityNote').textContent = kpi.capacity === 0
+        ? `Packing blocked · needs ${limiting.join(' + ')}`
+        : `Can pack now · limited by ${limiting.join(' + ')}`;
+}
 async function packingStationPage() {
     installForgeCloudSyncBadge();
     if (!forgeProductionCloudReady) {
@@ -4999,6 +5109,7 @@ async function packingStationPage() {
         });
     }
     function render() {
+        renderPackingKpis(s, pals);
         const text = (q.value || '').toLowerCase();
         const searched = pals.filter(p => `${p.name} ${p.sku}`.toLowerCase().includes(text));
         // READY: anything physically packable can appear here.
@@ -5363,24 +5474,11 @@ async function barcodePrinterSettings() {
         }
     }, 2000);
 }
-function addForgeInventory(s, sku, loc, qty) {
-    qty = Number(qty || 0);
-    if (!qty)
-        return;
-    // Current inventory pages use s.inventory where available.
-    if (s.inventory) {
-        s.inventory[sku] = s.inventory[sku] || {};
-        s.inventory[sku][loc] = Number(s.inventory[sku][loc] || 0) + qty;
-    }
-    // Some earlier builds use s.stock.
-    if (s.stock) {
-        s.stock[sku] = s.stock[sku] || {};
-        s.stock[sku][loc] = Number(s.stock[sku][loc] || 0) + qty;
-    }
-    // Finished-stock mirror is always maintained.
-    s.finishedStock = s.finishedStock || { boat: {}, cornwall: {} };
-    s.finishedStock[loc] = s.finishedStock[loc] || {};
-    s.finishedStock[loc][sku] = Number(s.finishedStock[loc][sku] || 0) + qty;
+function addForgeInventory(s,sku,loc,qty){
+ const next=stock(s,sku,loc)+Number(qty||0);
+ s.stock=s.stock||{};s.stock[sku]=s.stock[sku]||{};s.stock[sku][loc]=next;
+ s.finishedStock=s.finishedStock||{};s.finishedStock[loc]=s.finishedStock[loc]||{};s.finishedStock[loc][sku]=next;
+ if(s.inventory){s.inventory[sku]=s.inventory[sku]||{};s.inventory[sku][loc]=next;}
 }
 function damageReworkRequirements(job) {
     const q = Number(job.qty || 1);
@@ -5577,7 +5675,8 @@ async function deliveriesPage() {
     }
     let s = applyDispatchCloudState(initial);
     let dispatchShopifyBySku = {};
-    let dispatchTargetDefaults = { boat: 3, cornwall: 3 };
+    let dispatchUsesForgeStock = false;
+    let dispatchTargetDefaults = { boat: 3, cornwall: 3, warehouse: 0 };
     let dispatchTargetOverrides = {};
     async function refreshDispatchShopify() {
         try {
@@ -5585,6 +5684,7 @@ async function deliveriesPage() {
                 cloudFetch('/shopify/pal-inventory'),
                 cloudFetch('/settings')
             ]);
+            dispatchUsesForgeStock = palInv.source === 'Forge test stock';
             dispatchShopifyBySku = Object.fromEntries((palInv.inventory || []).map(x => [x.sku, x]));
             dispatchTargetDefaults = stockTargetDefaultsFromSettings(settingsData.settings || {});
             dispatchTargetOverrides = palTargetOverrideMap(settingsData.settings || {});
@@ -5607,6 +5707,7 @@ async function deliveriesPage() {
         return Math.max(0, dispatchConfiguredTarget(sku, loc) - dispatchShopifyStock(sku, loc));
     }
     async function syncTransferToShopify(transfer) {
+        if(dispatchUsesForgeStock && transfer){transfer.shopify_sync_status='disabled_test';return true;}
         if (!transfer || transfer.item_type === 'cornwall_insert_spare')
             return true;
         if (transfer.shopify_sync_status === 'synced')
@@ -5642,6 +5743,7 @@ async function deliveriesPage() {
     const awaitKpi = document.querySelector('#awaitingDeliveryKpi');
     const boatKpi = document.querySelector('#boatFinishedKpi');
     const cornKpi = document.querySelector('#cornwallFinishedKpi');
+    const warehouseKpi = document.querySelector('#warehouseFinishedKpi');
     async function persistDispatch(message = 'Dispatch update') {
         try {
             const result = await saveDispatchCloudState(s);
@@ -5755,6 +5857,7 @@ async function deliveriesPage() {
      <label class="dispatch-compact-destination">
        <span><strong>Cornwall</strong><small>${cornStock}/${cornTarget} · need ${cornNeed}</small></span>
        <input class="number dispatchCornQty" id="cornwall-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="${defaultCorn}">
+     </label><label class="dispatch-compact-destination"><span><strong>Warehouse</strong><small>${stock(s,g.sku,'warehouse')} in stock</small></span><input class="number dispatchWarehouseQty" id="warehouse-${g.sku}" data-sku="${g.sku}" type="number" min="0" max="${g.qty}" value="0">
      </label>
      <div class="dispatch-compact-action">
        <div class="dispatch-allocation-summary" id="summary-${g.sku}"></div>
@@ -5855,6 +5958,7 @@ async function deliveriesPage() {
         dispatchKpi.textContent = groups.reduce((a, g) => a + Number(g.qty || 0), 0);
         awaitKpi.textContent = awaitingTransfers.reduce((a, t) => a + Number(t.qty || 0), 0);
         boatKpi.textContent = Object.values(((_a = s.finishedStock) === null || _a === void 0 ? void 0 : _a.boat) || {}).reduce((a, v) => a + Number(v || 0), 0);
+        if(warehouseKpi) warehouseKpi.textContent=Object.values(s.finishedStock?.warehouse || {}).reduce((a,v)=>a+Number(v||0),0);
         cornKpi.textContent = Object.values(((_b = s.finishedStock) === null || _b === void 0 ? void 0 : _b.cornwall) || {}).reduce((a, v) => a + Number(v || 0), 0);
         unassigned.innerHTML = groups.length ? groups.map(allocationCard).join('') : '<div class="bench-empty">No finished Pals are awaiting dispatch allocation.</div>';
         awaiting.innerHTML = awaitingTransfers.length ? awaitingTransfers.map(t => {
@@ -5876,16 +5980,17 @@ async function deliveriesPage() {
                 return;
             const b = Math.max(0, Number(((_a = document.querySelector('#boat-' + sku)) === null || _a === void 0 ? void 0 : _a.value) || 0));
             const c = Math.max(0, Number(((_b = document.querySelector('#cornwall-' + sku)) === null || _b === void 0 ? void 0 : _b.value) || 0));
-            const total = b + c;
+            const w=Number(document.querySelector('#warehouse-'+sku)?.value || 0);
+            const total = b + c + w;
             const el = document.querySelector('#summary-' + sku);
             if (!el)
                 return;
             if (total > g.qty)
                 el.innerHTML = `<strong class="danger-text">Too many selected: ${total} / ${g.qty}</strong>`;
             else
-                el.innerHTML = `Boat <strong>${b}</strong> · Cornwall <strong>${c}</strong> · Leave for later <strong>${g.qty - total}</strong>`;
+                el.innerHTML = `Boat <strong>${b}</strong> · Cornwall <strong>${c}</strong> · Warehouse <strong>${w}</strong> · Leave for later <strong>${g.qty - total}</strong>`;
         }
-        document.querySelectorAll('.dispatchBoatQty,.dispatchCornQty').forEach(el => el.oninput = () => updateSummary(el.dataset.sku));
+        document.querySelectorAll('.dispatchBoatQty,.dispatchCornQty,.dispatchWarehouseQty').forEach(el => el.oninput = () => updateSummary(el.dataset.sku));
         groups.filter(g => (g.item_type || 'pal') === 'pal' && !g.locked_destination && !g.rework_return).forEach(g => updateSummary(g.sku));
         document.querySelectorAll('.dispatchCornwallInsertSpare').forEach(btn => btn.onclick = async () => {
             const g = groups.find(x => x.key === btn.dataset.key);
@@ -5937,9 +6042,10 @@ async function deliveriesPage() {
                 return;
             const boatQty = Math.max(0, Math.floor(Number(((_a = document.querySelector('#boat-' + g.sku)) === null || _a === void 0 ? void 0 : _a.value) || 0)));
             const cornQty = Math.max(0, Math.floor(Number(((_b = document.querySelector('#cornwall-' + g.sku)) === null || _b === void 0 ? void 0 : _b.value) || 0)));
-            const total = boatQty + cornQty;
+            const warehouseQty=Math.max(0,Math.floor(Number(document.querySelector('#warehouse-'+g.sku)?.value || 0)));
+            const total = boatQty + cornQty + warehouseQty;
             if (total <= 0) {
-                alert('Choose a quantity for Boat and/or Cornwall.');
+                alert('Choose a quantity for Boat, Cornwall or Warehouse.');
                 return;
             }
             if (total > g.qty) {
@@ -5951,6 +6057,10 @@ async function deliveriesPage() {
                 return;
             }
             const now = new Date().toISOString();
+            if (warehouseQty > 0) {
+                addForgeInventory(s,g.sku,'warehouse',warehouseQty);
+                s.transfers.push({id:makeId(),sku:g.sku,name:g.name,qty:warehouseQty,destination:'warehouse',status:'received',packed_at:g.oldest,dispatched_at:now,received_at:now,good_qty:warehouseQty,damaged_qty:0,shopify_sync_status:'disabled_test'});
+            }
             if (boatQty > 0) {
                 addForgeInventory(s, g.sku, 'boat', boatQty);
                 const boatTransfer = { id: makeId(), sku: g.sku, name: g.name, qty: boatQty, destination: 'boat', status: 'received', packed_at: g.oldest, dispatched_at: now, received_at: now, good_qty: boatQty, damaged_qty: 0, shopify_sync_status: 'pending', shopify_sync_error: null };
@@ -6142,7 +6252,7 @@ async function deliveriesPage() {
                 const synced = await syncTransferToShopify(t);
                 t.qty = originalQty;
                 if (synced) {
-                    t.shopify_sync_status = 'synced';
+                    t.shopify_sync_status = dispatchUsesForgeStock ? 'disabled_test' : 'synced';
                     t.shopify_synced_qty = good;
                     t.shopify_synced_at = new Date().toISOString();
                     t.shopify_sync_error = null;
@@ -6256,7 +6366,7 @@ function applyReworkCloudState(data, baseState = null) {
     s.cornwallReworkStock.inserts = s.cornwallReworkStock.inserts || {};
     s.cornwallInsertReplenishment = s.cornwallInsertReplenishment || {};
     s.stock = s.stock || {};
-    s.finishedStock = s.finishedStock || { boat: {}, cornwall: {} };
+    s.finishedStock = s.finishedStock || { boat: {}, cornwall: {}, warehouse: {} };
     s.assembled = s.assembled || {};
     s.inserts = s.inserts || {};
     s.consumables = s.consumables || {};
@@ -6846,7 +6956,7 @@ async function cloudMigrationPanel() {
         }
     }
     apiInput.onchange = () => {
-        s.siteSettings.forgeApiUrl = apiBase();
+        s.siteSettings.forgeApiUrl = s.siteSettings.forgeApiUrl || 'https://pla-forge-api.plapalsuk.workers.dev';
         save(s);
         checkHealth();
     };
@@ -7444,7 +7554,7 @@ async function shopifyIntegrationPage() {
         const host = byId('shopifyLocationMappingRows');
         if (!host)
             return;
-        host.innerHTML = shopifyLocationsForMapping.length ? shopifyLocationsForMapping.map(loc => { var _m; const current = String(((_m = locationMapping.locations) === null || _m === void 0 ? void 0 : _m[loc.id]) || 'ignore'); return `<div class="shopify-location-map-row" data-location-id="${esc(loc.id)}"><div class="shopify-location-map-info"><strong>${esc(loc.name)}</strong><span>${esc([loc.city, loc.country].filter(Boolean).join(', ') || 'No address')} · ${loc.active ? 'Active' : 'Inactive'}</span></div><select class="input shopify-location-map-select"><option value="ignore"${current === 'ignore' ? ' selected' : ''}>Ignore</option><option value="boat"${current === 'boat' ? ' selected' : ''}>Kitsune Boat</option><option value="cornwall"${current === 'cornwall' ? ' selected' : ''}>Kitsune Cornwall</option></select></div>`; }).join('') : `<div class="dashboard-clear-state"><strong>No Shopify locations returned.</strong></div>`;
+        host.innerHTML = shopifyLocationsForMapping.length ? shopifyLocationsForMapping.map(loc => { var _m; const current = String(((_m = locationMapping.locations) === null || _m === void 0 ? void 0 : _m[loc.id]) || 'ignore'); return `<div class="shopify-location-map-row" data-location-id="${esc(loc.id)}"><div class="shopify-location-map-info"><strong>${esc(loc.name)}</strong><span>${esc([loc.city, loc.country].filter(Boolean).join(', ') || 'No address')} · ${loc.active ? 'Active' : 'Inactive'}</span></div><select class="input shopify-location-map-select"><option value="ignore"${current === 'ignore' ? ' selected' : ''}>Ignore</option><option value="boat"${current === 'boat' ? ' selected' : ''}>Kitsune Boat</option><option value="cornwall"${current === 'cornwall' ? ' selected' : ''}>Kitsune Cornwall</option><option value="warehouse"${current === 'warehouse' ? ' selected' : ''}>Warehouse</option></select></div>`; }).join('') : `<div class="dashboard-clear-state"><strong>No Shopify locations returned.</strong></div>`;
         host.querySelectorAll('.shopify-location-map-row').forEach(row => { const id = row.getAttribute('data-location-id'), sel = row.querySelector('.shopify-location-map-select'); sel.onchange = () => { locationMapping.locations = locationMapping.locations || {}; locationMapping.locations[id] = sel.value; setLocationMappingDirty(true); }; });
     }
     async function loadLocationMapping() {
@@ -7692,18 +7802,18 @@ async function reportsPage() {
         loadReport();
     }
     function setLocation(prefix, data, currency) {
-        byId(`${prefix}Sales`).textContent = money(data.total_taken, currency);
+        byId(`${prefix}Sales`).textContent = money(data.total_taken || 0, currency);
         byId(`${prefix}Items`).textContent = Number(data.items_sold || 0);
         byId(`${prefix}Orders`).textContent = Number(data.orders || 0);
-        byId(`${prefix}Cash`).textContent = money(data.cash, currency);
-        byId(`${prefix}Card`).textContent = money(data.card, currency);
-        byId(`${prefix}Cogs`).textContent = money(data.cogs, currency);
-        byId(`${prefix}Profit`).textContent = money(data.estimated_profit, currency);
+        byId(`${prefix}Cash`).textContent = money(data.cash || 0, currency);
+        byId(`${prefix}Card`).textContent = money(data.card || 0, currency);
+        byId(`${prefix}Cogs`).textContent = money(data.cogs || 0, currency);
+        byId(`${prefix}Profit`).textContent = money(data.estimated_profit || 0, currency);
     }
     function combinedProducts(data) {
         const map = {};
-        ['boat', 'cornwall'].forEach(loc => {
-            (data.report[loc].products || []).forEach(p => {
+        ['boat', 'cornwall', 'warehouse'].forEach(loc => {
+            (data.report[loc]?.products || []).forEach(p => {
                 const key = p.sku || p.name;
                 if (!map[key])
                     map[key] = { sku: p.sku, name: p.name, quantity: 0, sales: 0, cogs: 0 };
@@ -7720,7 +7830,7 @@ async function reportsPage() {
         const currency = currentData.currency || 'GBP';
         const products = productTab === 'all'
             ? combinedProducts(currentData)
-            : (currentData.report[productTab].products || []);
+            : (currentData.report[productTab]?.products || []);
         byId('reportProducts').innerHTML = products.length
             ? `<div class="report-product-list">${products.map((p, i) => `
                 <div class="report-product-row">
@@ -7738,6 +7848,7 @@ async function reportsPage() {
         setLocation('rTotal', total, c);
         setLocation('rBoat', boat, c);
         setLocation('rCorn', corn, c);
+        setLocation('rWarehouse', data.report.warehouse || {}, c);
 
         byId('reportCardFeePercent').value = Number(data.profit_settings?.card_fee_percent || 0);
         byId('reportCardFeeFixed').value = Number(data.profit_settings?.card_fee_fixed || 0);
@@ -7750,7 +7861,8 @@ async function reportsPage() {
         const unmapped = data.report.unmapped || {};
         const rows = [
             ['Boat', boat],
-            ['Cornwall', corn]
+            ['Cornwall', corn],
+            ['Warehouse', data.report.warehouse || {}]
         ];
         if (Number(unmapped.total_taken || 0) || Number(unmapped.orders || 0))
             rows.push(['Unmapped / Other', unmapped]);
@@ -8039,3 +8151,30 @@ document.addEventListener('visibilitychange', async () => {
 document.addEventListener('DOMContentLoaded', function () {
     installMobileForgeMenu();
 });
+
+/* ============================================================
+   FORGE TEST ENVIRONMENT
+   ============================================================ */
+(function installForgeTestEnvironmentBanner(){
+  function install(){
+    if(document.getElementById("forgeTestEnvironmentBanner")) return;
+
+    document.title = "[TEST] " + document.title.replace(/^\[TEST\]\s*/, "");
+
+    const banner = document.createElement("div");
+    banner.id = "forgeTestEnvironmentBanner";
+    banner.innerHTML = `
+      <strong>⚠ FORGE TEST ENVIRONMENT</strong>
+      <span>Changes here do not affect Live Forge</span>
+    `;
+
+    document.body.appendChild(banner);
+    document.body.classList.add("forge-test-environment");
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", install);
+  }else{
+    install();
+  }
+})();
