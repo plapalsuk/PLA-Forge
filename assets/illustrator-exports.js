@@ -3,12 +3,13 @@ function illustratorExportsPage(){
   installForgeCloudSyncBadge();
   const $=id=>document.getElementById(id);
   const groups=[
-    {id:'main-pla-pals',label:'Main PLA Pals',collections:['birds','wild-safari','aquatic-animals','wild-woodland','farm-animals','mythical-creatures-and-dinosaurs'],detail:'Birds, Wild Safari, Aquatic Animals, Wild Woodland, Farm Animals and Mythical Creatures and Dinosaurs'},
+    {id:'main-pla-pals',label:'Main PLA Pals',collections:['birds','wild-safari','aquatic-animals','wild-woodland','farm-animals','jungle','mythical-creatures-and-dinosaurs'],detail:'Birds, Wild Safari, Aquatic Animals, Wild Woodland, Farm Animals, Jungle and Mythical Creatures and Dinosaurs'},
     {id:'birds',label:'Birds'},
     {id:'wild-safari',label:'Wild Safari'},
     {id:'aquatic-animals',label:'Aquatic Animals'},
     {id:'wild-woodland',label:'Wild Woodland'},
     {id:'farm-animals',label:'Farm Animals'},
+    {id:'jungle',label:'Jungle'},
     {id:'easter-pals',label:'Easter Pals'},
     {id:'mythical-creatures-and-dinosaurs',label:'Mythical Creatures and Dinosaurs'},
     {id:'valentines-pals',label:'Valentines Pals'},
