@@ -89,6 +89,19 @@ async function productMasterPage(){
     catch(error){$('pmSaveStatus').textContent=error.message||'Save failed.';setForgeCloudSync('error',error.message||'Pal master save failed');}
     finally{$('pmSave').disabled=false;$('pmSave').textContent='Save Pal Record';}
   }
+  async function deletePal(){
+    const r=selected();if(!r)return;
+    const warning=`Delete ${r.name} (${r.sku}) from Forge? This permanently removes its product record, recipe and linked box-file record. It cannot be undone.`;
+    if(!window.confirm(warning))return;
+    const typed=window.prompt(`To confirm, type ${r.sku} exactly.`);
+    if(typed!==r.sku){$('pmSaveStatus').textContent='Pal was not deleted — confirmation did not match.';return;}
+    const button=$('pmDelete');button.disabled=true;button.textContent='Deleting…';$('pmSaveStatus').textContent=`Deleting ${r.sku} from Forge…`;
+    try{
+      await cloudFetch(`/products/${encodeURIComponent(r.sku)}`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation:r.sku})});
+      forgeProductMasterCache=null;selectedSku='';history.replaceState(null,'',location.pathname);await loadData();$('pmSaveStatus').textContent=`${r.sku} deleted from Forge.`;setForgeCloudSync('synced',`${r.sku} deleted from Forge`);
+    }catch(error){$('pmSaveStatus').textContent=error.message||'Pal could not be deleted.';setForgeCloudSync('error',error.message||'Pal deletion failed');}
+    finally{button.disabled=false;button.textContent='Delete Pal';}
+  }
   async function uploadPackaging(){
     const r=selected(),file=$('pmPackagingFile').files?.[0],button=$('pmPackagingUpload'),status=$('pmPackagingUploadStatus');
     if(!r||!file){status.textContent='Choose a PDF first.';return;}
@@ -111,6 +124,6 @@ async function productMasterPage(){
     }catch(error){status.textContent=error.message||'The PDF could not be saved on the Pi.';setForgeCloudSync('error',error.message||'Packaging upload failed');}
     finally{button.disabled=false;button.textContent='Upload to Pi';}
   }
-  $('pmSearch').oninput=event=>{filter=event.target.value;drawList();};$('pmSave').onclick=save;$('pmPackagingUpload').onclick=uploadPackaging;$('pmAddRecipe').onclick=()=>{recipeDraft.push({filament_name:'',parts:'',grouped_stl:'',separate_stls:'',part_count:1,weight_g:0});drawRecipes();};$('pmPrice').oninput=drawProfit;$('pmCost').oninput=drawProfit;
+  $('pmSearch').oninput=event=>{filter=event.target.value;drawList();};$('pmSave').onclick=save;$('pmDelete').onclick=deletePal;$('pmPackagingUpload').onclick=uploadPackaging;$('pmAddRecipe').onclick=()=>{recipeDraft.push({filament_name:'',parts:'',grouped_stl:'',separate_stls:'',part_count:1,weight_g:0});drawRecipes();};$('pmPrice').oninput=drawProfit;$('pmCost').oninput=drawProfit;
   try{await loadData();}catch(error){setForgeCloudSync('error',error.message||'Could not load Pal Product Master');$('pmEmpty').innerHTML=`<strong>Could not load Pal Product Master</strong><span>${esc(error.message||'Please refresh and try again.')}</span>`;}
 }
