@@ -73,6 +73,8 @@ async function productMasterPage(){
     const r=selected();$('pmEmpty').hidden=!!r;$('pmDetail').hidden=!r;if(!r)return;
     $('pmTitle').textContent=r.name;$('pmSkuHeading').textContent=`${r.sku} · ${r.collection||'No collection'}`;
     $('pmHeaderBadges').innerHTML=`${badge(r.on_sale?'ON SALE':'NOT ON SALE',r.on_sale?'ok':'warning')} ${badge(r.recipes.length?'RECIPE READY':'RECIPE MISSING',r.recipes.length?'ok':'danger')} ${badge(r.packaging?.file_id?'PACKAGING LINKED':'NO PACKAGING',r.packaging?.file_id?'ok':'warning')}`;
+    $('pmToggleSale').textContent=r.on_sale?'Take off sale':'Put on sale';
+    $('pmToggleSale').className=r.on_sale?'btn ghost':'btn';
     field('pmSku',r.sku);field('pmFirstName',r.first_name);field('pmAnimal',r.animal);field('pmName',r.name);field('pmCollection',shopifyCollection(r.collection));field('pmBarcode',r.barcode||r.sku);field('pmReleaseDate',r.release_date||'');checked('pmOnSale',r.on_sale);field('pmChar1',r.characteristic_1);field('pmChar2',r.characteristic_2);field('pmChar3',r.characteristic_3);field('pmShortDescription',r.short_description);field('pmFullDescription',r.full_description);field('pmCost',r.cost?.total_cost||0);field('pmPrice',r.price);field('pmHeight',r.height_cm);field('pmWidth',r.width_cm);field('pmDepth',r.depth_cm);
     recipeDraft=r.recipes.map(x=>Object.assign({},x));if(!recipeDraft.length)recipeDraft=[{filament_name:'',parts:'',grouped_stl:'',separate_stls:'',part_count:1,weight_g:0}];drawRecipes();drawProfit();drawSummary(r);
     $('pmImage').innerHTML=r.character_image_url?`<img src="${esc(r.character_image_url)}" alt="${esc(r.name)}"><span>Character image</span>`:'<div class="pal-master-image-empty">No Forge image URL saved yet</div>';
@@ -82,13 +84,14 @@ async function productMasterPage(){
     $('pmCommerce').innerHTML=infoRows([['Shopify',r.demand?.mapped?'<span class="badge ok">Mapped</span>':'<span class="badge warning">Not mapped</span>'],['POS Units Sold',String(units)],['POS Revenue',money(revenue)],['Last POS Sale',r.sales?.last_sale?esc(fmtDate(r.sales.last_sale)):'—']])+`<button type="button" class="btn ghost" id="pmCreateShopify">Create / retry Shopify draft</button><div class="form-field" style="margin-top:12px"><label>Shopify product image</label><input id="pmShopifyImage" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"><div class="small">Choose an image, then attach it to the existing Shopify product.</div></div><button type="button" class="btn ghost" id="pmUploadShopifyImage">Upload Shopify image</button><div class="small" id="pmShopifyStatus">Creates a Shopify draft from this Pal record. A missing product image will not block it.</div>`;
     $('pmCreateShopify').onclick=()=>createShopifyDraft(r);
     $('pmUploadShopifyImage').onclick=()=>uploadShopifyImage(r);
+    $('pmToggleSale').onclick=toggleOnSale;
     $('pmRecordInfo').innerHTML=infoRows([['Created',r.created_at?esc(fmtDate(r.created_at)):'—'],['Last Updated',r.updated_at?esc(fmtDate(r.updated_at)):'—'],['Product Type',esc(r.product_type||'pal')],['Recipe Rows',String(r.recipes.length)]]);
     $('pmSaveStatus').textContent='';
   }
   function formPayload(){return {product:{name:$('pmName').value.trim(),first_name:$('pmFirstName').value.trim(),animal:$('pmAnimal').value.trim(),collection:$('pmCollection').value,barcode:$('pmBarcode').value.trim(),release_date:$('pmReleaseDate').value,on_sale:$('pmOnSale').checked,characteristic_1:$('pmChar1').value.trim(),characteristic_2:$('pmChar2').value.trim(),characteristic_3:$('pmChar3').value.trim(),short_description:$('pmShortDescription').value.trim(),full_description:$('pmFullDescription').value.trim(),cost_price:number('pmCost'),price:number('pmPrice'),height_cm:number('pmHeight'),width_cm:number('pmWidth'),depth_cm:number('pmDepth'),character_image_url:selected()?.character_image_url||''},recipes:recipeDraft};}
   async function save(){
     const r=selected();if(!r)return;$('pmSave').disabled=true;$('pmSave').textContent='Saving…';$('pmSaveStatus').textContent='Saving every change to Forge…';
-    try{await cloudFetch(`/products/${encodeURIComponent(r.sku)}/master`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(formPayload())});$('pmSaveStatus').textContent='Saved successfully.';setForgeCloudSync('synced',`${r.sku} master record saved`);await loadData(r.sku);}
+    try{const result=await cloudFetch(`/products/${encodeURIComponent(r.sku)}/master`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(formPayload())});const shopify=result.shopify||{};if(shopify.warning)$('pmSaveStatus').textContent=`Saved in Forge, but Shopify needs attention: ${shopify.warning}`;else if(shopify.pending)$('pmSaveStatus').textContent='Saved in Forge. Create the Shopify product when you are ready.';else if(shopify.status==='ACTIVE')$('pmSaveStatus').textContent=`Saved. Shopify is active on ${shopify.sales_channels?.published_count||0} sales channels.`;else if(shopify.status==='DRAFT')$('pmSaveStatus').textContent='Saved. Shopify product returned to draft.';else $('pmSaveStatus').textContent='Saved successfully.';setForgeCloudSync(shopify.warning?'error':'synced',shopify.warning||`${r.sku} master record saved`);await loadData(r.sku);}
     catch(error){$('pmSaveStatus').textContent=error.message||'Save failed.';setForgeCloudSync('error',error.message||'Pal master save failed');}
     finally{$('pmSave').disabled=false;$('pmSave').textContent='Save Pal Record';}
   }
@@ -104,6 +107,12 @@ async function productMasterPage(){
       forgeProductMasterCache=null;selectedSku='';history.replaceState(null,'',location.pathname);await loadData();$('pmSaveStatus').textContent=`${r.sku} deleted from Forge.`;setForgeCloudSync('synced',`${r.sku} deleted from Forge`);
     }catch(error){$('pmSaveStatus').textContent=error.message||'Pal could not be deleted.';setForgeCloudSync('error',error.message||'Pal deletion failed');}
     finally{button.disabled=false;button.textContent='Delete Pal';}
+  }
+  async function toggleOnSale(){
+    const r=selected();if(!r)return;
+    $('pmOnSale').checked=!r.on_sale;
+    $('pmSaveStatus').textContent=`${r.on_sale?'Taking off sale':'Putting on sale'} in Forge and Shopify…`;
+    await save();
   }
   async function createShopifyDraft(r){
     const button=$('pmCreateShopify'),status=$('pmShopifyStatus');button.disabled=true;button.textContent='Creating…';status.textContent='Checking Shopify and creating a draft if needed…';

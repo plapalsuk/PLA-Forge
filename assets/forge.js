@@ -746,7 +746,7 @@ function installForgeNavigation() {
         '<div class="navgroup">Administration</div>',
         link('product-master.html', '▦ Pal Product Master'), link('illustrator-exports.html', '⇩ Illustrator Exports'), link('new-pal.html', '＋ New Pal Setup'), link('data-health.html', '! Data Health'),
         '<div class="navgroup">Settings</div>',
-        link('settings.html', '⚙ General'), link('settings-printers.html', '▱ 3D Printers'), link('settings-availability.html', '◉ Product Availability'), link('settings-labels.html', '▤ Labels &amp; Printing'), link('settings-employees.html', '♙ Employees'), link('settings-system.html', '! System &amp; Data'), link('settings-shopify.html', '◈ Shopify')
+        link('settings.html', '⚙ General'), link('settings-printers.html', '▱ 3D Printers'), link('settings-labels.html', '▤ Labels &amp; Printing'), link('settings-employees.html', '♙ Employees'), link('settings-system.html', '! System &amp; Data'), link('settings-shopify.html', '◈ Shopify')
     ].join('');
     if (!sidebar.querySelector('#mobileNavToggle')) {
         const toggle = document.createElement('button');
