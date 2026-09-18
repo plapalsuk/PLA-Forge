@@ -722,8 +722,46 @@ async function forgeRequireLogin() {
         return false;
     }
 }
+function installForgeNavigation() {
+    const sidebar = document.querySelector('.sidebar');
+    const nav = document.querySelector('.sidebar .nav');
+    if (!sidebar || !nav)
+        return;
+    const current = forgeCurrentPage();
+    const link = (href, label) => `<a${href === current ? ' class="active"' : ''} href="${href}">${label}</a>`;
+    nav.id = 'forgeNav';
+    nav.innerHTML = [
+        '<div class="navgroup">Forge Control</div>',
+        link('index.html', '⌂ Dashboard'), link('reports.html', '▥ Reports'),
+        '<div class="navgroup">Inventory</div>',
+        link('pals.html', '◆ Pals'), link('keyrings.html', '◇ Keyrings'), link('stickers.html', '▣ Sticker Sheets'),
+        '<div class="navgroup">The Workshop</div>',
+        link('production.html', '⚙ Production Planner'), link('plates.html', '▱ Build Plates'), link('assembly.html', '⌁ The Bench'), link('rework.html', '↻ Rework'),
+        '<div class="navgroup">Packing &amp; Dispatch</div>',
+        link('packaging.html', '□ Insert Production'), link('box-files.html', '▤ Box Files'), link('insert-scanner.html', '▦ Insert Scanner'), link('packing-station.html', '▣ Packing Station'), link('deliveries.html', '⇢ Dispatch'), link('transfers.html', '⇄ Transfers'),
+        '<div class="navgroup">Materials</div>',
+        link('filament.html', '≋ Filament'), link('recipes.html', '⌘ Recipes'), link('parts.html', '◫ Printed Parts'), link('consumables.html', '▤ Consumables'),
+        '<div class="navgroup">Retail</div>',
+        link('pos.html', '▣ Point of Sale'), link('pos-setup.html', '⚙ POS Setup'),
+        '<div class="navgroup">Administration</div>',
+        link('product-master.html', '▦ Pal Product Master'), link('illustrator-exports.html', '⇩ Illustrator Exports'), link('new-pal.html', '＋ New Pal Setup'), link('data-health.html', '! Data Health'),
+        '<div class="navgroup">Settings</div>',
+        link('settings.html', '⚙ General'), link('settings-printers.html', '▱ 3D Printers'), link('settings-availability.html', '◉ Product Availability'), link('settings-labels.html', '▤ Labels &amp; Printing'), link('settings-employees.html', '♙ Employees'), link('settings-system.html', '! System &amp; Data'), link('settings-shopify.html', '◈ Shopify')
+    ].join('');
+    if (!sidebar.querySelector('#mobileNavToggle')) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'mobile-nav-toggle';
+        toggle.id = 'mobileNavToggle';
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-controls', 'forgeNav');
+        toggle.innerHTML = '<span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span>';
+        nav.before(toggle);
+    }
+}
 async function forgeBoot(initializer) {
     // Every protected page comes through this gate.
+    installForgeNavigation();
     document.body.classList.add('forge-auth-checking');
     const ok = await forgeRequireLogin();
     if (!ok)
