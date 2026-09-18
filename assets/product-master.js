@@ -107,8 +107,8 @@ async function productMasterPage(){
   async function createShopifyDraft(r){
     const button=$('pmCreateShopify'),status=$('pmShopifyStatus');button.disabled=true;button.textContent='Creating…';status.textContent='Checking Shopify and creating a draft if needed…';
     try{
-      const result=await cloudFetch('/shopify/products/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product:{title:r.name,descriptionHtml:r.full_description||r.short_description||'',vendor:'PLA Pals',productType:'PLA Pal',tags:['PLA Pals',r.collection].filter(Boolean),status:'DRAFT',price:r.price,sku:r.sku,barcode:r.barcode||r.sku},image:{}})});
-      status.textContent=result.already_exists?'This SKU already exists in Shopify and is now linked to Forge.':'Shopify draft created and linked to Forge.';setForgeCloudSync('synced',`${r.sku} Shopify draft ready`);
+      const result=await cloudFetch('/shopify/products/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product:{title:r.name,descriptionHtml:r.full_description||r.short_description||'',vendor:'PLA Pals',productType:'PLA Pal',tags:['PLA Pals',r.collection].filter(Boolean),status:r.on_sale?'ACTIVE':'DRAFT',price:r.price,sku:r.sku,barcode:r.barcode||r.sku},image:{}})});
+      const warning=result.sales_channels?.warning;if(warning)status.textContent=`Product is linked, but sales channels still need attention: ${warning}`;else status.textContent=r.on_sale?`Shopify product is active on ${result.sales_channels?.published_count||0} sales channels.`:(result.already_exists?'This SKU already exists in Shopify and is now linked to Forge.':'Shopify draft created and linked to Forge.');setForgeCloudSync(warning?'error':'synced',warning||`${r.sku} Shopify listing ready`);
     }catch(error){status.textContent=error.message||'Shopify draft could not be created.';setForgeCloudSync('error',error.message||'Shopify draft creation failed');}
     finally{button.disabled=false;button.textContent='Create / retry Shopify draft';}
   }
@@ -120,7 +120,7 @@ async function productMasterPage(){
     button.disabled=true;button.textContent='Uploading…';status.textContent='Uploading image to Shopify…';
     try{
       const encoded=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||'').split(',')[1]||'');reader.onerror=()=>reject(new Error('The image could not be read.'));reader.readAsDataURL(file);});
-      const result=await cloudFetch('/shopify/products/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product:{title:r.name,descriptionHtml:r.full_description||r.short_description||'',vendor:'PLA Pals',productType:'PLA Pal',tags:['PLA Pals',r.collection].filter(Boolean),status:'DRAFT',price:r.price,sku:r.sku,barcode:r.barcode||r.sku},image:{filename:file.name,content_type:file.type,content_base64:encoded}})});
+      const result=await cloudFetch('/shopify/products/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product:{title:r.name,descriptionHtml:r.full_description||r.short_description||'',vendor:'PLA Pals',productType:'PLA Pal',tags:['PLA Pals',r.collection].filter(Boolean),status:r.on_sale?'ACTIVE':'DRAFT',price:r.price,sku:r.sku,barcode:r.barcode||r.sku},image:{filename:file.name,content_type:file.type,content_base64:encoded}})});
       status.textContent=result.image_uploaded?'Image uploaded to the existing Shopify product.':'Shopify did not confirm the image upload.';setForgeCloudSync('synced',`${r.sku} Shopify image uploaded`);
     }catch(error){status.textContent=error.message||'Shopify image could not be uploaded.';setForgeCloudSync('error',error.message||'Shopify image upload failed');}
     finally{button.disabled=false;button.textContent='Upload Shopify image';}

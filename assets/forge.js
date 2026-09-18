@@ -6902,7 +6902,7 @@ async function newPalPage() {
             vendor: val('npVendor') || s.siteSettings.shopifyVendor || 'PLA Pals',
             productType: val('npProductType') || s.siteSettings.shopifyProductType || 'PLA Pal',
             tags: val('npTags').split(',').map(x => x.trim()).filter(Boolean),
-            status: 'DRAFT',
+            status: checked('npOnSale') ? 'ACTIVE' : 'DRAFT',
             price: Number(val('npPrice') || 0),
             sku,
             barcode: val('npBarcode'),
@@ -7035,8 +7035,9 @@ async function newPalPage() {
         status.innerHTML = badge('Saved in Forge · sending Shopify…', 'warning');
         const result = await sendShopify(d);
         if (result.ok) {
-            status.innerHTML = `${badge('PAL CREATED', 'ok')} <span class="small">Forge setup complete and Shopify product created as Draft.</span>`;
-            shopifyStatus.innerHTML = badge('Shopify Draft Created', 'ok');
+            const published = d.onSale && !result.body?.sales_channels?.warning;
+            status.innerHTML = `${badge('PAL CREATED', 'ok')} <span class="small">Forge setup complete and Shopify product ${published ? 'activated across sales channels' : 'created as a draft'}.</span>`;
+            shopifyStatus.innerHTML = badge(published ? 'Shopify Channels Activated' : 'Shopify Draft Created', 'ok');
         }
         else {
             status.innerHTML = `${badge('FORGE CREATED', 'ok')} <span class="small">${esc(result.message)}</span>`;
