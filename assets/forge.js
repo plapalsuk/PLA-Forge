@@ -3702,6 +3702,7 @@ async function filament() {
     const totalKpi = document.querySelector('#filamentTotalKpi');
     const lowKpi = document.querySelector('#filamentLowKpi');
     const coloursKpi = document.querySelector('#filamentColoursKpi');
+    const createButton = document.querySelector('#filCreate');
     let data;
     async function loadCloud() {
         data = await cloudFetch('/filaments');
@@ -3828,6 +3829,18 @@ async function filament() {
     function cssSafe(v) { return String(v).replace(/[^a-z0-9_-]/gi, '_'); }
     if (q)
         q.oninput = draw;
+    if (createButton)
+        createButton.onclick = async () => {
+            const name = String(document.querySelector('#filCreateName')?.value || '').trim();
+            const status = document.querySelector('#filCreateStatus');
+            if (!name) { if (status) status.textContent = 'Enter a filament name first.'; return; }
+            createButton.disabled = true; createButton.textContent = 'Adding…'; if (status) status.textContent = 'Adding filament to Forge…';
+            try {
+                await cloudFetch(`/filaments/${encodeURIComponent(name)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grams_in_stock: Number(document.querySelector('#filCreateGrams')?.value || 0), reorder_level_g: Number(document.querySelector('#filCreateReorder')?.value || 250), spool_size_g: Number(document.querySelector('#filCreateSpool')?.value || 1000), material: String(document.querySelector('#filCreateMaterial')?.value || 'PLA').trim() || 'PLA', colour: String(document.querySelector('#filCreateColour')?.value || name).trim() || name }) });
+                if (status) status.textContent = `${name} added.`; document.querySelector('#filCreateName').value = ''; document.querySelector('#filCreateColour').value = ''; await loadCloud(); draw();
+            } catch (e) { if (status) status.textContent = e.message || 'Filament could not be added.'; }
+            finally { createButton.disabled = false; createButton.textContent = 'Add Filament'; }
+        };
     draw();
     let stamp = JSON.stringify((data.filaments || []).map(x => [x.name, x.grams_in_stock, x.reorder_level_g, x.updated_at]));
     window.setInterval(async () => {
