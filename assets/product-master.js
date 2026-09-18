@@ -78,8 +78,9 @@ async function productMasterPage(){
     $('pmPackaging').innerHTML=infoRows([['Status',r.packaging?.file_id?'<span class="badge ok">Linked to Pi</span>':'<span class="badge warning">Not linked</span>'],['File',esc(r.packaging?.file_id||'—')],['Updated',r.packaging?.updated_at?esc(fmtDate(r.packaging.updated_at)):'—']]);
     $('pmPackagingFile').value='';$('pmPackagingUploadStatus').textContent='Choose the final PDF for this Pal.';
     const units=Number(r.sales?.units_sold||0),revenue=Number(r.sales?.revenue||0);
-    $('pmCommerce').innerHTML=infoRows([['Shopify',r.demand?.mapped?'<span class="badge ok">Mapped</span>':'<span class="badge warning">Not mapped</span>'],['POS Units Sold',String(units)],['POS Revenue',money(revenue)],['Last POS Sale',r.sales?.last_sale?esc(fmtDate(r.sales.last_sale)):'—']])+`<button type="button" class="btn ghost" id="pmCreateShopify">Create / retry Shopify draft</button><div class="small" id="pmShopifyStatus">Creates a Shopify draft from this Pal record. A missing product image will not block it.</div>`;
+    $('pmCommerce').innerHTML=infoRows([['Shopify',r.demand?.mapped?'<span class="badge ok">Mapped</span>':'<span class="badge warning">Not mapped</span>'],['POS Units Sold',String(units)],['POS Revenue',money(revenue)],['Last POS Sale',r.sales?.last_sale?esc(fmtDate(r.sales.last_sale)):'—']])+`<button type="button" class="btn ghost" id="pmCreateShopify">Create / retry Shopify draft</button><div class="form-field" style="margin-top:12px"><label>Shopify product image</label><input id="pmShopifyImage" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"><div class="small">Choose an image, then attach it to the existing Shopify product.</div></div><button type="button" class="btn ghost" id="pmUploadShopifyImage">Upload Shopify image</button><div class="small" id="pmShopifyStatus">Creates a Shopify draft from this Pal record. A missing product image will not block it.</div>`;
     $('pmCreateShopify').onclick=()=>createShopifyDraft(r);
+    $('pmUploadShopifyImage').onclick=()=>uploadShopifyImage(r);
     $('pmRecordInfo').innerHTML=infoRows([['Created',r.created_at?esc(fmtDate(r.created_at)):'—'],['Last Updated',r.updated_at?esc(fmtDate(r.updated_at)):'—'],['Product Type',esc(r.product_type||'pal')],['Recipe Rows',String(r.recipes.length)]]);
     $('pmSaveStatus').textContent='';
   }
@@ -110,6 +111,19 @@ async function productMasterPage(){
       status.textContent=result.already_exists?'This SKU already exists in Shopify and is now linked to Forge.':'Shopify draft created and linked to Forge.';setForgeCloudSync('synced',`${r.sku} Shopify draft ready`);
     }catch(error){status.textContent=error.message||'Shopify draft could not be created.';setForgeCloudSync('error',error.message||'Shopify draft creation failed');}
     finally{button.disabled=false;button.textContent='Create / retry Shopify draft';}
+  }
+  async function uploadShopifyImage(r){
+    const file=$('pmShopifyImage').files?.[0],button=$('pmUploadShopifyImage'),status=$('pmShopifyStatus');
+    if(!file){status.textContent='Choose a JPG, PNG or WebP image first.';return;}
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){status.textContent='The product image must be a JPG, PNG or WebP file.';return;}
+    if(file.size>20*1024*1024){status.textContent='The product image must be no larger than 20 MB.';return;}
+    button.disabled=true;button.textContent='Uploading…';status.textContent='Uploading image to Shopify…';
+    try{
+      const encoded=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||'').split(',')[1]||'');reader.onerror=()=>reject(new Error('The image could not be read.'));reader.readAsDataURL(file);});
+      const result=await cloudFetch('/shopify/products/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product:{title:r.name,descriptionHtml:r.full_description||r.short_description||'',vendor:'PLA Pals',productType:'PLA Pal',tags:['PLA Pals',r.collection].filter(Boolean),status:'DRAFT',price:r.price,sku:r.sku,barcode:r.barcode||r.sku},image:{filename:file.name,content_type:file.type,content_base64:encoded}})});
+      status.textContent=result.image_uploaded?'Image uploaded to the existing Shopify product.':'Shopify did not confirm the image upload.';setForgeCloudSync('synced',`${r.sku} Shopify image uploaded`);
+    }catch(error){status.textContent=error.message||'Shopify image could not be uploaded.';setForgeCloudSync('error',error.message||'Shopify image upload failed');}
+    finally{button.disabled=false;button.textContent='Upload Shopify image';}
   }
   async function uploadPackaging(){
     const r=selected(),file=$('pmPackagingFile').files?.[0],button=$('pmPackagingUpload'),status=$('pmPackagingUploadStatus');
