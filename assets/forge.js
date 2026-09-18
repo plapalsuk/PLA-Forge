@@ -6810,9 +6810,6 @@ async function newPalPage() {
     const productImageInput = document.querySelector('#npProductImage');
     const productImageHint = document.querySelector('#npProductImageHint');
     const productImagePreview = document.querySelector('#npProductImagePreview');
-    const packagingInput = document.querySelector('#npPackagingPdf');
-    const packagingHint = document.querySelector('#npPackagingHint');
-    const packagingStatus = document.querySelector('#npPackagingStatus');
     const skuEl = document.querySelector('#npSku');
     const barcodeEl = document.querySelector('#npBarcode');
     const firstNameEl = document.querySelector('#npFirstName');
@@ -6898,9 +6895,7 @@ async function newPalPage() {
             part_count: Number(r.part_count || 1),
             weight_g: Number(r.weight_g || 0)
         }));
-        const packagingFile = packagingInput && packagingInput.files ? packagingInput.files[0] : null;
         const productImage = productImageInput && productImageInput.files ? productImageInput.files[0] : null;
-        const insertFile = packagingFile ? { file_id: '', filename: packagingFile.name, storage: 'pi', view_url: '', print_url: '' } : null;
         const shopify = {
             title: full,
             descriptionHtml: val('npFullDescription') || val('npShortDescription'),
@@ -6913,7 +6908,7 @@ async function newPalPage() {
             barcode: val('npBarcode'),
             dimensions: { height_cm: Number(val('npHeight') || 0), width_cm: Number(val('npWidth') || 0), depth_cm: Number(val('npDepth') || 0) }
         };
-        return { product, recipes: recipeData, insertFile, packagingFile, productImage, shopify, onSale: checked('npOnSale'), releaseDate: val('npReleaseDate') };
+        return { product, recipes: recipeData, productImage, shopify, onSale: checked('npOnSale'), releaseDate: val('npReleaseDate') };
     }
     function validate(data) {
         const errors = [];
@@ -6931,12 +6926,6 @@ async function newPalPage() {
             errors.push('Every recipe row needs a filament and parts/colour group.');
         if (data.product.price < 0)
             errors.push('Price cannot be negative.');
-        if (!data.packagingFile)
-            errors.push('Choose the final packaging PDF to upload to the Pi.');
-        else if (!/\.pdf$/i.test(data.packagingFile.name) || (data.packagingFile.type && data.packagingFile.type !== 'application/pdf'))
-            errors.push('Packaging artwork must be a PDF.');
-        else if (data.packagingFile.size > 150 * 1024 * 1024)
-            errors.push('Packaging PDF must be no larger than 150 MB.');
         if (!data.productImage)
             errors.push('Choose a product image for Shopify.');
         else if (!['image/jpeg', 'image/png', 'image/webp'].includes(data.productImage.type))
@@ -6952,7 +6941,7 @@ async function newPalPage() {
      <div><span>SKU</span><strong>${esc(d.product.sku || '—')}</strong></div>
      <div><span>Recipe Groups</span><strong>${d.recipes.length}</strong></div>
      <div><span>Filaments</span><strong>${d.product.filaments.length}</strong></div>
-     <div><span>Packaging PDF</span><strong>${d.packagingFile ? esc(d.packagingFile.name) : 'Not selected'}</strong></div>
+     <div><span>Box artwork</span><strong>Google Drive sync</strong></div>
      <div><span>Shopify Image</span><strong>${d.productImage ? esc(d.productImage.name) : 'Not selected'}</strong></div>
    </div>${errs.length ? `<div class="newpal-errors">${errs.map(e => `<div>${esc(e)}</div>`).join('')}</div>` : ''}`;
         createBtn.disabled = errs.length > 0;
@@ -6971,35 +6960,6 @@ async function newPalPage() {
         catch (e) {
             return { ok: false, pending: true, message: `Forge Pal created, but Shopify creation is pending: ${e.message}` };
         }
-    }
-    async function uploadPackagingToPi(file, sku) {
-        packagingStatus.className = 'badge warning';
-        packagingStatus.textContent = 'Uploading…';
-        const start = await cloudFetch('/box-files/upload/start', { method: 'POST', body: JSON.stringify({ sku, filename: file.name, total_bytes: file.size }) });
-        const chunkSize = Math.min(Number(start.chunk_size || 4 * 1024 * 1024), 4 * 1024 * 1024);
-        for (let offset = 0; offset < file.size; offset += chunkSize) {
-            const end = Math.min(offset + chunkSize, file.size);
-            packagingHint.textContent = `${file.name} · ${Math.round(end / file.size * 100)}% uploaded`;
-            const headers = { 'Content-Type': 'application/octet-stream', 'X-Upload-ID': start.upload_id, 'X-Chunk-Offset': String(offset) };
-            const token = cloudToken();
-            if (token) headers.Authorization = `Bearer ${token}`;
-            const res = await fetch(cloudApiBase() + '/box-files/upload/chunk', { method: 'POST', headers, body: file.slice(offset, end) });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || `Packaging upload failed (HTTP ${res.status}).`);
-        }
-        const completed = await cloudFetch('/box-files/upload/complete', { method: 'POST', body: JSON.stringify({ upload_id: start.upload_id, sku, filename: file.name }) });
-        await cloudFetch(`/products/${encodeURIComponent(sku)}/packaging`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                filename: file.name,
-                file_id: completed.file_id || completed.filename || file.name,
-                view_url: completed.view_url || '',
-                print_url: completed.print_url || ''
-            })
-        });
-        packagingStatus.className = 'badge ok';
-        packagingStatus.textContent = 'Stored on Pi';
-        packagingHint.textContent = `${file.name} uploaded to the Pi for ${sku}.`;
     }
     addRecipe.onclick = () => { recipes.push({ filament: '', parts: '', grouped_stl: '', separate_stls: '', part_count: 1, weight_g: 0 }); drawRecipes(); drawReview(); };
     productImageInput.onchange = () => {
@@ -7072,21 +7032,7 @@ async function newPalPage() {
             createBtn.disabled = false;
             return;
         }
-        status.innerHTML = badge('Saved in Forge · uploading packaging to Pi…', 'warning');
-        try {
-            await uploadPackagingToPi(d.packagingFile, d.product.sku);
-        }
-        catch (e) {
-            packagingStatus.className = 'badge danger';
-            packagingStatus.textContent = 'Upload failed';
-            packagingHint.textContent = e.message || 'The Pi did not accept the packaging PDF.';
-            status.innerHTML = `${badge('PAL SAVED IN FORGE', 'ok')} <span class="small">Packaging upload failed: ${esc(e.message)}. Barry will still appear in Forge; reopen Product Setup to retry the packaging later.</span>`;
-            existingProducts.push(d.product);
-            populateSku(nextPalSku(existingProducts));
-            createBtn.disabled = false;
-            return;
-        }
-        status.innerHTML = badge('Packaging stored · sending Shopify…', 'warning');
+        status.innerHTML = badge('Saved in Forge · sending Shopify…', 'warning');
         const result = await sendShopify(d);
         if (result.ok) {
             status.innerHTML = `${badge('PAL CREATED', 'ok')} <span class="small">Forge setup complete and Shopify product created as Draft.</span>`;

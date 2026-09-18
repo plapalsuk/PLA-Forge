@@ -70,12 +70,7 @@
 </div>
 
 <div class="card newpal-step">
- <div class="section-title"><div><h2>3 · Packaging</h2><div class="small">Upload the Pal's final packaging PDF directly to the Raspberry Pi Print Bridge.</div></div><span class="badge info" id="npPackagingStatus">Pi Upload</span></div>
- <div class="form-field"><label>Packaging PDF</label><input id="npPackagingPdf" type="file" accept="application/pdf,.pdf"><div class="small" id="npPackagingHint">PDF only · maximum 150 MB · uploaded securely in small pieces when the Pal is created.</div></div>
-</div>
-
-<div class="card newpal-step">
- <div class="section-title"><div><h2>4 · Shopify</h2><div class="small">Add the storefront image and product details. Forge uploads them securely; the Shopify Admin token never reaches the browser.</div></div><span id="shopifyCreateStatus" class="badge warning">Shopify Pending</span></div>
+ <div class="section-title"><div><h2>3 · Shopify</h2><div class="small">Add the storefront image and product details. Forge uploads them securely; the Shopify Admin token never reaches the browser.</div></div><span id="shopifyCreateStatus" class="badge warning">Shopify Pending</span></div>
  <div class="newpal-grid">
   <div class="form-field wide"><label>Product Image</label><input id="npProductImage" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"><div class="small" id="npProductImageHint">JPG, PNG or WebP · maximum 20 MB.</div><div id="npProductImagePreview" style="margin-top:10px"></div></div>
   <div class="form-field"><label>Vendor</label><input id="npVendor" value="PLA Pals"></div>
@@ -85,13 +80,13 @@
 </div>
 
 <div class="card newpal-step">
- <div class="section-title"><div><h2>5 · Review & Create</h2><div class="small">This creates the product catalogue entry, recipes, packaging mapping and availability record in Forge.</div></div><span class="badge ok">Final Check</span></div>
+ <div class="section-title"><div><h2>4 · Review & Create</h2><div class="small">This creates the product catalogue entry, recipes and availability record in Forge. Box artwork is then synced directly from Google Drive in System &amp; Data.</div></div><span class="badge ok">Final Check</span></div>
  <div id="newPalReview"></div>
  <div class="newpal-create-footer"><div id="newPalStatus"></div><button type="button" class="btn" id="createNewPal">Create New Pal</button></div>
 </div>
 </form>
 <div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.26.4 · Manufacturing & Inventory System</small></div>
-</main></div><script src="assets/forge.js?v=live-20260918-menu"></script><script>forgeBoot(async function(){
+</main></div><script src="assets/forge.js?v=live-20260918-newpal"></script><script>forgeBoot(async function(){
 newPalPage()
 })</script>
 <script id="legacyBootFailsafe">
