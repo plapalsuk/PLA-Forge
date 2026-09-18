@@ -3,14 +3,20 @@ function illustratorExportsPage(){
   installForgeCloudSyncBadge();
   const $=id=>document.getElementById(id);
   const groups=[
-    {id:'main-pals',label:'Main Pals',collections:['woodland','birds','safari','aquatic','mystical'],detail:'Woodland, Birds, Safari, Aquatic and Mystical'},
-    {id:'christmas',label:'Christmas',collections:['christmas'],detail:'Christmas collection'},
-    {id:'halloween',label:'Halloween',collections:['halloween'],detail:'Halloween collection'},
-    {id:'valentines',label:'Valentines',collections:['valentines'],detail:'Valentines collection'}
-  ];
+    {id:'birds',label:'Birds'},
+    {id:'wild-safari',label:'Wild Safari'},
+    {id:'aquatic-animals',label:'Aquatic Animals'},
+    {id:'wild-woodland',label:'Wild Woodland'},
+    {id:'farm-animals',label:'Farm Animals'},
+    {id:'easter-pals',label:'Easter Pals'},
+    {id:'mythical-creatures-and-dinosaurs',label:'Mythical Creatures and Dinosaurs'},
+    {id:'valentines-pals',label:'Valentines Pals'},
+    {id:'halloween-pals',label:'Halloween Pals'},
+    {id:'christmas-pals',label:'Christmas Pals'}
+  ].map(group=>Object.assign(group,{detail:`${group.label} Shopify collection`}));
   const barcodeDefault='file:////Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/';
   const characterDefault='file:////Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Comic Photos/';
-  let liveRows=[],csvRows=[],collectionOverrides=JSON.parse(localStorage.getItem('forgeIllustratorCollectionOverrides')||'{}');
+  let liveRows=[],csvRows=[];
   const escXml=value=>String(value==null?'':value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
   const clean=value=>String(value==null?'':value).trim();
   const key=value=>clean(value).toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -32,11 +38,10 @@ function illustratorExportsPage(){
   const csvEscape=value=>{const text=String(value==null?'':value);return /[",\n\r]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;};
   const canonicalCollection=value=>{
     const valueKey=key(value);
-    if(valueKey.includes('christmas'))return 'christmas';
-    if(valueKey.includes('halloween'))return 'halloween';
-    if(valueKey.includes('valentine'))return 'valentines';
-    if(valueKey.includes('woodland')||valueKey.includes('bird')||valueKey.includes('safari')||valueKey.includes('aquatic')||valueKey.includes('myth'))return valueKey.includes('bird')?'birds':valueKey.includes('safari')?'safari':valueKey.includes('aquatic')?'aquatic':valueKey.includes('myth')?'mystical':'woodland';
-    return '';
+    const matching=groups.find(group=>key(group.label)===valueKey);
+    if(matching)return matching.id;
+    const legacy={christmas:'christmas-pals',halloween:'halloween-pals',valentines:'valentines-pals',valentinesday:'valentines-pals',mythicalcreatures:'mythical-creatures-and-dinosaurs'};
+    return legacy[valueKey]||'';
   };
   const slug=value=>clean(value).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
   const pathFrom=(raw,folder,sku,extension)=>{
@@ -54,7 +59,7 @@ function illustratorExportsPage(){
     const csvBySku=Object.fromEntries(csvRows.map(row=>[csvCell(row,['SKU','sku']).toUpperCase(),row]));
     return liveRows.map(pal=>{
       const source=csvBySku[pal.sku]||{};
-      const collection=collectionOverrides[pal.sku]||csvCell(source,['Collection','collection'])||pal.collection||'';
+      const collection=pal.collection||csvCell(source,['Collection','collection'])||'';
       return {sku:pal.sku,name:csvCell(source,['Name','name'])||pal.name||'',nameF:csvCell(source,['NameF','namef','Full name'])||pal.name||'',description:csvCell(source,['Description','description'])||pal.short_description||pal.full_description||'',barcode:csvCell(source,['@Barcode','Barcode','barcode']),character:csvCell(source,['@Character','Character','character']),animal:csvCell(source,['Animal','animal'])||pal.animal||'',collection};
     }).filter(row=>row.sku);
   }
@@ -73,13 +78,13 @@ function illustratorExportsPage(){
     return [headers,...rows.map(row=>[row.sku,row.name,row.nameF,row.description,pathFrom(row.barcode,$('ieBarcodeFolder').value.trim()||barcodeDefault,row.sku,'.png'),pathFrom(row.character,$('ieCharacterFolder').value.trim()||characterDefault,row.sku,''),row.animal,row.collection])].map(row=>row.map(csvEscape).join(',')).join('\r\n')+'\r\n';
   }
   function download(content,name,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-  function rowsFor(group){return mergedRows().filter(row=>group.collections.includes(canonicalCollection(row.collection))).sort((a,b)=>a.sku.localeCompare(b.sku));}
+  function rowsFor(group){return mergedRows().filter(row=>canonicalCollection(row.collection)===group.id).sort((a,b)=>a.sku.localeCompare(b.sku));}
   function drawGroups(){
     $('ieGroups').innerHTML=groups.map(group=>{const rows=rowsFor(group);return `<article class="card illustrator-group"><span class="illustrator-group-count">${rows.length} Pals</span><h2>${group.label}</h2><p class="small">${group.detail}</p><div class="illustrator-group-skus">${rows.length?rows.map(row=>`<span>${esc(row.sku)}</span>`).join(''):'No matching Pals in Product Master.'}</div><div class="illustrator-group-actions"><button type="button" class="btn" data-xml="${group.id}" ${rows.length?'':'disabled'}>Download XML</button><button type="button" class="btn ghost" data-csv="${group.id}" ${rows.length?'':'disabled'}>Download CSV</button></div></article>`;}).join('');
     $('ieGroups').querySelectorAll('[data-xml]').forEach(button=>button.onclick=()=>{const group=groups.find(item=>item.id===button.dataset.xml),rows=rowsFor(group);download(xmlFor(rows,group.label),`PLA-Pals-${group.id}-variables.xml`,'application/xml;charset=utf-8');});
     $('ieGroups').querySelectorAll('[data-csv]').forEach(button=>button.onclick=()=>{const group=groups.find(item=>item.id===button.dataset.csv),rows=rowsFor(group);download(csvFor(rows),`PLA-Pals-${group.id}.csv`,'text/csv;charset=utf-8');});
   }
-  function drawPreview(){const rows=mergedRows(),options=['','Woodland','Birds','Safari','Aquatic','Mystical','Christmas','Halloween','Valentines'];const unassigned=rows.filter(row=>!canonicalCollection(row.collection)).length;$('iePreview').innerHTML=rows.length?`<div class="small illustrator-unassigned">${unassigned?`${unassigned} Pals still need an export collection.`:'Every live Pal has an export collection.'}</div><table><thead><tr><th>SKU</th><th>Pal</th><th>Export collection</th><th>Barcode source</th><th>Character source</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${esc(row.sku)}</td><td>${esc(row.name)}</td><td><select class="ie-collection-select" data-sku="${esc(row.sku)}">${options.map(option=>`<option value="${esc(option)}" ${(option&&canonicalCollection(option)===canonicalCollection(row.collection))||(!option&&!canonicalCollection(row.collection))?'selected':''}>${esc(option||'Unassigned')}</option>`).join('')}</select></td><td>${esc(row.barcode||'Forge QR folder')}</td><td>${esc(row.character||'Not set')}</td></tr>`).join('')}</tbody></table>`:'<div class="small">No Pal data is available yet.</div>';$('iePreview').querySelectorAll('.ie-collection-select').forEach(select=>select.onchange=()=>{const sku=select.dataset.sku;if(select.value)collectionOverrides[sku]=select.value;else delete collectionOverrides[sku];localStorage.setItem('forgeIllustratorCollectionOverrides',JSON.stringify(collectionOverrides));refreshView();});}
+  function drawPreview(){const rows=mergedRows(),unassigned=rows.filter(row=>!canonicalCollection(row.collection)).length;$('iePreview').innerHTML=rows.length?`<div class="small illustrator-unassigned">${unassigned?`${unassigned} Pals need a recognised Shopify collection in Product Master.`:'Every live Pal is aligned with a Shopify collection.'}</div><table><thead><tr><th>SKU</th><th>Pal</th><th>Shopify collection</th><th>Barcode source</th><th>Character source</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${esc(row.sku)}</td><td>${esc(row.name)}</td><td>${esc(row.collection||'Unassigned')}</td><td>${esc(row.barcode||'Forge QR folder')}</td><td>${esc(row.character||'Not set')}</td></tr>`).join('')}</tbody></table>`:'<div class="small">No Pal data is available yet.</div>';}
   function refreshView(){drawGroups();drawPreview();}
   async function loadLive(){
     if(!cloudToken())throw new Error('Cloud login required.');

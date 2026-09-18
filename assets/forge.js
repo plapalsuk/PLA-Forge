@@ -6902,6 +6902,7 @@ async function newPalPage() {
             vendor: val('npVendor') || s.siteSettings.shopifyVendor || 'PLA Pals',
             productType: val('npProductType') || s.siteSettings.shopifyProductType || 'PLA Pal',
             tags: val('npTags').split(',').map(x => x.trim()).filter(Boolean),
+            collection: val('npCollection'),
             status: checked('npOnSale') ? 'ACTIVE' : 'DRAFT',
             price: Number(val('npPrice') || 0),
             sku,
