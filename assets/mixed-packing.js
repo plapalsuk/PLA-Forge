@@ -2,11 +2,12 @@ async function mixedPackingPage() {
   const $ = id => document.getElementById(id);
   const steps = ['Set out clear boxes', 'Add bottom cards', 'Add stickers', 'Add matching inserts', 'Place the Pals', 'Close the boxes'];
   const labels = {boat:'Boat',cornwall:'Cornwall',warehouse:'Warehouse'};
-  let data = null, products = [], selected = null, busy = false, online = false, cameraStream = null, cameraRunning = false, revision = 0;
+  let data = null, products = [], selected = null, busy = false, online = false, cameraStream = null, cameraVideo = null, barcodeDetector = null, zxingControls = null, zxingReader = null, zxingVideo = null, cameraRunning = false, nativeLoopToken = 0, nativeFallbackTimer = null, quaggaFallbackTimer = null, scannerKeyBuffer = '', scannerLastKeyAt = 0, revision = 0;
   const pendingKey = 'forge-test-packing-pending-v1';
   let pending = null;
   try { pending = JSON.parse(localStorage.getItem(pendingKey) || 'null'); } catch (_) {}
   function message(text, error = false) { $('mixedStatus').textContent = text; $('mixedStatus').classList.toggle('stock-bad',error); }
+  function setScannerEngine(text) { $('mixedScannerEngineStatus').textContent = `Scanner engine: ${text}`; }
   async function api(path, body) {
     const controller = new AbortController(), timer = setTimeout(()=>controller.abort(),20000);
     try {
@@ -90,7 +91,9 @@ async function mixedPackingPage() {
   }
   function selectCode(code) {
     if(busy||pending||selected||!data?.batch||data.batch.step!==6)return;
-    const clean=String(code).trim().toUpperCase();
+    if(nativeFallbackTimer){clearTimeout(nativeFallbackTimer);nativeFallbackTimer=null;}if(quaggaFallbackTimer){clearTimeout(quaggaFallbackTimer);quaggaFallbackTimer=null;}
+    const raw=String(code).trim().toUpperCase();
+    const clean=(raw.match(/\bPLA\d{3,}\b/)||[raw])[0];
     const p=products.find(p=>p.type==='pal'&&p.sku.toUpperCase()===clean);
     if(!p){message('Unknown SKU. Scan the barcode on a Pal box or enter its SKU.',true);return;}
     selected=p;stopCamera();$('mixedQty').value=1;$('mixedDestination').value='';
@@ -116,31 +119,74 @@ async function mixedPackingPage() {
       message((e.name==='AbortError'?'The confirmation timed out.':e.message)+(pending?' Use Retry confirmation; it will not count the allocation twice.':''),true);
     }finally{busy=false;render();}
   }
+  function stopNativeCamera() {
+    nativeLoopToken++;
+    if(nativeFallbackTimer){clearTimeout(nativeFallbackTimer);nativeFallbackTimer=null;}
+    if(cameraStream){try{cameraStream.getTracks().forEach(t=>t.stop());}catch(_){}}
+    cameraStream=null;
+    if(cameraVideo){try{cameraVideo.pause();cameraVideo.srcObject=null;cameraVideo.remove();}catch(_){}}
+    cameraVideo=null; barcodeDetector=null;
+  }
+  function stopZXingScanner() {
+    if(zxingControls){try{zxingControls.stop();}catch(_){}}zxingControls=null;
+    if(zxingReader){try{zxingReader.reset();}catch(_){}}zxingReader=null;
+    if(zxingVideo){try{zxingVideo.pause();zxingVideo.srcObject=null;zxingVideo.remove();}catch(_){}}zxingVideo=null;
+  }
   async function stopCamera() {
-    cameraRunning=false;
-    if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
+    cameraRunning=false;stopNativeCamera();stopZXingScanner();
+    if(quaggaFallbackTimer){clearTimeout(quaggaFallbackTimer);quaggaFallbackTimer=null;}
     if(window.Quagga){try{Quagga.stop();Quagga.offDetected();}catch(_){}}
     $('mixedCamera').hidden=true;$('mixedCameraStop').hidden=true;
-    $('mixedCamera').innerHTML='';render();
+    $('mixedCamera').innerHTML='<div class="mixed-scanner-target"><span></span></div>';setScannerEngine('stopped');render();
+  }
+  async function startNativeBarcodeDetector() {
+    if(!('BarcodeDetector' in window)||!navigator.mediaDevices?.getUserMedia)return false;
+    let formats=[];try{if(BarcodeDetector.getSupportedFormats)formats=await BarcodeDetector.getSupportedFormats();}catch(_){}
+    if(formats.length&&!formats.includes('code_128'))return false;
+    barcodeDetector=new BarcodeDetector({formats:['code_128']});
+    cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    if(!cameraRunning){stopNativeCamera();return false;}
+    cameraVideo=document.createElement('video');cameraVideo.muted=true;cameraVideo.autoplay=true;cameraVideo.setAttribute('playsinline','');cameraVideo.srcObject=cameraStream;
+    $('mixedCamera').append(cameraVideo);await cameraVideo.play();
+    const token=++nativeLoopToken;setScannerEngine('native Code 128 detector active');
+    const tick=async()=>{if(!cameraRunning||token!==nativeLoopToken||!cameraVideo||!barcodeDetector)return;try{if(cameraVideo.readyState>=2){const found=await barcodeDetector.detect(cameraVideo);const code=String(found?.[0]?.rawValue||'').trim();if(code)selectCode(code);}}catch(_){}window.setTimeout(tick,120);};
+    tick();
+    // Some Chromium builds expose BarcodeDetector but do not reliably decode
+    // Code 128 from every camera. Fall back to the same Quagga reader instead
+    // of leaving the operator looking at a live camera that never scans.
+    nativeFallbackTimer=window.setTimeout(async()=>{
+      if(!cameraRunning||token!==nativeLoopToken||selected)return;
+      stopNativeCamera();
+      try{await startQuaggaScanner();message('Using the backup scanner. Hold the full barcode inside the scan window.');}
+      catch(e){await stopCamera();message(e?.message||'Camera scanner stopped unexpectedly.',true);}
+    },5000);
+    return true;
+  }
+  async function startZXingScanner() {
+    if(!window.ZXingBrowser?.BrowserMultiFormatReader)return false;
+    zxingVideo=document.createElement('video');zxingVideo.muted=true;zxingVideo.autoplay=true;zxingVideo.setAttribute('playsinline','');$('mixedCamera').append(zxingVideo);
+    zxingReader=new ZXingBrowser.BrowserMultiFormatReader();
+    zxingControls=await zxingReader.decodeFromConstraints({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false},zxingVideo,result=>{if(result)selectCode(result.getText());});
+    setScannerEngine('ZXing multi-format scanner active');return true;
+  }
+  function startQuaggaScanner(insertScannerCompatibility=false) {
+    return new Promise((resolve,reject)=>{
+      if(!window.Quagga)return reject(new Error('Quagga scanner library unavailable'));
+      try{Quagga.offDetected();}catch(_){}
+      Quagga.onDetected(result=>{const code=String(result?.codeResult?.code||'').replace(/[^A-Za-z0-9_-]/g,'').trim();if(code)selectCode(code);});
+      const config=insertScannerCompatibility?{inputStream:{name:'Live',type:'LiveStream',target:$('mixedCamera'),constraints:{facingMode:'environment',width:{min:640,ideal:1280},height:{min:480,ideal:720}}},decoder:{readers:['code_128_reader']},locate:true,locator:{patchSize:'medium',halfSample:true},frequency:10}:{inputStream:{name:'Live',type:'LiveStream',target:$('mixedCamera'),constraints:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},area:{top:'10%',right:'3%',left:'3%',bottom:'10%'}},decoder:{readers:['code_128_reader'],multiple:false},locate:true,locator:{patchSize:'medium',halfSample:false},numOfWorkers:0,frequency:12};
+      Quagga.init(config,error=>{
+        if(error)return reject(error);try{Quagga.start();setScannerEngine(insertScannerCompatibility?'Insert Scanner compatibility mode active':'Quagga Code 128 detector active');if(!insertScannerCompatibility){quaggaFallbackTimer=window.setTimeout(async()=>{if(!cameraRunning||selected)return;try{Quagga.stop();Quagga.offDetected();await startQuaggaScanner(true);message('Using Insert Scanner compatibility mode. Hold the full barcode inside the scan window.');}catch(e){await stopCamera();message(e?.message||'Camera scanner stopped unexpectedly.',true);}},6000);}resolve(true);}catch(e){reject(e);}
+      });
+    });
   }
   async function startCamera() {
     if(cameraRunning||busy||selected||pending)return;
-    cameraRunning=true;$('mixedCamera').hidden=false;$('mixedCameraStop').hidden=false;render();
+    cameraRunning=true;$('mixedCamera').hidden=false;$('mixedCameraStop').hidden=false;render();setScannerEngine('starting');
     try {
-      const supported=window.BarcodeDetector?await BarcodeDetector.getSupportedFormats():[];
-      if(supported.includes('code_128')) {
-        const detector=new BarcodeDetector({formats:['code_128']});
-        cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-        if(!cameraRunning){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;return;}
-        const video=document.createElement('video');video.muted=true;video.setAttribute('playsinline','');video.srcObject=cameraStream;$('mixedCamera').append(video);await video.play();
-        const tick=async()=>{if(!cameraRunning)return;try{const found=await detector.detect(video);if(found[0])selectCode(found[0].rawValue);}catch(_){}if(cameraRunning)setTimeout(tick,150);};tick();
-      } else {
-        if(!window.Quagga)throw new Error('Camera scanning is unavailable. Use a USB/Bluetooth scanner or enter the SKU.');
-        await new Promise((resolve,reject)=>Quagga.init({inputStream:{type:'LiveStream',target:$('mixedCamera'),constraints:{facingMode:'environment'}},decoder:{readers:['code_128_reader']},locate:true},e=>e?reject(e):resolve()));
-        if(!cameraRunning){Quagga.stop();return;}
-        Quagga.onDetected(r=>{if(cameraRunning&&r.codeResult?.code)selectCode(r.codeResult.code);});Quagga.start();
-      }
-      message('Point the camera at the SKU barcode. Scanning pauses when a Pal is identified.');
+      try { const zxingStarted=await startZXingScanner();if(!zxingStarted)await startQuaggaScanner(); }
+      catch(zxingError){stopZXingScanner();try{await startQuaggaScanner();}catch(fallbackError){throw new Error(fallbackError?.message||zxingError?.message||'Camera could not start.');}}
+      message('Camera ready. Hold the full Code 128 barcode inside the scan window.');
     }catch(e){await stopCamera();message(e.message||'Camera could not start. Use a scanner or type the SKU.',true);}
   }
   $('mixedStart').onsubmit=async e=>{
@@ -151,13 +197,27 @@ async function mixedPackingPage() {
   };
   $('mixedSteps').onclick=e=>{const b=e.target.closest('[data-mixed-step]');if(b&&data.batch&&!pending)mutate('/packing/batch/step',{batch_id:data.batch.id,step:Number(b.dataset.mixedStep)},'Preparation step saved.');};
   $('mixedScanForm').onsubmit=e=>{e.preventDefault();selectCode($('mixedScanInput').value);};
+  // USB/Bluetooth scanners normally behave like a fast keyboard. Capturing
+  // their completed burst at page level means a scan still works if focus has
+  // moved away from the text input during packing.
+  const usbScannerListener=e=>{
+    const now=Date.now();
+    if(e.key==='Enter'){
+      if(scannerKeyBuffer.length>=3&&now-scannerLastKeyAt<120){e.preventDefault();selectCode(scannerKeyBuffer);}
+      scannerKeyBuffer='';scannerLastKeyAt=0;return;
+    }
+    if(e.key.length!==1||e.ctrlKey||e.metaKey||e.altKey)return;
+    scannerKeyBuffer=now-scannerLastKeyAt<80?scannerKeyBuffer+e.key:e.key;
+    scannerLastKeyAt=now;
+  };
+  document.addEventListener('keydown',usbScannerListener);
   $('mixedMinus').onclick=()=>{$('mixedQty').value=Math.max(1,Number($('mixedQty').value)-1);render();};
   $('mixedPlus').onclick=()=>{$('mixedQty').value=Math.min(available(selected),Number($('mixedQty').value)+1);render();};
   $('mixedQty').oninput=render;$('mixedDestination').onchange=render;
   $('mixedConfirm').onclick=confirmAllocation;$('mixedRetry').onclick=confirmAllocation;
   $('mixedNext').onclick=()=>{if(busy||pending)return;selected=null;render();$('mixedScanInput').focus();};
   $('mixedCameraStart').onclick=startCamera;$('mixedCameraStop').onclick=stopCamera;
-  window.addEventListener('pagehide',stopCamera);
+  window.addEventListener('pagehide',()=>{document.removeEventListener('keydown',usbScannerListener);stopCamera();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera();else refresh();});
   products=await load('products');await refresh();
   if(pending){selected=products.find(p=>p.sku===pending.sku);$('mixedQty').value=pending.quantity;$('mixedDestination').value=pending.destination;message('An earlier confirmation needs checking. Use Retry confirmation to recover it safely.',true);render();}

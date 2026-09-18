@@ -1,0 +1,20 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Point of Sale | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=pos-1"><link rel="stylesheet" href="assets/pos.css?v=1"></head>
+<body class="forge-protected"><div class="app"><aside class="sidebar">
+  <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
+  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Point of Sale</span><span class="mobile-nav-chevron">⌄</span></button>
+  <nav class="nav" id="forgeNav">
+    <div class="navgroup">Forge Control</div><a href="index.html">⌂ Dashboard</a><a href="reports.html">▥ Reports</a>
+    <div class="navgroup">Retail</div><a href="pos.html">▣ Point of Sale</a><a href="pals.html">◆ Pals</a><a href="keyrings.html">◇ Keyrings</a>
+    <div class="navgroup">Administration</div><a href="settings-employees.html">♙ Employees</a><a href="settings-shopify.html">◈ Shopify</a><a href="settings.html">⚙ General</a>
+  </nav>
+</aside><main class="pos-main">
+  <div class="topbar"><div class="pageTitle"><h1>Point of Sale</h1><div class="small">Select items here, then take payment in the PLA Forge POS iPhone app.</div></div><div id="posUser" class="pos-user"></div></div>
+  <div id="posSetup" class="pos-setup" hidden></div>
+  <div class="pos-workspace">
+    <section class="pos-catalogue"><div class="pos-toolbar"><label class="pos-search"><span>⌕</span><input id="posSearch" type="search" placeholder="Search Pals or scan SKU" autocomplete="off"></label><label class="pos-location"><span>Sale location</span><select id="posLocation"><option value="boat">Kitsune Boat</option><option value="cornwall">Kitsune Cornwall</option></select></label></div><div id="posProducts" class="pos-products" aria-live="polite"></div></section>
+    <aside class="pos-cart"><div class="pos-cart-head"><div><span class="pos-eyebrow">Current sale</span><h2>Basket</h2></div><button class="btn ghost" id="posClear">Clear</button></div><div id="posCartItems" class="pos-cart-items"><div class="pos-empty">Choose an item to start a sale.</div></div><div class="pos-totals"><div><span>Items</span><strong id="posItemsCount">0</strong></div><div class="pos-grand-total"><span>Total</span><strong id="posTotal">£0.00</strong></div></div><button id="posPay" class="btn pos-pay" disabled>Tap to Pay on iPhone</button><p class="pos-payment-note">Payment is securely collected by the iPhone app. No card details are stored in Forge.</p></aside>
+  </div>
+  <section class="card pos-next"><div><span class="pos-eyebrow">Stripe connection</span><h2>iPhone POS setup</h2><p>Each iPhone is registered to a Stripe Terminal location. The signed-in Forge employee and selected sale location are attached to every completed sale.</p></div><div class="pos-status-grid"><div><strong>1</strong><span>Set up Stripe Terminal locations</span></div><div><strong>2</strong><span>Register each iPhone in the POS app</span></div><div><strong>3</strong><span>Enable POS access for staff</span></div></div></section>
+  <div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span></div>
+</main></div><script src="assets/forge.js?v=warehouse-1"></script><script src="assets/pos.js?v=1"></script><script>forgeBoot(posPage)</script></body></html>

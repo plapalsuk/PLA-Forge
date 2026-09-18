@@ -653,7 +653,9 @@ function cloudModeBadge() {
 const FORGE_ROLE_PAGES = {
     admin: ['*'],
     packing: ['packing-station.html'],
-    retail_staff: ['deliveries.html', 'transfers.html', 'rework.html']
+    retail_staff: ['deliveries.html', 'transfers.html', 'rework.html'],
+    pos_staff: ['pos.html'],
+    pos_manager: ['pos.html', 'pos-setup.html', 'settings-employees.html']
 };
 function forgeCurrentPage() { const page=location.pathname.split('/').pop() || 'index.html'; return page.includes('.') ? page : page+'.html'; }
 function roleCanOpen(role, page) {
@@ -1194,6 +1196,9 @@ async function insertScannerPage() {
     let nativeStream = null;
     let nativeVideo = null;
     let nativeDetector = null;
+    let zxingControls = null;
+    let zxingReader = null;
+    let zxingVideo = null;
     let nativeLoopToken = 0;
     let scannerRunning = false;
 
@@ -1375,7 +1380,10 @@ async function insertScannerPage() {
         if (scanBusy)
             return;
 
-        const code = String(rawCode || '').trim().toUpperCase();
+        // QR artwork may contain either the SKU itself or a product URL that
+        // includes it. Keep accepting the existing raw Code 128 value too.
+        const raw = String(rawCode || '').trim().toUpperCase();
+        const code = (raw.match(/\bPLA\d{3,}\b/) || [raw])[0];
         if (!code)
             return;
 
@@ -1487,6 +1495,24 @@ async function insertScannerPage() {
         nativeDetector = null;
     }
 
+    function stopZXingScanner() {
+        if (zxingControls) {
+            try { zxingControls.stop(); }
+            catch (_v) { }
+        }
+        zxingControls = null;
+        if (zxingReader) {
+            try { zxingReader.reset(); }
+            catch (_v) { }
+        }
+        zxingReader = null;
+        if (zxingVideo) {
+            try { zxingVideo.pause(); zxingVideo.srcObject = null; zxingVideo.remove(); }
+            catch (_v) { }
+        }
+        zxingVideo = null;
+    }
+
     function stopScanner() {
         scannerRunning = false;
         if (sameCodeRearmTimer) {
@@ -1494,6 +1520,7 @@ async function insertScannerPage() {
             sameCodeRearmTimer = null;
         }
         stopNativeScanner();
+        stopZXingScanner();
         if (window.Quagga && Quagga.stop) {
             try {
                 Quagga.stop();
@@ -1571,6 +1598,31 @@ async function insertScannerPage() {
         return true;
     }
 
+    async function startZXingScanner() {
+        if (!window.ZXingBrowser || !window.ZXingBrowser.BrowserMultiFormatReader)
+            return false;
+        zxingVideo = document.createElement('video');
+        zxingVideo.setAttribute('playsinline', '');
+        zxingVideo.muted = true;
+        zxingVideo.autoplay = true;
+        zxingVideo.style.position = 'absolute';
+        zxingVideo.style.inset = '0';
+        zxingVideo.style.width = '100%';
+        zxingVideo.style.height = '100%';
+        zxingVideo.style.objectFit = 'cover';
+        cameraHost.insertBefore(zxingVideo, cameraHost.firstChild);
+        zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
+        zxingControls = await zxingReader.decodeFromConstraints({
+            video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+            audio: false
+        }, zxingVideo, (result) => {
+            if (result)
+                processCode(result.getText());
+        });
+        setEngineStatus('ZXing multi-format scanner active');
+        return true;
+    }
+
     function startQuaggaScanner() {
         return new Promise((resolve, reject) => {
             if (!window.Quagga)
@@ -1642,13 +1694,14 @@ async function insertScannerPage() {
         setEngineStatus('starting');
 
         try {
-            const nativeStarted = await startNativeBarcodeDetector();
-            if (!nativeStarted)
+            const zxingStarted = await startZXingScanner();
+            if (!zxingStarted)
                 await startQuaggaScanner();
             setStatus('idle', 'Ready to scan', 'Hold the full barcode inside the orange scan window.', '');
         }
         catch (nativeErr) {
             stopNativeScanner();
+            stopZXingScanner();
             try {
                 await startQuaggaScanner();
                 setStatus('idle', 'Ready to scan', 'Hold the full barcode inside the orange scan window.', '');
@@ -6715,11 +6768,39 @@ async function newPalPage() {
     const addRecipe = document.querySelector('#addRecipeRow');
     const review = document.querySelector('#newPalReview');
     const createBtn = document.querySelector('#createNewPal');
-    const shopifyBridge = document.querySelector('#newPalShopifyBridge');
     const shopifyStatus = document.querySelector('#shopifyCreateStatus');
+    const productImageInput = document.querySelector('#npProductImage');
+    const productImageHint = document.querySelector('#npProductImageHint');
+    const productImagePreview = document.querySelector('#npProductImagePreview');
+    const packagingInput = document.querySelector('#npPackagingPdf');
+    const packagingHint = document.querySelector('#npPackagingHint');
+    const packagingStatus = document.querySelector('#npPackagingStatus');
     const skuEl = document.querySelector('#npSku');
-    skuEl.value = nextPalSku(existingProducts);
-    shopifyBridge.value = s.siteSettings.shopifyBridgeUrl || '';
+    const barcodeEl = document.querySelector('#npBarcode');
+    const firstNameEl = document.querySelector('#npFirstName');
+    const animalEl = document.querySelector('#npAnimal');
+    const fullNameEl = document.querySelector('#npFullName');
+    const generateDescriptionsBtn = document.querySelector('#npGenerateDescriptions');
+    const aiDescriptionStatus = document.querySelector('#npAiDescriptionStatus');
+    const shortDescriptionEl = document.querySelector('#npShortDescription');
+    const fullDescriptionEl = document.querySelector('#npFullDescription');
+    function populateSku(value) {
+        const sku = String(value || '').trim().toUpperCase();
+        skuEl.value = sku;
+        barcodeEl.value = sku;
+    }
+    function populateFullName() {
+        const first = String(firstNameEl.value || '').trim();
+        const animal = String(animalEl.value || '').trim();
+        fullNameEl.value = first && animal ? `${first} the ${animal}` : first || animal;
+    }
+    populateSku(nextPalSku(existingProducts));
+    skuEl.addEventListener('input', () => {
+        barcodeEl.value = String(skuEl.value || '').trim().toUpperCase();
+        drawReview();
+    });
+    firstNameEl.addEventListener('input', () => { populateFullName(); drawReview(); });
+    animalEl.addEventListener('input', () => { populateFullName(); drawReview(); });
     let recipes = [{ filament: '', parts: 'Body', grouped_stl: '', separate_stls: '', part_count: 1, weight_g: 0 }];
     function recipeHtml(r, idx) {
         return `<div class="newpal-recipe-row">
@@ -6767,7 +6848,8 @@ async function newPalPage() {
             size_depth_cm: Number(val('npDepth') || 0),
             barcode: val('npBarcode'),
             collection: val('npCollection'),
-            price: Number(val('npPrice') || 0)
+            price: Number(val('npPrice') || 0),
+            cost_price: Number(val('npCostPrice') || 0)
         };
         const recipeData = recipes.map(r => ({
             stated_sku: sku, sku, animal, name: first,
@@ -6778,8 +6860,9 @@ async function newPalPage() {
             part_count: Number(r.part_count || 1),
             weight_g: Number(r.weight_g || 0)
         }));
-        const drive = val('npInsertUrl'), fileId = extractDriveFileId(drive);
-        const insertFile = drive ? { file_id: fileId, view_url: drive, print_url: drive } : null;
+        const packagingFile = packagingInput && packagingInput.files ? packagingInput.files[0] : null;
+        const productImage = productImageInput && productImageInput.files ? productImageInput.files[0] : null;
+        const insertFile = packagingFile ? { file_id: '', filename: packagingFile.name, storage: 'pi', view_url: '', print_url: '' } : null;
         const shopify = {
             title: full,
             descriptionHtml: val('npFullDescription') || val('npShortDescription'),
@@ -6792,7 +6875,7 @@ async function newPalPage() {
             barcode: val('npBarcode'),
             dimensions: { height_cm: Number(val('npHeight') || 0), width_cm: Number(val('npWidth') || 0), depth_cm: Number(val('npDepth') || 0) }
         };
-        return { product, recipes: recipeData, insertFile, shopify, onSale: checked('npOnSale'), releaseDate: val('npReleaseDate') };
+        return { product, recipes: recipeData, insertFile, packagingFile, productImage, shopify, onSale: checked('npOnSale'), releaseDate: val('npReleaseDate') };
     }
     function validate(data) {
         const errors = [];
@@ -6804,10 +6887,24 @@ async function newPalPage() {
             errors.push('Pal name is required.');
         if (!data.product.animal)
             errors.push('Animal is required.');
+        if (!data.product.collection)
+            errors.push('Choose a collection.');
         if (!data.recipes.length || data.recipes.some(r => !r.filament || !r.parts))
             errors.push('Every recipe row needs a filament and parts/colour group.');
         if (data.product.price < 0)
             errors.push('Price cannot be negative.');
+        if (!data.packagingFile)
+            errors.push('Choose the final packaging PDF to upload to the Pi.');
+        else if (!/\.pdf$/i.test(data.packagingFile.name) || (data.packagingFile.type && data.packagingFile.type !== 'application/pdf'))
+            errors.push('Packaging artwork must be a PDF.');
+        else if (data.packagingFile.size > 150 * 1024 * 1024)
+            errors.push('Packaging PDF must be no larger than 150 MB.');
+        if (!data.productImage)
+            errors.push('Choose a product image for Shopify.');
+        else if (!['image/jpeg', 'image/png', 'image/webp'].includes(data.productImage.type))
+            errors.push('Shopify image must be a JPG, PNG or WebP file.');
+        else if (data.productImage.size > 20 * 1024 * 1024)
+            errors.push('Shopify image must be no larger than 20 MB.');
         return errors;
     }
     function drawReview() {
@@ -6817,38 +6914,104 @@ async function newPalPage() {
      <div><span>SKU</span><strong>${esc(d.product.sku || '—')}</strong></div>
      <div><span>Recipe Groups</span><strong>${d.recipes.length}</strong></div>
      <div><span>Filaments</span><strong>${d.product.filaments.length}</strong></div>
-     <div><span>Insert PDF</span><strong>${d.insertFile ? 'Linked' : 'Not linked'}</strong></div>
-     <div><span>Shopify</span><strong>${shopifyBridge.value.trim() ? 'Bridge configured' : 'Pending bridge'}</strong></div>
+     <div><span>Packaging PDF</span><strong>${d.packagingFile ? esc(d.packagingFile.name) : 'Not selected'}</strong></div>
+     <div><span>Shopify Image</span><strong>${d.productImage ? esc(d.productImage.name) : 'Not selected'}</strong></div>
    </div>${errs.length ? `<div class="newpal-errors">${errs.map(e => `<div>${esc(e)}</div>`).join('')}</div>` : ''}`;
         createBtn.disabled = errs.length > 0;
     }
     async function sendShopify(d) {
-        const url = shopifyBridge.value.trim();
-        if (!url) {
-            return { ok: false, pending: true, message: 'Forge Pal created. Shopify is pending because no secure Shopify Bridge URL is configured.' };
-        }
         try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'create_pal_product', product: d.shopify })
+            const imageBase64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+                reader.onerror = () => reject(new Error('The product image could not be read.'));
+                reader.readAsDataURL(d.productImage);
             });
-            const body = await res.json().catch(() => ({}));
-            if (!res.ok)
-                throw new Error(body.error || body.message || `HTTP ${res.status}`);
+            const body = await cloudFetch('/shopify/products/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product: d.shopify, image: { filename: d.productImage.name, content_type: d.productImage.type, content_base64: imageBase64 } }) });
             return { ok: true, body };
         }
         catch (e) {
-            return { ok: false, pending: true, message: `Forge Pal created, but Shopify creation failed: ${e.message}` };
+            return { ok: false, pending: true, message: `Forge Pal created, but Shopify creation is pending: ${e.message}` };
         }
     }
+    async function uploadPackagingToPi(file, sku) {
+        packagingStatus.className = 'badge warning';
+        packagingStatus.textContent = 'Uploading…';
+        const start = await cloudFetch('/box-files/upload/start', { method: 'POST', body: JSON.stringify({ sku, filename: file.name, total_bytes: file.size }) });
+        const chunkSize = Math.min(Number(start.chunk_size || 4 * 1024 * 1024), 4 * 1024 * 1024);
+        for (let offset = 0; offset < file.size; offset += chunkSize) {
+            const end = Math.min(offset + chunkSize, file.size);
+            packagingHint.textContent = `${file.name} · ${Math.round(end / file.size * 100)}% uploaded`;
+            const headers = { 'Content-Type': 'application/octet-stream', 'X-Upload-ID': start.upload_id, 'X-Chunk-Offset': String(offset) };
+            const token = cloudToken();
+            if (token) headers.Authorization = `Bearer ${token}`;
+            const res = await fetch(cloudApiBase() + '/box-files/upload/chunk', { method: 'POST', headers, body: file.slice(offset, end) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || `Packaging upload failed (HTTP ${res.status}).`);
+        }
+        const completed = await cloudFetch('/box-files/upload/complete', { method: 'POST', body: JSON.stringify({ upload_id: start.upload_id, sku, filename: file.name }) });
+        await cloudFetch(`/products/${encodeURIComponent(sku)}/packaging`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename: file.name,
+                file_id: completed.file_id || completed.filename || file.name,
+                view_url: completed.view_url || '',
+                print_url: completed.print_url || ''
+            })
+        });
+        packagingStatus.className = 'badge ok';
+        packagingStatus.textContent = 'Stored on Pi';
+        packagingHint.textContent = `${file.name} uploaded to the Pi for ${sku}.`;
+    }
     addRecipe.onclick = () => { recipes.push({ filament: '', parts: '', grouped_stl: '', separate_stls: '', part_count: 1, weight_g: 0 }); drawRecipes(); drawReview(); };
-    form.querySelectorAll('input,textarea,select').forEach(el => el.addEventListener('input', drawReview));
-    shopifyBridge.addEventListener('change', () => {
-        s.siteSettings.shopifyBridgeUrl = shopifyBridge.value.trim();
-        save(s);
+    productImageInput.onchange = () => {
+        const file = productImageInput.files && productImageInput.files[0];
+        productImagePreview.innerHTML = '';
+        if (file && file.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file); img.alt = 'Selected Shopify product image'; img.style.cssText = 'max-width:220px;max-height:220px;border-radius:14px;object-fit:cover';
+            img.onload = () => URL.revokeObjectURL(img.src); productImagePreview.appendChild(img);
+            productImageHint.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+        }
         drawReview();
-    });
+    };
+    form.querySelectorAll('input,textarea,select').forEach(el => el.addEventListener('input', drawReview));
+    generateDescriptionsBtn.onclick = async () => {
+        const firstName = val('npFirstName');
+        const animal = val('npAnimal');
+        const collection = val('npCollection');
+        if (!firstName || !animal || !collection) {
+            aiDescriptionStatus.textContent = 'Add the first name, animal and collection first.';
+            return;
+        }
+        generateDescriptionsBtn.disabled = true;
+        generateDescriptionsBtn.textContent = '✦ Writing…';
+        aiDescriptionStatus.textContent = 'Kitsu is drafting both descriptions…';
+        try {
+            const result = await cloudFetch('/ai/product-descriptions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    first_name: firstName,
+                    animal,
+                    full_name: val('npFullName') || `${firstName} the ${animal}`,
+                    collection,
+                    characteristics: [val('npChar1'), val('npChar2'), val('npChar3')].filter(Boolean)
+                })
+            });
+            shortDescriptionEl.value = String(result.short_description || '').trim();
+            fullDescriptionEl.value = String(result.long_description || '').trim();
+            aiDescriptionStatus.textContent = 'Drafts ready — edit them as much as you like.';
+            drawReview();
+        }
+        catch (e) {
+            aiDescriptionStatus.textContent = e.message || 'AI descriptions could not be created right now.';
+        }
+        finally {
+            generateDescriptionsBtn.disabled = false;
+            generateDescriptionsBtn.textContent = '✦ Write with AI';
+        }
+    };
     createBtn.onclick = async () => {
         const d = payload(), errors = validate(d);
         if (errors.length) {
@@ -6856,31 +7019,47 @@ async function newPalPage() {
             return;
         }
         createBtn.disabled = true;
-        status.innerHTML = badge('Creating Pal in Forge…', 'warning');
-        s.customData.products = s.customData.products.filter(x => x.sku !== d.product.sku);
-        s.customData.products.push(d.product);
-        s.customData.recipes = s.customData.recipes.filter(x => x.sku !== d.product.sku).concat(d.recipes);
-        if (d.insertFile)
-            s.customData.insert_files[d.product.sku] = d.insertFile;
-        s.productAvailability[d.product.sku] = { on_sale: d.onSale, release_date: d.releaseDate };
-        s.shopifyProducts[d.product.sku] = { status: 'pending', created_at: new Date().toISOString(), payload: d.shopify };
-        s.siteSettings.shopifyBridgeUrl = shopifyBridge.value.trim();
-        save(s);
-        status.innerHTML = badge('Forge created · sending Shopify…', 'warning');
+        status.innerHTML = badge('Saving Pal permanently in Forge…', 'warning');
+        try {
+            await cloudFetch('/products/setup', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product: Object.assign({}, d.product, { on_sale: d.onSale, release_date: d.releaseDate }),
+                    recipes: d.recipes
+                })
+            });
+        }
+        catch (e) {
+            status.innerHTML = `${badge('NOT CREATED', 'danger')} <span class="small">${esc(e.message)}</span>`;
+            createBtn.disabled = false;
+            return;
+        }
+        status.innerHTML = badge('Saved in Forge · uploading packaging to Pi…', 'warning');
+        try {
+            await uploadPackagingToPi(d.packagingFile, d.product.sku);
+        }
+        catch (e) {
+            packagingStatus.className = 'badge danger';
+            packagingStatus.textContent = 'Upload failed';
+            packagingHint.textContent = e.message || 'The Pi did not accept the packaging PDF.';
+            status.innerHTML = `${badge('PAL SAVED IN FORGE', 'ok')} <span class="small">Packaging upload failed: ${esc(e.message)}. Barry will still appear in Forge; reopen Product Setup to retry the packaging later.</span>`;
+            existingProducts.push(d.product);
+            populateSku(nextPalSku(existingProducts));
+            createBtn.disabled = false;
+            return;
+        }
+        status.innerHTML = badge('Packaging stored · sending Shopify…', 'warning');
         const result = await sendShopify(d);
         if (result.ok) {
-            s.shopifyProducts[d.product.sku] = Object.assign(Object.assign({}, s.shopifyProducts[d.product.sku]), { status: 'created', shopify_product_id: result.body.productId || result.body.product_id || result.body.id || '', shopify_variant_id: result.body.variantId || result.body.variant_id || '', response: result.body });
-            save(s);
             status.innerHTML = `${badge('PAL CREATED', 'ok')} <span class="small">Forge setup complete and Shopify product created as Draft.</span>`;
             shopifyStatus.innerHTML = badge('Shopify Draft Created', 'ok');
         }
         else {
-            save(s);
             status.innerHTML = `${badge('FORGE CREATED', 'ok')} <span class="small">${esc(result.message)}</span>`;
             shopifyStatus.innerHTML = badge('Shopify Pending', 'warning');
         }
         existingProducts.push(d.product);
-        skuEl.value = nextPalSku(existingProducts);
+        populateSku(nextPalSku(existingProducts));
         createBtn.disabled = false;
     };
     drawRecipes();
@@ -7134,7 +7313,7 @@ async function employeeAdminPage() {
             <label><span>Name</span><input id="newEmpName"></label>
             <label><span>Email</span><input id="newEmpEmail" type="email"></label>
             <label><span>Temporary Password</span><input id="newEmpPassword" type="password" minlength="8"></label>
-            <label><span>Role</span><select id="newEmpRole"><option value="packing">Packing</option><option value="retail_staff">Retail Staff</option><option value="admin">Admin</option></select></label>
+            <label><span>Role</span><select id="newEmpRole"><option value="packing">Packing</option><option value="retail_staff">Retail Staff</option><option value="pos_staff">POS Staff</option><option value="pos_manager">POS Manager</option><option value="admin">Admin</option></select></label>
             <button class="btn" id="addEmployee">+ Add Employee</button>
           </div>
         </div>
@@ -7142,10 +7321,12 @@ async function employeeAdminPage() {
           <div><strong>Admin</strong><span>Full PLA Forge access and administration.</span></div>
           <div><strong>Packing</strong><span>Packing Station only.</span></div>
           <div><strong>Retail Staff</strong><span>Dispatch/Cornwall delivery and authorised rework tools.</span></div>
+          <div><strong>POS Staff</strong><span>POS iPhone checkout at their assigned location.</span></div>
+          <div><strong>POS Manager</strong><span>POS setup, events, locations and staff assignments.</span></div>
         </div>
         <div class="employee-list">${rows.map(x => `<div class="employee-row">
           <div><strong>${esc(x.name || x.email)}</strong><div class="small">${esc(x.email)}</div></div>
-          <select class="empRole" data-id="${esc(x.id)}"><option value="admin" ${x.role === 'admin' ? 'selected' : ''}>Admin</option><option value="packing" ${x.role === 'packing' ? 'selected' : ''}>Packing</option><option value="retail_staff" ${x.role === 'retail_staff' ? 'selected' : ''}>Retail Staff</option></select>
+          <select class="empRole" data-id="${esc(x.id)}"><option value="admin" ${x.role === 'admin' ? 'selected' : ''}>Admin</option><option value="packing" ${x.role === 'packing' ? 'selected' : ''}>Packing</option><option value="retail_staff" ${x.role === 'retail_staff' ? 'selected' : ''}>Retail Staff</option><option value="pos_staff" ${x.role === 'pos_staff' ? 'selected' : ''}>POS Staff</option><option value="pos_manager" ${x.role === 'pos_manager' ? 'selected' : ''}>POS Manager</option></select>
           <label class="empActive"><input type="checkbox" data-id="${esc(x.id)}" ${Number(x.active) === 1 ? 'checked' : ''}> Active</label>
           <button class="btn ghost resetEmpPassword" data-id="${esc(x.id)}">Reset Password</button>
         </div>`).join('')}</div>`;
