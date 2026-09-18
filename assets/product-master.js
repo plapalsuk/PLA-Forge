@@ -22,7 +22,7 @@ async function productMasterPage(){
   installForgeCloudSyncBadge();
   if(!cloudToken()){showCloudRequiredError('Cloud login required.');return;}
   const $=id=>document.getElementById(id);
-  let records=[],selectedSku='',filter='',recipeDraft=[];
+  let records=[],selectedSku='',filter='',recipeDraft=[],filamentNames=[];
   const money=n=>'£'+Number(n||0).toFixed(2);
   const number=id=>Math.max(0,Number($(id).value||0));
   const selected=()=>records.find(x=>x.sku===selectedSku)||null;
@@ -58,7 +58,8 @@ async function productMasterPage(){
     $('pmSummary').innerHTML=[summaryCard('Boat Stock',d.boat_stock||0,`Target ${d.boat_target||0}`),summaryCard('Cornwall Stock',d.cornwall_stock||0,`Target ${d.cornwall_target||0}`),summaryCard('Warehouse Stock',d.warehouse_stock||0,`Target ${d.warehouse_target||0}`),summaryCard('Assembled',d.assembled||0,'Awaiting packing'),summaryCard('Awaiting Dispatch',d.awaiting_dispatch||0,'Packed Pals'),summaryCard('Need to Make',d.need_to_make||0,`${d.gross_need||0} gross shortage`,'accent')].join('');
   }
   function recipeRow(row,index){
-    return `<div class="newpal-recipe-row"><div class="form-field"><label>Filament</label><input data-r="${index}" data-k="filament_name" value="${esc(row.filament_name||'')}"></div><div class="form-field"><label>Parts / Colour Group</label><input data-r="${index}" data-k="parts" value="${esc(row.parts||'')}"></div><div class="form-field"><label>Grouped STL</label><input data-r="${index}" data-k="grouped_stl" value="${esc(row.grouped_stl||'')}"></div><div class="form-field"><label>Individual STL(s)</label><input data-r="${index}" data-k="separate_stls" value="${esc(row.separate_stls||'')}"></div><div class="form-field small-field"><label>Parts</label><input type="number" min="1" data-r="${index}" data-k="part_count" value="${Number(row.part_count||1)}"></div><div class="form-field small-field"><label>Weight (g)</label><input type="number" min="0" step="0.01" data-r="${index}" data-k="weight_g" value="${Number(row.weight_g||0)}"></div><button type="button" class="iconbtn pmRemoveRecipe" data-r="${index}" title="Remove row">×</button></div>`;
+    const choices=[...new Set([...filamentNames,row.filament_name].filter(Boolean))];
+    return `<div class="newpal-recipe-row"><div class="form-field"><label>Filament</label><select data-r="${index}" data-k="filament_name"><option value="">Select filament…</option>${choices.map(name=>`<option value="${esc(name)}" ${name===row.filament_name?'selected':''}>${esc(name)}</option>`).join('')}</select></div><div class="form-field"><label>Parts / Colour Group</label><input data-r="${index}" data-k="parts" value="${esc(row.parts||'')}"></div><div class="form-field"><label>Grouped STL</label><input data-r="${index}" data-k="grouped_stl" value="${esc(row.grouped_stl||'')}"></div><div class="form-field"><label>Individual STL(s)</label><input data-r="${index}" data-k="separate_stls" value="${esc(row.separate_stls||'')}"></div><div class="form-field small-field"><label>Parts</label><input type="number" min="1" data-r="${index}" data-k="part_count" value="${Number(row.part_count||1)}"></div><div class="form-field small-field"><label>Weight (g)</label><input type="number" min="0" step="0.01" data-r="${index}" data-k="weight_g" value="${Number(row.weight_g||0)}"></div><button type="button" class="iconbtn pmRemoveRecipe" data-r="${index}" title="Remove row">×</button></div>`;
   }
   function drawRecipes(){
     $('pmRecipeRows').innerHTML=recipeDraft.map(recipeRow).join('');
@@ -158,5 +159,5 @@ async function productMasterPage(){
     finally{button.disabled=false;button.textContent='Upload to Pi';}
   }
   $('pmSearch').oninput=event=>{filter=event.target.value;drawList();};$('pmSave').onclick=save;$('pmDelete').onclick=deletePal;$('pmPackagingUpload').onclick=uploadPackaging;$('pmAddRecipe').onclick=()=>{recipeDraft.push({filament_name:'',parts:'',grouped_stl:'',separate_stls:'',part_count:1,weight_g:0});drawRecipes();};$('pmPrice').oninput=drawProfit;$('pmCost').oninput=drawProfit;
-  try{await loadData();}catch(error){setForgeCloudSync('error',error.message||'Could not load Pal Product Master');$('pmEmpty').innerHTML=`<strong>Could not load Pal Product Master</strong><span>${esc(error.message||'Please refresh and try again.')}</span>`;}
+  try{const filaments=await cloudFetch('/filaments');filamentNames=(filaments.filaments||[]).map(item=>String(item.name||'').trim()).filter(Boolean).sort((a,b)=>a.localeCompare(b));await loadData();}catch(error){setForgeCloudSync('error',error.message||'Could not load Pal Product Master');$('pmEmpty').innerHTML=`<strong>Could not load Pal Product Master</strong><span>${esc(error.message||'Please refresh and try again.')}</span>`;}
 }
