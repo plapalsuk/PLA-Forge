@@ -3,6 +3,7 @@ function illustratorExportsPage(){
   installForgeCloudSyncBadge();
   const $=id=>document.getElementById(id);
   const groups=[
+    {id:'main-pla-pals',label:'Main PLA Pals',collections:['birds','wild-safari','aquatic-animals','wild-woodland','farm-animals','mythical-creatures-and-dinosaurs'],detail:'Birds, Wild Safari, Aquatic Animals, Wild Woodland, Farm Animals and Mythical Creatures and Dinosaurs'},
     {id:'birds',label:'Birds'},
     {id:'wild-safari',label:'Wild Safari'},
     {id:'aquatic-animals',label:'Aquatic Animals'},
@@ -13,7 +14,7 @@ function illustratorExportsPage(){
     {id:'valentines-pals',label:'Valentines Pals'},
     {id:'halloween-pals',label:'Halloween Pals'},
     {id:'christmas-pals',label:'Christmas Pals'}
-  ].map(group=>Object.assign(group,{detail:`${group.label} Shopify collection`}));
+  ].map(group=>Object.assign(group,{detail:group.detail||`${group.label} Shopify collection`}));
   const barcodeDefault='file:////Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Barcodes/Original Barcode/';
   const characterDefault='file:////Users/jacobdlm-g/Library/CloudStorage/GoogleDrive-plapalsuk@gmail.com/My Drive/Comic Photos/';
   let liveRows=[],csvRows=[];
@@ -78,7 +79,7 @@ function illustratorExportsPage(){
     return [headers,...rows.map(row=>[row.sku,row.name,row.nameF,row.description,pathFrom(row.barcode,$('ieBarcodeFolder').value.trim()||barcodeDefault,row.sku,'.png'),pathFrom(row.character,$('ieCharacterFolder').value.trim()||characterDefault,row.sku,''),row.animal,row.collection])].map(row=>row.map(csvEscape).join(',')).join('\r\n')+'\r\n';
   }
   function download(content,name,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-  function rowsFor(group){return mergedRows().filter(row=>canonicalCollection(row.collection)===group.id).sort((a,b)=>a.sku.localeCompare(b.sku));}
+  function rowsFor(group){const ids=group.collections||[group.id];return mergedRows().filter(row=>ids.includes(canonicalCollection(row.collection))).sort((a,b)=>a.sku.localeCompare(b.sku));}
   function drawGroups(){
     $('ieGroups').innerHTML=groups.map(group=>{const rows=rowsFor(group);return `<article class="card illustrator-group"><span class="illustrator-group-count">${rows.length} Pals</span><h2>${group.label}</h2><p class="small">${group.detail}</p><div class="illustrator-group-skus">${rows.length?rows.map(row=>`<span>${esc(row.sku)}</span>`).join(''):'No matching Pals in Product Master.'}</div><div class="illustrator-group-actions"><button type="button" class="btn" data-xml="${group.id}" ${rows.length?'':'disabled'}>Download XML</button><button type="button" class="btn ghost" data-csv="${group.id}" ${rows.length?'':'disabled'}>Download CSV</button></div></article>`;}).join('');
     $('ieGroups').querySelectorAll('[data-xml]').forEach(button=>button.onclick=()=>{const group=groups.find(item=>item.id===button.dataset.xml),rows=rowsFor(group);download(xmlFor(rows,group.label),`PLA-Pals-${group.id}-variables.xml`,'application/xml;charset=utf-8');});
