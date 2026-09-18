@@ -8332,30 +8332,3 @@ document.addEventListener('visibilitychange', async () => {
 document.addEventListener('DOMContentLoaded', function () {
     installMobileForgeMenu();
 });
-
-/* ============================================================
-   FORGE TEST ENVIRONMENT
-   ============================================================ */
-(function installForgeTestEnvironmentBanner(){
-  function install(){
-    if(document.getElementById("forgeTestEnvironmentBanner")) return;
-
-    document.title = "[TEST] " + document.title.replace(/^\[TEST\]\s*/, "");
-
-    const banner = document.createElement("div");
-    banner.id = "forgeTestEnvironmentBanner";
-    banner.innerHTML = `
-      <strong>⚠ FORGE TEST ENVIRONMENT</strong>
-      <span>Changes here do not affect Live Forge</span>
-    `;
-
-    document.body.appendChild(banner);
-    document.body.classList.add("forge-test-environment");
-  }
-
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", install);
-  }else{
-    install();
-  }
-})();
