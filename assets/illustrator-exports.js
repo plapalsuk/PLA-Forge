@@ -3,11 +3,11 @@ function illustratorExportsPage(){
   installForgeCloudSyncBadge();
   const $=id=>document.getElementById(id);
   const groups=[
-    {id:'main-pla-pals',label:'Main PLA Pals',collections:['birds','wild-safari','aquatic-animals','wild-woodland','farm-animals','jungle','mythical-creatures-and-dinosaurs'],detail:'Birds, Wild Safari, Aquatic Animals, Wild Woodland, Farm Animals, Jungle and Mythical Creatures and Dinosaurs'},
+    {id:'main-pla-pals',label:'Main PLA Pals',collections:['birds','safari','aquatic-animals','woodland','farm-animals','jungle','mythical-creatures-and-dinosaurs'],detail:'Birds, Safari, Aquatic Animals, Woodland, Farm Animals, Jungle and Mythical Creatures and Dinosaurs'},
     {id:'birds',label:'Birds'},
-    {id:'wild-safari',label:'Wild Safari'},
+    {id:'safari',label:'Safari'},
     {id:'aquatic-animals',label:'Aquatic Animals'},
-    {id:'wild-woodland',label:'Wild Woodland'},
+    {id:'woodland',label:'Woodland'},
     {id:'farm-animals',label:'Farm Animals'},
     {id:'jungle',label:'Jungle'},
     {id:'easter-pals',label:'Easter Pals'},
@@ -42,7 +42,7 @@ function illustratorExportsPage(){
     const valueKey=key(value);
     const matching=groups.find(group=>key(group.label)===valueKey);
     if(matching)return matching.id;
-    const legacy={christmas:'christmas-pals',halloween:'halloween-pals',valentines:'valentines-pals',valentinesday:'valentines-pals',mythicalcreatures:'mythical-creatures-and-dinosaurs'};
+    const legacy={christmas:'christmas-pals',halloween:'halloween-pals',valentines:'valentines-pals',valentinesday:'valentines-pals',mythicalcreatures:'mythical-creatures-and-dinosaurs',wildsafari:'safari',wildwoodland:'woodland'};
     return legacy[valueKey]||'';
   };
   const slug=value=>clean(value).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');

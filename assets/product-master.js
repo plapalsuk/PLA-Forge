@@ -27,7 +27,7 @@ async function productMasterPage(){
   const number=id=>Math.max(0,Number($(id).value||0));
   const selected=()=>records.find(x=>x.sku===selectedSku)||null;
   const field=(id,value)=>{$(id).value=value==null?'':value;};
-  const shopifyCollection=value=>({Christmas:'Christmas Pals',Halloween:'Halloween Pals','Valentines Day':'Valentines Pals',Valentines:'Valentines Pals','Mythical Creatures':'Mythical Creatures and Dinosaurs'}[String(value||'').trim()]||String(value||'').trim());
+  const shopifyCollection=value=>({Christmas:'Christmas Pals',Halloween:'Halloween Pals','Valentines Day':'Valentines Pals',Valentines:'Valentines Pals','Mythical Creatures':'Mythical Creatures and Dinosaurs','Wild Safari':'Safari','Wild Woodland':'Woodland'}[String(value||'').trim()]||String(value||'').trim());
   const checked=(id,value)=>{$(id).checked=!!value;};
   const normalise=row=>Object.assign({},row,{price:Number(row.price||0),on_sale:Number(row.on_sale||0)===1,height_cm:Number(row.height_cm||0),width_cm:Number(row.width_cm||0),depth_cm:Number(row.depth_cm||0),recipes:(row.recipes||[]).map(r=>Object.assign({},r,{part_count:Number(r.part_count||1),weight_g:Number(r.weight_g||0)})),cost:row.cost||{},sales:row.sales||{},demand:row.demand||null});
   async function loadData(keepSku){
