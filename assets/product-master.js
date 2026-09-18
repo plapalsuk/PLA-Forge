@@ -78,7 +78,8 @@ async function productMasterPage(){
     $('pmPackaging').innerHTML=infoRows([['Status',r.packaging?.file_id?'<span class="badge ok">Linked to Pi</span>':'<span class="badge warning">Not linked</span>'],['File',esc(r.packaging?.file_id||'—')],['Updated',r.packaging?.updated_at?esc(fmtDate(r.packaging.updated_at)):'—']]);
     $('pmPackagingFile').value='';$('pmPackagingUploadStatus').textContent='Choose the final PDF for this Pal.';
     const units=Number(r.sales?.units_sold||0),revenue=Number(r.sales?.revenue||0);
-    $('pmCommerce').innerHTML=infoRows([['Shopify',r.demand?.mapped?'<span class="badge ok">Mapped</span>':'<span class="badge warning">Not mapped</span>'],['POS Units Sold',String(units)],['POS Revenue',money(revenue)],['Last POS Sale',r.sales?.last_sale?esc(fmtDate(r.sales.last_sale)):'—']]);
+    $('pmCommerce').innerHTML=infoRows([['Shopify',r.demand?.mapped?'<span class="badge ok">Mapped</span>':'<span class="badge warning">Not mapped</span>'],['POS Units Sold',String(units)],['POS Revenue',money(revenue)],['Last POS Sale',r.sales?.last_sale?esc(fmtDate(r.sales.last_sale)):'—']])+`<button type="button" class="btn ghost" id="pmCreateShopify">Create / retry Shopify draft</button><div class="small" id="pmShopifyStatus">Creates a Shopify draft from this Pal record. A missing product image will not block it.</div>`;
+    $('pmCreateShopify').onclick=()=>createShopifyDraft(r);
     $('pmRecordInfo').innerHTML=infoRows([['Created',r.created_at?esc(fmtDate(r.created_at)):'—'],['Last Updated',r.updated_at?esc(fmtDate(r.updated_at)):'—'],['Product Type',esc(r.product_type||'pal')],['Recipe Rows',String(r.recipes.length)]]);
     $('pmSaveStatus').textContent='';
   }
@@ -101,6 +102,14 @@ async function productMasterPage(){
       forgeProductMasterCache=null;selectedSku='';history.replaceState(null,'',location.pathname);await loadData();$('pmSaveStatus').textContent=`${r.sku} deleted from Forge.`;setForgeCloudSync('synced',`${r.sku} deleted from Forge`);
     }catch(error){$('pmSaveStatus').textContent=error.message||'Pal could not be deleted.';setForgeCloudSync('error',error.message||'Pal deletion failed');}
     finally{button.disabled=false;button.textContent='Delete Pal';}
+  }
+  async function createShopifyDraft(r){
+    const button=$('pmCreateShopify'),status=$('pmShopifyStatus');button.disabled=true;button.textContent='Creating…';status.textContent='Checking Shopify and creating a draft if needed…';
+    try{
+      const result=await cloudFetch('/shopify/products/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product:{title:r.name,descriptionHtml:r.full_description||r.short_description||'',vendor:'PLA Pals',productType:'PLA Pal',tags:['PLA Pals',r.collection].filter(Boolean),status:'DRAFT',price:r.price,sku:r.sku,barcode:r.barcode||r.sku},image:{}})});
+      status.textContent=result.already_exists?'This SKU already exists in Shopify and is now linked to Forge.':'Shopify draft created and linked to Forge.';setForgeCloudSync('synced',`${r.sku} Shopify draft ready`);
+    }catch(error){status.textContent=error.message||'Shopify draft could not be created.';setForgeCloudSync('error',error.message||'Shopify draft creation failed');}
+    finally{button.disabled=false;button.textContent='Create / retry Shopify draft';}
   }
   async function uploadPackaging(){
     const r=selected(),file=$('pmPackagingFile').files?.[0],button=$('pmPackagingUpload'),status=$('pmPackagingUploadStatus');
