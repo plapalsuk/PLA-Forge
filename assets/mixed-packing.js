@@ -2,7 +2,7 @@ async function mixedPackingPage() {
   const $ = id => document.getElementById(id);
   const steps = ['Set out clear boxes', 'Add bottom cards', 'Add stickers', 'Add matching inserts', 'Place the Pals', 'Close the boxes'];
   const labels = {boat:'Boat',cornwall:'Cornwall',warehouse:'Warehouse'};
-  let data = null, products = [], selected = null, busy = false, online = false, cameraStream = null, cameraVideo = null, barcodeDetector = null, zxingControls = null, zxingReader = null, zxingVideo = null, cameraRunning = false, nativeLoopToken = 0, nativeFallbackTimer = null, quaggaFallbackTimer = null, scannerKeyBuffer = '', scannerLastKeyAt = 0, revision = 0;
+  let data = null, products = [], selected = null, busy = false, online = false, cameraStream = null, cameraVideo = null, barcodeDetector = null, qrScanner = null, qrVideo = null, zxingControls = null, zxingReader = null, zxingVideo = null, cameraRunning = false, nativeLoopToken = 0, nativeFallbackTimer = null, quaggaFallbackTimer = null, scannerKeyBuffer = '', scannerLastKeyAt = 0, revision = 0;
   const pendingKey = 'forge-test-packing-pending-v1';
   let pending = null;
   try { pending = JSON.parse(localStorage.getItem(pendingKey) || 'null'); } catch (_) {}
@@ -135,8 +135,12 @@ async function mixedPackingPage() {
     if(zxingReader){try{zxingReader.reset();}catch(_){}}zxingReader=null;
     if(zxingVideo){try{zxingVideo.pause();zxingVideo.srcObject=null;zxingVideo.remove();}catch(_){}}zxingVideo=null;
   }
+  function stopFastQrScanner() {
+    if(qrScanner){try{qrScanner.stop();qrScanner.destroy();}catch(_){}}qrScanner=null;
+    if(qrVideo){try{qrVideo.pause();qrVideo.srcObject=null;qrVideo.remove();}catch(_){}}qrVideo=null;
+  }
   async function stopCamera() {
-    cameraRunning=false;stopNativeCamera();stopZXingScanner();
+    cameraRunning=false;stopNativeCamera();stopFastQrScanner();stopZXingScanner();
     if(quaggaFallbackTimer){clearTimeout(quaggaFallbackTimer);quaggaFallbackTimer=null;}
     if(window.Quagga){try{Quagga.stop();Quagga.offDetected();}catch(_){}}
     $('mixedCamera').hidden=true;$('mixedCameraStop').hidden=true;
@@ -180,6 +184,26 @@ async function mixedPackingPage() {
     video?.addEventListener?.('loadedmetadata',tune,{once:true});
     window.setTimeout(tune,700);
   }
+  async function startFastQrScanner() {
+    if(!window.QrScanner)return false;
+    qrVideo=document.createElement('video');qrVideo.muted=true;qrVideo.autoplay=true;qrVideo.setAttribute('playsinline','');$('mixedCamera').append(qrVideo);
+    // Keep processing within the visible square. The library uses an optimised
+    // worker on iPhone, so scans continue without locking up the page.
+    const scanRegion=video=>{
+      const width=video.videoWidth||720, height=video.videoHeight||720;
+      const side=Math.max(160,Math.floor(Math.min(width,height)*.88));
+      return {x:Math.floor((width-side)/2),y:Math.floor((height-side)/2),width:side,height:side,downScaledWidth:Math.min(720,side),downScaledHeight:Math.min(720,side)};
+    };
+    window.QrScanner.WORKER_PATH='https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js';
+    qrScanner=new window.QrScanner(qrVideo,result=>{
+      const code=typeof result==='string'?result:result?.data;
+      if(code)selectCode(code);
+    },{preferredCamera:'environment',maxScansPerSecond:25,calculateScanRegion:scanRegion,returnDetailedScanResult:true,highlightScanRegion:false,highlightCodeOutline:false});
+    await qrScanner.start();
+    improveCameraFocus(qrVideo);
+    setScannerEngine('fast QR scanner active');
+    return true;
+  }
   async function startZXingScanner() {
     if(!window.ZXingBrowser?.BrowserMultiFormatReader)return false;
     zxingVideo=document.createElement('video');zxingVideo.muted=true;zxingVideo.autoplay=true;zxingVideo.setAttribute('playsinline','');$('mixedCamera').append(zxingVideo);
@@ -204,9 +228,9 @@ async function mixedPackingPage() {
     if(cameraRunning||busy||selected||pending)return;
     cameraRunning=true;$('mixedCamera').hidden=false;$('mixedCameraStop').hidden=false;render();setScannerEngine('starting');
     try {
-      try { const nativeStarted=await startNativeBarcodeDetector();if(!nativeStarted){const zxingStarted=await startZXingScanner();if(!zxingStarted)await startQuaggaScanner();} }
-      catch(scannerError){stopNativeCamera();stopZXingScanner();try{const zxingStarted=await startZXingScanner();if(!zxingStarted)await startQuaggaScanner();}catch(fallbackError){throw new Error(fallbackError?.message||scannerError?.message||'Camera could not start.');}}
-      message('Camera ready. Hold the QR code or Code 128 barcode inside the scan window.');
+      try { const fastQrStarted=await startFastQrScanner();if(!fastQrStarted){const nativeStarted=await startNativeBarcodeDetector();if(!nativeStarted){const zxingStarted=await startZXingScanner();if(!zxingStarted)await startQuaggaScanner();}} }
+      catch(scannerError){stopFastQrScanner();stopNativeCamera();stopZXingScanner();try{const nativeStarted=await startNativeBarcodeDetector();if(!nativeStarted){const zxingStarted=await startZXingScanner();if(!zxingStarted)await startQuaggaScanner();}}catch(fallbackError){throw new Error(fallbackError?.message||scannerError?.message||'Camera could not start.');}}
+      message('Camera ready. Centre the QR code inside the square for a fast scan.');
     }catch(e){await stopCamera();message(e.message||'Camera could not start. Use a scanner or type the SKU.',true);}
   }
   $('mixedStart').onsubmit=async e=>{
