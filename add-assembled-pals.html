@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Add Assembled Pals | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=live-20260919-assembled-intake"></head>
+<body class="forge-protected"><div class="app"><aside class="sidebar">
+ <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
+ <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
+ <nav class="nav" id="forgeNav"></nav>
+</aside><main class="bench-main">
+<div class="topbar bench-topbar">
+  <div class="pageTitle"><h1>Add Assembled Pals</h1><div class="small">Record Pals that are already assembled and ready for packing.</div></div>
+  <div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">Add completed Pals without changing printed-part stock.</div></div></div>
+</div>
+<div class="grid kpis bench-kpis">
+ <div class="card kpi"><div class="label">Awaiting Packing</div><div class="value accent" id="intakeAssembledKpi">0</div><div class="small">assembled Pals in Forge</div></div>
+ <div class="card kpi"><div class="label">Added Today</div><div class="value" id="intakeTodayKpi">0</div><div class="small">manual assembled intake</div></div>
+</div>
+<section class="card bench-queue" style="max-width:900px">
+ <div class="section-title"><div><h2>Completed Pal intake</h2><div class="small">Use this for Pals assembled outside the normal Bench workflow. It adds them to the Packing Station only.</div></div><span class="badge info">Ready for Packing</span></div>
+ <div class="assembly-actions" style="align-items:end;max-width:760px">
+   <label style="flex:1;min-width:240px"><span class="small">Pal</span><select id="assembledIntakePal" class="search" aria-label="Pal to add"></select></label>
+   <label><span class="small">Quantity</span><input id="assembledIntakeQty" class="number" type="number" min="1" step="1" value="1" inputmode="numeric"></label>
+   <button id="assembledIntakeAdd" class="btn">Add to Packing</button>
+ </div>
+ <p id="assembledIntakeStatus" class="small" aria-live="polite" style="margin:16px 0 0"></p>
+</section>
+<section class="card bench-history">
+ <div class="section-title"><div><h2>Recently added</h2><div class="small">Manual additions to assembled inventory.</div></div></div>
+ <div style="overflow:auto"><table><thead><tr><th>Pal</th><th>Qty</th><th>Added</th></tr></thead><tbody id="assembledIntakeHistory"></tbody></table></div>
+</section>
+<div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.29.1 · Assembled Pal Intake</small></div>
+</main></div><script src="assets/forge.js?v=live-20260919-assembled-intake"></script><script>forgeBoot(async function(){ assembledIntakePage() })</script></body></html>

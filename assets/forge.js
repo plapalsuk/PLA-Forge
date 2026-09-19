@@ -736,7 +736,7 @@ function installForgeNavigation() {
         '<div class="navgroup">Inventory</div>',
         link('pals.html', '◆ Pals'), link('keyrings.html', '◇ Keyrings'), link('stickers.html', '▣ Sticker Sheets'),
         '<div class="navgroup">The Workshop</div>',
-        link('production.html', '⚙ Production Planner'), link('plates.html', '▱ Build Plates'), link('assembly.html', '⌁ The Bench'), link('rework.html', '↻ Rework'),
+        link('production.html', '⚙ Production Planner'), link('plates.html', '▱ Build Plates'), link('assembly.html', '⌁ The Bench'), link('add-assembled-pals.html', '＋ Add Assembled Pals'), link('rework.html', '↻ Rework'),
         '<div class="navgroup">Packing &amp; Dispatch</div>',
         link('packaging.html', '□ Insert Production'), link('box-files.html', '▤ Box Files'), link('insert-scanner.html', '▦ Insert Scanner'), link('packing-station.html', '▣ Packing Station'), link('deliveries.html', '⇢ Dispatch'), link('transfers.html', '⇄ Transfers'),
         '<div class="navgroup">Materials</div>',
@@ -1202,6 +1202,61 @@ async function assemblyPage() {
         }
         render();
     });
+}
+
+// Unlike The Bench, this intake page does not consume recipe parts. It is for
+// Pals that are already physically assembled and need entering into Packing.
+async function assembledIntakePage() {
+    installForgeCloudSyncBadge();
+    if (!forgeProductionCloudReady) {
+        try { await hydrateProductionCloud(); }
+        catch (e) { showCloudRequiredError(e.message); return; }
+    }
+    let s = cloudOperationalState();
+    const pals = (await load('products')).filter(p => p.type === 'pal');
+    const select = document.querySelector('#assembledIntakePal');
+    const qtyInput = document.querySelector('#assembledIntakeQty');
+    const addButton = document.querySelector('#assembledIntakeAdd');
+    const status = document.querySelector('#assembledIntakeStatus');
+    const total = document.querySelector('#intakeAssembledKpi');
+    const today = document.querySelector('#intakeTodayKpi');
+    const history = document.querySelector('#assembledIntakeHistory');
+    select.innerHTML = '<option value="">Choose a Pal…</option>' + pals.slice().sort((a, b) => a.name.localeCompare(b.name))
+        .map(p => `<option value="${esc(p.sku)}">${esc(p.sku)} · ${esc(p.name)}</option>`).join('');
+    const manualHistory = () => (s.assemblyHistory || []).filter(x => x.source === 'manual_intake');
+    function render() {
+        total.textContent = Object.values(s.assembled || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+        const start = new Date(); start.setHours(0, 0, 0, 0);
+        today.textContent = manualHistory().filter(x => new Date(x.created_at).getTime() >= start.getTime()).reduce((sum, x) => sum + Number(x.qty || 0), 0);
+        const rows = manualHistory().slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 20);
+        history.innerHTML = rows.length ? rows.map(x => `<tr><td><strong>${esc(x.name || x.sku)}</strong><br><span class="sku">${esc(x.sku)}</span></td><td><strong>${Number(x.qty || 0)}</strong></td><td>${new Date(x.created_at).toLocaleString('en-GB')}</td></tr>`).join('') : '<tr><td colspan="3">No manually added assembled Pals yet.</td></tr>';
+    }
+    addButton.onclick = async () => {
+        const sku = select.value;
+        const qty = Math.floor(Number(qtyInput.value || 0));
+        const pal = pals.find(p => p.sku === sku);
+        if (!pal || qty < 1) { status.textContent = 'Choose a Pal and enter a quantity of at least 1.'; return; }
+        const beforeAssembled = JSON.parse(JSON.stringify(s.assembled || {}));
+        const beforeHistory = JSON.parse(JSON.stringify(s.assemblyHistory || []));
+        addButton.disabled = true; addButton.textContent = 'Adding…'; status.textContent = '';
+        s.assembled = s.assembled || {}; s.assemblyHistory = s.assemblyHistory || [];
+        s.assembled[sku] = Number(s.assembled[sku] || 0) + qty;
+        s.assemblyHistory.push({ id: makeId(), sku, name: pal.name, qty, source: 'manual_intake', created_at: new Date().toISOString(), cloud_user: currentForgeUser()?.email || '' });
+        try {
+            await save(s);
+            qtyInput.value = '1';
+            status.textContent = `${qty} × ${pal.name} added to assembled inventory and is ready for Packing.`;
+            render();
+        }
+        catch (e) {
+            s.assembled = beforeAssembled; s.assemblyHistory = beforeHistory;
+            status.textContent = 'The addition could not be saved. No inventory was changed.';
+            render();
+        }
+        finally { addButton.disabled = false; addButton.textContent = 'Add to Packing'; }
+    };
+    render();
+    await startForgeLiveSync(async fresh => { s = JSON.parse(JSON.stringify(fresh)); render(); });
 }
 async function insertScannerPage() {
     installForgeCloudSyncBadge();
