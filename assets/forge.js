@@ -7651,11 +7651,20 @@ async function generalSettingsPage() {
 }
 
 async function manualInventorySettingsPage() {
+    // This page can be restored from the browser back/forward cache before its
+    // table has been attached. Wait for parsing to finish before taking the
+    // element references used by the inventory refresh.
+    if (document.readyState === 'loading') {
+        await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once: true }));
+    }
     installForgeCloudSyncBadge();
-    const rows = document.querySelector('#manualInventoryRows');
-    const search = document.querySelector('#manualInventorySearch');
-    const refreshButton = document.querySelector('#manualInventoryRefresh');
-    const status = document.querySelector('#manualInventoryStatus');
+    const rows = document.getElementById('manualInventoryRows');
+    const search = document.getElementById('manualInventorySearch');
+    const refreshButton = document.getElementById('manualInventoryRefresh');
+    const status = document.getElementById('manualInventoryStatus');
+    if (!rows || !search || !refreshButton || !status) {
+        throw new Error('The Manual Inventory table has not finished loading. Please refresh the page.');
+    }
     let pals = [];
     let shopifyBySku = {};
     const locations = [['boat', 'Kitsune Boat'], ['cornwall', 'Kitsune Cornwall'], ['warehouse', 'Warehouse']];
