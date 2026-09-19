@@ -35,8 +35,19 @@ async function transfersPage(){
  async function send(path,body){
   if(busy||!online)return;
   if(!pending){try{remember({path,body:{...body,request_id:crypto.randomUUID()}});}catch(_){status('Browser storage is unavailable. Enable it before transferring stock so retries stay safe.',true);return;}}
-  busy=true;revision++;render();
-  try{const saved=await api(pending.path,pending.body);const receipt=pending.path.endsWith('/receive');remember(null);accept(saved);$('transferQty').value=1;status(receipt?'Delivery received. Cornwall stock updated.':'Transfer saved. Stock totals are up to date.');}
+ busy=true;revision++;render();
+  try{
+   if(pending.path==='/shopify/inventory/dispatch'){await api(pending.path,pending.body);remember(null);status('Shopify Cornwall stock updated.');return;}
+   const receipt=pending.path.endsWith('/receive'),receivedId=receipt?pending.body.transfer_id:null;
+   const saved=await api(pending.path,pending.body);accept(saved);$('transferQty').value=1;
+   if(receipt){
+    const transfer=(saved.transfers||[]).find(t=>t.id===receivedId);
+    if(!transfer)throw new Error('Cornwall receipt was saved, but the Shopify stock movement could not be prepared.');
+    try{await api('/shopify/inventory/dispatch',{sku:transfer.sku,location:'cornwall',qty:Number(transfer.good_qty||transfer.qty),transfer_id:transfer.id});}
+    catch(e){remember({path:'/shopify/inventory/dispatch',body:{sku:transfer.sku,location:'cornwall',qty:Number(transfer.good_qty||transfer.qty),transfer_id:transfer.id,request_id:crypto.randomUUID()}});throw e;}
+   }
+   remember(null);status(receipt?'Delivery received. Cornwall stock and Shopify updated.':'Transfer saved. Stock totals are up to date.');
+  }
   catch(e){if(e.definite)remember(null);status((e.name==='AbortError'?'The confirmation timed out.':e.message)+(pending?' Use Retry confirmation; it will not move the stock twice.':''),true);}
   finally{busy=false;render();}
  }

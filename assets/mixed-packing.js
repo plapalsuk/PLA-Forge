@@ -112,8 +112,11 @@ async function mixedPackingPage() {
       const result=await api('/packing/allocate',pending);
       data=result;online=true;
       const a=result.allocation;
+      if(a.destination!=='cornwall') {
+        await api('/shopify/inventory/dispatch',{sku:a.sku,location:a.destination,qty:Number(a.quantity),transfer_id:a.id});
+      }
       setPending(null);$('mixedQty').value=1;$('mixedDestination').value='';
-      message(`${a.quantity} × ${a.name} ${a.destination==='cornwall'?'sent to Cornwall · Awaiting Delivery':`added to ${labels[a.destination]} stock`}.${!data.batch?' Batch complete.':''}`);
+      message(`${a.quantity} × ${a.name} ${a.destination==='cornwall'?'sent to Cornwall · Awaiting Delivery':`added to ${labels[a.destination]} stock and Shopify`}.${!data.batch?' Batch complete.':''}`);
     }catch(e){
       if(e.definite)setPending(null);
       message((e.name==='AbortError'?'The confirmation timed out.':e.message)+(pending?' Use Retry confirmation; it will not count the allocation twice.':''),true);

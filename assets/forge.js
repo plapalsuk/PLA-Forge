@@ -7912,6 +7912,29 @@ async function shopifyIntegrationPage() {
     const saveLocationBtn = byId('shopifySaveLocationMapping');
     if (saveLocationBtn)
         saveLocationBtn.onclick = saveLocationMapping;
+    const configureOnlineFulfillmentBtn = byId('shopifyConfigureOnlineFulfillment');
+    if (configureOnlineFulfillmentBtn)
+        configureOnlineFulfillmentBtn.onclick = async () => {
+            const status = byId('shopifyOnlineFulfillmentStatus');
+            configureOnlineFulfillmentBtn.disabled = true;
+            configureOnlineFulfillmentBtn.textContent = 'Configuring…';
+            if (status)
+                status.textContent = 'Setting Warehouse for online fulfilment…';
+            try {
+                const result = await cloudFetch('/shopify/locations/configure-online-fulfillment', { method: 'POST' });
+                if (status)
+                    status.textContent = result.success ? 'Warehouse now fulfils online orders. Kitsune Boat and Kitsune Cornwall are POS-only.' : 'Shopify location settings could not be updated.';
+                await Promise.all([loadLocations(), loadLocationMapping()]);
+            }
+            catch (e) {
+                if (status)
+                    status.textContent = e.message || 'Shopify location settings could not be updated.';
+            }
+            finally {
+                configureOnlineFulfillmentBtn.disabled = false;
+                configureOnlineFulfillmentBtn.textContent = 'Set Warehouse for Online Orders';
+            }
+        };
     await refreshAll();
 }
 
