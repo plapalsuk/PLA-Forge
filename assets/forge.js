@@ -4898,6 +4898,16 @@ async function consumablesPage() {
             alert(e.message || e);
         }
     }
+    async function printBottomCards(color, quantity) {
+        const result = await cloudFetch('/bottom-cards/print', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ color, quantity })
+        });
+        const data = await cloudConsumables();
+        applyCloudConsumables(s, data);
+        setForgeCloudSync('synced', result.message || 'Bottom-card print sent and stock updated');
+        render();
+    }
 
     function render() {
         const entries = Object.entries(s.consumables || {});
@@ -4923,7 +4933,7 @@ async function consumablesPage() {
          <button class="btn addConsumable" data-key="${key}">Add Stock</button>
          ${key === 'clear_boxes' ? `<button class="btn secondary consumablePackAction" data-action="add_clear_box_pack">+20 Box Pack</button>` : ''}
          ${key === 'card_210gsm' ? `<button class="btn secondary consumablePackAction" data-action="add_card_pack">+50 Card Pack</button>` : ''}
-         ${key === 'bottom_cards' ? `<button class="btn secondary consumablePackAction" data-action="make_bottom_cards">Make 6 · Use 1 Card</button>` : ''}
+         ${key === 'bottom_cards' ? `<div class="consumable-bottom-card-print"><label><span>Card design</span><select id="bottomCardColor"><option value="blue">Main Pals · Blue</option><option value="white">Christmas · White</option><option value="purple">Halloween · Purple</option></select></label><label><span>Sheets to print</span><input class="number" id="bottomCardPrintQty" type="number" min="1" max="100" value="1"></label><button class="btn bottomCardPrint">Print cards · +6 per sheet</button><div class="small">Uses 1 sheet of 210gsm card and adds 6 bottom cards per printed sheet.</div></div>` : ''}
        </div>
        <div class="consumable-adjust">
          <button class="iconbtn adjustConsumable" data-key="${key}" data-d="-1">−1</button>
@@ -4978,12 +4988,23 @@ async function consumablesPage() {
                     await runPackAction(action, 'Added a delivery pack of 20 flat clear boxes');
                 else if (action === 'add_card_pack')
                     await runPackAction(action, 'Added a delivery pack of 50 sheets of 210gsm card');
-                else if (action === 'make_bottom_cards')
-                    await runPackAction(action, 'Made 6 bottom cards and used 1 sheet of 210gsm card');
             }
             finally {
                 btn.disabled = false;
             }
+        });
+        document.querySelectorAll('.bottomCardPrint').forEach(btn => btn.onclick = async () => {
+            const color = String(document.querySelector('#bottomCardColor')?.value || 'blue');
+            const quantity = Math.max(1, Math.min(100, Number(document.querySelector('#bottomCardPrintQty')?.value || 1)));
+            btn.disabled = true;
+            try {
+                await printBottomCards(color, quantity);
+            }
+            catch (e) {
+                alert(`Bottom cards were not printed: ${e.message || e}`);
+                render();
+            }
+            finally { btn.disabled = false; }
         });
 
         document.querySelectorAll('.adjustConsumable').forEach(btn => btn.onclick = async () => {
