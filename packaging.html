@@ -63,7 +63,7 @@
        <h2>Print Queue</h2>
        <div class="small">On Sale Pals needing inserts for assembled stock, manufacturing demand and the configured buffer.</div>
      </div>
-     <div class="insert-queue-badges"><span class="badge info" id="insertPrintBridgeStatus">Checking Pi…</span><div class="insert-queue-badges"><button class="btn secondary" id="openInsertExtras">+ Print Extras</button><button class="btn ghost" id="openInsertFailed">Report Failed Print</button><span class="badge danger" id="printQueueCount">0 Jobs</span></div></div>
+     <div class="insert-queue-badges"><span class="badge info" id="insertPrintBridgeStatus">Checking Pi…</span><div class="insert-queue-badges"><button class="btn" id="printAssembledInserts">Print all assembled</button><button class="btn secondary" id="openInsertExtras">+ Print Extras</button><button class="btn ghost" id="openInsertFailed">Report Failed Print</button><span class="badge danger" id="printQueueCount">0 Jobs</span></div></div>
    </div>
    <div id="insertPrintCards" class="insert-column-list"></div>
  </div>
@@ -96,7 +96,7 @@
  </div>
 </div>
 <div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.26.4 · Manufacturing & Inventory System</small></div>
-</main></div><script src="assets/forge.js?v=live-20260918-master-sale"></script><script>forgeBoot(async function(){
+</main></div><script src="assets/forge.js?v=live-20260919-bulk-assembled-inserts"></script><script>forgeBoot(async function(){
 insertProductionPage()
 })</script>
 <script id="legacyBootFailsafe">

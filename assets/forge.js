@@ -1947,6 +1947,7 @@ async function insertProductionPage() {
     let liveQueueLoading = false;
     const extrasBtn = document.querySelector('#openInsertExtras');
     const failedBtn = document.querySelector('#openInsertFailed');
+    const printAssembledBtn = document.querySelector('#printAssembledInserts');
     const extrasModal = document.querySelector('#insertExtrasModal');
     const failedModal = document.querySelector('#insertFailedModal');
 
@@ -2118,6 +2119,75 @@ async function insertProductionPage() {
             accepted: true,
             jobId: String(result.job_id || result.bridge_response?.job_id || result.bridge_response?.id || '')
         };
+    }
+    function assembledInsertPrintPlan() {
+        // The packing queue can contain a Pal that has since been taken off
+        // sale. It still needs its insert, so this action deliberately uses
+        // every Pal with assembled stock rather than only the On Sale list.
+        return ps.filter(p => p.type === 'pal').map(p => {
+            const assembled = assembledWaitingForInsert(p.sku);
+            const r = rec(p.sku);
+            // Ready inserts and inserts already awaiting Cut & Score can both
+            // be used by an assembled Pal, so only print the remaining amount.
+            const alreadyCovered = Math.max(0, Number(r.ready || 0)) + Math.max(0, Number(r.awaiting_cut || 0));
+            return { p, quantity: Math.max(0, assembled - alreadyCovered) };
+        }).filter(job => job.quantity > 0);
+    }
+    async function printAllAssembledInserts() {
+        const jobs = assembledInsertPrintPlan();
+        if (!jobs.length) {
+            alert('All assembled Pals already have inserts ready or in Cut & Score.');
+            return;
+        }
+        const total = jobs.reduce((sum, job) => sum + job.quantity, 0);
+        const cardStock = Number(s.consumables?.card_210gsm?.stock || 0);
+        if (cardStock < total) {
+            alert(`Not enough 210gsm Card. This needs ${total} sheet${total === 1 ? '' : 's'}, but only ${cardStock} available.`);
+            return;
+        }
+        const summary = jobs.map(job => `${job.p.name} ×${job.quantity}`).join('\n');
+        if (!confirm(`Send all outstanding assembled-Pal inserts to the Pi?\n\n${summary}\n\nTotal: ${total} sheet${total === 1 ? '' : 's'}.`))
+            return;
+
+        const original = printAssembledBtn?.textContent || 'Print all assembled';
+        if (printAssembledBtn) {
+            printAssembledBtn.disabled = true;
+            printAssembledBtn.textContent = `Sending 0/${jobs.length}…`;
+        }
+        const submitted = [];
+        try {
+            for (let index = 0; index < jobs.length; index++) {
+                const job = jobs[index];
+                if (printAssembledBtn)
+                    printAssembledBtn.textContent = `Sending ${index + 1}/${jobs.length}…`;
+                const printed = await sendInsertPrintToPi(job.p.sku, job.quantity);
+                const before = JSON.parse(JSON.stringify(s));
+                try {
+                    await recordPrintedInsert(job.p.sku, job.quantity, 'Pi assembled-Pal insert print');
+                    addInsertPrintHistory({ sku: job.p.sku, quantity: job.quantity, mode: 'production', status: 'submitted', job_id: printed.jobId });
+                    await save(s);
+                    submitted.push(job);
+                }
+                catch (saveError) {
+                    s = before;
+                    throw new Error(`${job.p.name} was accepted by the Pi, but Forge could not record it. Do not print it again until reconciled. ${saveError.message || saveError}`);
+                }
+            }
+            render();
+            refreshLiveInsertQueue();
+            alert(`${submitted.length} print job${submitted.length === 1 ? '' : 's'} sent to the Pi (${total} insert${total === 1 ? '' : 's'}).`);
+        }
+        catch (e) {
+            render();
+            alert(`Bulk insert print stopped after ${submitted.length} job${submitted.length === 1 ? '' : 's'}. ${e.message || e}`);
+        }
+        finally {
+            if (printAssembledBtn) {
+                printAssembledBtn.disabled = false;
+                printAssembledBtn.textContent = original;
+            }
+            refreshInsertPrintBridgeStatus();
+        }
     }
     function currentProductionNeed(sku) {
         var _r;
@@ -2660,6 +2730,7 @@ async function insertProductionPage() {
         populateExtrasModal();
         openInsertModal(extrasModal);
     };
+    if (printAssembledBtn) printAssembledBtn.onclick = printAllAssembledInserts;
     if (failedBtn) failedBtn.onclick = () => {
         populateFailedModal();
         openInsertModal(failedModal);
