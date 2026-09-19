@@ -145,23 +145,25 @@ async function mixedPackingPage() {
   async function startNativeBarcodeDetector() {
     if(!('BarcodeDetector' in window)||!navigator.mediaDevices?.getUserMedia)return false;
     let formats=[];try{if(BarcodeDetector.getSupportedFormats)formats=await BarcodeDetector.getSupportedFormats();}catch(_){}
-    if(formats.length&&!formats.includes('code_128'))return false;
-    barcodeDetector=new BarcodeDetector({formats:['code_128']});
+    const wanted=['qr_code','code_128'];
+    const supported=formats.length?wanted.filter(format=>formats.includes(format)):wanted;
+    if(!supported.length)return false;
+    barcodeDetector=new BarcodeDetector({formats:supported});
     cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
     if(!cameraRunning){stopNativeCamera();return false;}
     cameraVideo=document.createElement('video');cameraVideo.muted=true;cameraVideo.autoplay=true;cameraVideo.setAttribute('playsinline','');cameraVideo.srcObject=cameraStream;
     $('mixedCamera').append(cameraVideo);await cameraVideo.play();
-    const token=++nativeLoopToken;setScannerEngine('native Code 128 detector active');
+    const token=++nativeLoopToken;setScannerEngine(`native ${supported.includes('qr_code')?'QR + ':''}Code 128 detector active`);
     const tick=async()=>{if(!cameraRunning||token!==nativeLoopToken||!cameraVideo||!barcodeDetector)return;try{if(cameraVideo.readyState>=2){const found=await barcodeDetector.detect(cameraVideo);const code=String(found?.[0]?.rawValue||'').trim();if(code)selectCode(code);}}catch(_){}window.setTimeout(tick,120);};
     tick();
     // Some Chromium builds expose BarcodeDetector but do not reliably decode
-    // Code 128 from every camera. Fall back to the same Quagga reader instead
-    // of leaving the operator looking at a live camera that never scans.
+    // every QR or Code 128 image. Try ZXing's multi-format reader before the
+    // Code-128-only Quagga fallback.
     nativeFallbackTimer=window.setTimeout(async()=>{
       if(!cameraRunning||token!==nativeLoopToken||selected)return;
       stopNativeCamera();
-      try{await startQuaggaScanner();message('Using the backup scanner. Hold the full barcode inside the scan window.');}
-      catch(e){await stopCamera();message(e?.message||'Camera scanner stopped unexpectedly.',true);}
+      try{if(await startZXingScanner())message('Using the backup QR and barcode scanner. Hold the full code inside the scan window.');else throw new Error('Multi-format scanner unavailable');}
+      catch(e){try{await startQuaggaScanner();message('Using the barcode backup. Hold the full Code 128 barcode inside the scan window.');}catch(error){await stopCamera();message(error?.message||'Camera scanner stopped unexpectedly.',true);}}
     },5000);
     return true;
   }
@@ -187,9 +189,9 @@ async function mixedPackingPage() {
     if(cameraRunning||busy||selected||pending)return;
     cameraRunning=true;$('mixedCamera').hidden=false;$('mixedCameraStop').hidden=false;render();setScannerEngine('starting');
     try {
-      try { const zxingStarted=await startZXingScanner();if(!zxingStarted)await startQuaggaScanner(); }
-      catch(zxingError){stopZXingScanner();try{await startQuaggaScanner();}catch(fallbackError){throw new Error(fallbackError?.message||zxingError?.message||'Camera could not start.');}}
-      message('Camera ready. Hold the full Code 128 barcode inside the scan window.');
+      try { const nativeStarted=await startNativeBarcodeDetector();if(!nativeStarted){const zxingStarted=await startZXingScanner();if(!zxingStarted)await startQuaggaScanner();} }
+      catch(scannerError){stopNativeCamera();stopZXingScanner();try{const zxingStarted=await startZXingScanner();if(!zxingStarted)await startQuaggaScanner();}catch(fallbackError){throw new Error(fallbackError?.message||scannerError?.message||'Camera could not start.');}}
+      message('Camera ready. Hold the QR code or Code 128 barcode inside the scan window.');
     }catch(e){await stopCamera();message(e.message||'Camera could not start. Use a scanner or type the SKU.',true);}
   }
   $('mixedStart').onsubmit=async e=>{
