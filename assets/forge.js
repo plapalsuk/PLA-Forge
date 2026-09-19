@@ -7652,50 +7652,79 @@ async function generalSettingsPage() {
 
 async function manualInventorySettingsPage() {
     installForgeCloudSyncBadge();
-    const palSelect = document.querySelector('#manualInventoryPal');
-    const locationSelect = document.querySelector('#manualInventoryLocation');
-    const quantityInput = document.querySelector('#manualInventoryQuantity');
-    const reasonInput = document.querySelector('#manualInventoryReason');
-    const button = document.querySelector('#manualInventorySave');
+    const rows = document.querySelector('#manualInventoryRows');
+    const search = document.querySelector('#manualInventorySearch');
+    const refreshButton = document.querySelector('#manualInventoryRefresh');
     const status = document.querySelector('#manualInventoryStatus');
+    let pals = [];
+    let shopifyBySku = {};
+    const locations = [['boat', 'Kitsune Boat'], ['cornwall', 'Kitsune Cornwall'], ['warehouse', 'Warehouse']];
+    function displayValue(sku, location) {
+        return Math.max(0, Number(shopifyBySku[sku]?.[location]?.available || 0));
+    }
+    function render() {
+        const term = String(search.value || '').trim().toLowerCase();
+        const visible = pals.filter(p => `${p.sku} ${p.name}`.toLowerCase().includes(term));
+        rows.innerHTML = visible.length ? visible.map(p => `<tr data-sku="${esc(p.sku)}">
+          <td><strong>${esc(p.name)}</strong><br><span class="sku">${esc(p.sku)}</span></td>
+          ${locations.map(([key]) => `<td><input class="number manualInventoryQty" data-location="${key}" type="number" min="0" step="1" inputmode="numeric" value="${displayValue(p.sku, key)}" aria-label="${esc(p.name)} ${key} quantity"></td>`).join('')}
+          <td><input class="input manualInventoryReason" maxlength="240" placeholder="Stocktake correction"></td>
+          <td><button class="btn manualInventorySave" type="button">Save row</button></td>
+        </tr>`).join('') : '<tr><td colspan="6">No Pals match this search.</td></tr>';
+        rows.querySelectorAll('.manualInventorySave').forEach(button => button.onclick = () => saveRow(button.closest('tr'), button));
+    }
+    async function refresh() {
+        status.textContent = 'Loading Shopify inventory…';
+        const [productData, inventoryData] = await Promise.all([load('products'), cloudFetch('/shopify/pal-inventory')]);
+        pals = productData.filter(p => p.type === 'pal').sort((a, b) => a.name.localeCompare(b.name));
+        shopifyBySku = Object.fromEntries((inventoryData.inventory || []).map(item => [item.sku, item]));
+        status.textContent = `${pals.length} Pals loaded from Forge. Stock shown is live Shopify available inventory.`;
+        setForgeCloudSync('synced', 'Shopify inventory loaded');
+        render();
+    }
+    async function saveRow(row, button) {
+        const sku = row.dataset.sku;
+        const pal = pals.find(p => p.sku === sku);
+        const reason = row.querySelector('.manualInventoryReason').value.trim();
+        const changes = locations.map(([location, label]) => ({ location, label, input: row.querySelector(`.manualInventoryQty[data-location="${location}"]`) }))
+            .map(x => ({ ...x, quantity: Number(x.input.value), previous: displayValue(sku, x.location) }))
+            .filter(x => x.quantity !== x.previous);
+        if (changes.some(x => !Number.isInteger(x.quantity) || x.quantity < 0)) {
+            status.textContent = 'Quantities must be whole numbers of zero or more.';
+            return;
+        }
+        if (!changes.length) { status.textContent = `No stock changes for ${pal.name}.`; return; }
+        const summary = changes.map(x => `${x.label}: ${x.previous} → ${x.quantity}`).join(', ');
+        if (!confirm(`Update Shopify inventory for ${pal.name}?\n${summary}`)) return;
+        button.disabled = true; button.textContent = 'Saving…'; status.textContent = '';
+        try {
+            for (const change of changes) {
+                await cloudFetch('/shopify/inventory/manual-set', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sku, location: change.location, quantity: change.quantity, reason })
+                });
+                shopifyBySku[sku] = shopifyBySku[sku] || { sku };
+                shopifyBySku[sku][change.location] = { available: change.quantity };
+            }
+            status.textContent = `${pal.name}: Shopify inventory updated — ${summary}.`;
+            setForgeCloudSync('synced', 'Shopify inventory updated');
+            render();
+        }
+        catch (e) {
+            status.textContent = `Shopify was not changed for the remaining locations: ${e.message}`;
+            setForgeCloudSync('error', 'Shopify inventory update failed');
+        }
+        finally { button.disabled = false; button.textContent = 'Save row'; }
+    }
     try {
-        const pals = (await load('products')).filter(p => p.type === 'pal').sort((a, b) => a.name.localeCompare(b.name));
-        palSelect.innerHTML = '<option value="">Choose a Pal…</option>' + pals.map(p => `<option value="${esc(p.sku)}">${esc(p.sku)} · ${esc(p.name)}</option>`).join('');
-        setForgeCloudSync('synced', 'Manual inventory ready');
+        await refresh();
     }
     catch (e) {
         showCloudRequiredError(e.message);
         return;
     }
-    button.onclick = async () => {
-        const sku = palSelect.value;
-        const quantity = Number(quantityInput.value);
-        if (!sku || !Number.isInteger(quantity) || quantity < 0) {
-            status.textContent = 'Choose a Pal and enter a whole available quantity of zero or more.';
-            return;
-        }
-        const locationName = locationSelect.options[locationSelect.selectedIndex].text;
-        if (!confirm(`Set ${sku} available stock at ${locationName} to ${quantity} in Shopify?`)) return;
-        button.disabled = true;
-        button.textContent = 'Updating Shopify…';
-        status.textContent = '';
-        try {
-            const result = await cloudFetch('/shopify/inventory/manual-set', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sku, location: locationSelect.value, quantity, reason: reasonInput.value.trim() })
-            });
-            status.textContent = `${sku} at ${locationName} changed from ${result.previous_available} to ${result.available} in Shopify. Forge will refresh from Shopify automatically.`;
-            setForgeCloudSync('synced', 'Shopify inventory updated');
-        }
-        catch (e) {
-            status.textContent = `Shopify was not changed: ${e.message}`;
-            setForgeCloudSync('error', 'Shopify inventory update failed');
-        }
-        finally {
-            button.disabled = false;
-            button.textContent = 'Update Shopify Inventory';
-        }
-    };
+    search.oninput = render;
+    refreshButton.onclick = () => refresh().catch(e => { status.textContent = e.message; setForgeCloudSync('error', 'Shopify inventory could not refresh'); });
 }
 function installMobileForgeMenu() {
     const toggle = document.getElementById('mobileNavToggle');
