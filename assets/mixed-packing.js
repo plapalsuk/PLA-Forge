@@ -167,12 +167,27 @@ async function mixedPackingPage() {
     },5000);
     return true;
   }
+  async function improveCameraFocus(video) {
+    const tune=async()=>{
+      const track=video?.srcObject?.getVideoTracks?.()[0];
+      const caps=track?.getCapabilities?.();
+      if(!track||!caps)return;
+      const advanced={};
+      if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.focusMode='continuous';
+      if(Number(caps.zoom?.max||0)>1)advanced.zoom=Math.min(Number(caps.zoom.max),2);
+      if(Object.keys(advanced).length)try{await track.applyConstraints({advanced:[advanced]});}catch(_){}
+    };
+    video?.addEventListener?.('loadedmetadata',tune,{once:true});
+    window.setTimeout(tune,700);
+  }
   async function startZXingScanner() {
     if(!window.ZXingBrowser?.BrowserMultiFormatReader)return false;
     zxingVideo=document.createElement('video');zxingVideo.muted=true;zxingVideo.autoplay=true;zxingVideo.setAttribute('playsinline','');$('mixedCamera').append(zxingVideo);
-    zxingReader=new ZXingBrowser.BrowserMultiFormatReader();
+    const QRReader=window.ZXingBrowser.BrowserQRCodeReader;
+    zxingReader=QRReader?new QRReader():new ZXingBrowser.BrowserMultiFormatReader();
     zxingControls=await zxingReader.decodeFromConstraints({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false},zxingVideo,result=>{if(result)selectCode(result.getText());});
-    setScannerEngine('ZXing multi-format scanner active');return true;
+    improveCameraFocus(zxingVideo);
+    setScannerEngine(QRReader?'ZXing QR scanner active':'ZXing multi-format scanner active');return true;
   }
   function startQuaggaScanner(insertScannerCompatibility=false) {
     return new Promise((resolve,reject)=>{
