@@ -2812,7 +2812,7 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
 .scanner-camera-placeholder{display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;color:var(--muted);padding:25px;z-index:0}
 .scanner-camera-placeholder .scanner-icon{font-size:42px;color:var(--accent)}
 .camera-live .scanner-camera-placeholder{display:none}
-.scanner-target{pointer-events:none;position:absolute;left:9%;right:9%;top:34%;height:32%;border:2px solid rgba(255,108,0,.9);border-radius:12px;z-index:5;box-shadow:0 0 0 9999px rgba(0,0,0,.18)}
+.scanner-target{pointer-events:none;position:absolute;left:50%;top:50%;width:min(58vw,310px);aspect-ratio:1;transform:translate(-50%,-50%);border:2px solid rgba(255,108,0,.9);border-radius:12px;z-index:5;box-shadow:0 0 0 9999px rgba(0,0,0,.18)}
 .scanner-target:before,.scanner-target:after,.scanner-target span:before,.scanner-target span:after{content:"";position:absolute;width:24px;height:24px;border-color:#fff}
 .scanner-target:before{left:-3px;top:-3px;border-left:4px solid;border-top:4px solid;border-radius:7px 0 0 0}
 .scanner-target:after{right:-3px;top:-3px;border-right:4px solid;border-top:4px solid;border-radius:0 7px 0 0}

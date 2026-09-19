@@ -1234,6 +1234,8 @@ async function insertScannerPage() {
     let nativeStream = null;
     let nativeVideo = null;
     let nativeDetector = null;
+    let qrScanner = null;
+    let qrVideo = null;
     let zxingControls = null;
     let zxingReader = null;
     let zxingVideo = null;
@@ -1551,6 +1553,19 @@ async function insertScannerPage() {
         zxingVideo = null;
     }
 
+    function stopFastQrScanner() {
+        if (qrScanner) {
+            try { qrScanner.stop(); qrScanner.destroy(); }
+            catch (_v) { }
+        }
+        qrScanner = null;
+        if (qrVideo) {
+            try { qrVideo.pause(); qrVideo.srcObject = null; qrVideo.remove(); }
+            catch (_v) { }
+        }
+        qrVideo = null;
+    }
+
     function stopScanner() {
         scannerRunning = false;
         if (sameCodeRearmTimer) {
@@ -1558,6 +1573,7 @@ async function insertScannerPage() {
             sameCodeRearmTimer = null;
         }
         stopNativeScanner();
+        stopFastQrScanner();
         stopZXingScanner();
         if (window.Quagga && Quagga.stop) {
             try {
@@ -1661,6 +1677,46 @@ async function insertScannerPage() {
         return true;
     }
 
+    async function startFastQrScanner() {
+        if (!window.QrScanner)
+            return false;
+
+        qrVideo = document.createElement('video');
+        qrVideo.setAttribute('playsinline', '');
+        qrVideo.muted = true;
+        qrVideo.autoplay = true;
+        qrVideo.style.position = 'absolute';
+        qrVideo.style.inset = '0';
+        qrVideo.style.width = '100%';
+        qrVideo.style.height = '100%';
+        qrVideo.style.objectFit = 'cover';
+        cameraHost.insertBefore(qrVideo, cameraHost.firstChild);
+
+        const scanRegion = video => {
+            const width = video.videoWidth || 720;
+            const height = video.videoHeight || 720;
+            const side = Math.max(160, Math.floor(Math.min(width, height) * .88));
+            return {
+                x: Math.floor((width - side) / 2), y: Math.floor((height - side) / 2),
+                width: side, height: side,
+                downScaledWidth: Math.min(720, side), downScaledHeight: Math.min(720, side)
+            };
+        };
+        window.QrScanner.WORKER_PATH = 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js';
+        qrScanner = new window.QrScanner(qrVideo, result => {
+            const code = typeof result === 'string' ? result : result === null || result === void 0 ? void 0 : result.data;
+            if (code)
+                processCode(code);
+        }, {
+            preferredCamera: 'environment', maxScansPerSecond: 25,
+            calculateScanRegion: scanRegion, returnDetailedScanResult: true,
+            highlightScanRegion: false, highlightCodeOutline: false
+        });
+        await qrScanner.start();
+        setEngineStatus('fast QR scanner active');
+        return true;
+    }
+
     function startQuaggaScanner() {
         return new Promise((resolve, reject) => {
             if (!window.Quagga)
@@ -1728,17 +1784,21 @@ async function insertScannerPage() {
         if (cameraHost)
             cameraHost.classList.add('camera-live');
 
-        setStatus('idle', 'Camera starting…', 'Point the camera at the Code 128 barcode on the insert.', '');
+        setStatus('idle', 'Camera starting…', 'Point the camera at the QR code on the insert.', '');
         setEngineStatus('starting');
 
         try {
-            const zxingStarted = await startZXingScanner();
-            if (!zxingStarted)
-                await startQuaggaScanner();
-            setStatus('idle', 'Ready to scan', 'Hold the full barcode inside the orange scan window.', '');
+            const fastQrStarted = await startFastQrScanner();
+            if (!fastQrStarted) {
+                const zxingStarted = await startZXingScanner();
+                if (!zxingStarted)
+                    await startQuaggaScanner();
+            }
+            setStatus('idle', 'Ready to scan', 'Centre the QR code inside the square for a fast scan.', '');
         }
         catch (nativeErr) {
             stopNativeScanner();
+            stopFastQrScanner();
             stopZXingScanner();
             try {
                 await startQuaggaScanner();

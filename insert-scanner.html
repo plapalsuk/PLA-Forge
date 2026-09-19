@@ -34,7 +34,7 @@
   <div class="topbar">
     <div class="pageTitle">
       <h1>Insert Scanner</h1>
-      <div class="small">Scan the Code 128 barcode printed on each completed insert to mark Cut &amp; Score as done.</div>
+      <div class="small">Scan the QR code on each completed insert to mark Cut &amp; Score as done.</div>
     </div>
     <div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">Scan one finished insert at a time.</div></div></div>
   </div>
@@ -43,14 +43,14 @@
     <section class="card scanner-camera-card">
       <div class="section-title">
         <div><h2>Camera Scanner</h2><div class="small">Use the rear camera on your phone or tablet.</div></div>
-        <span class="badge info">CODE 128</span>
+        <span class="badge info">FAST QR</span>
       </div>
 
       <div id="insertScannerCamera" class="insert-scanner-camera">
         <div class="scanner-camera-placeholder">
           <div class="scanner-icon">▣</div>
           <strong>Camera is off</strong>
-          <span>Tap Start Camera to scan an insert barcode.</span>
+          <span>Tap Start Camera to scan an insert QR code.</span>
         </div>
         <div class="scanner-target"><span></span></div>
       </div>
@@ -101,8 +101,9 @@
 </main></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.12.1/dist/quagga.min.js"></script>
+<script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
 <script src="https://unpkg.com/@zxing/browser@0.1.5"></script>
-<script src="assets/forge.js?v=live-20260918-master-sale"></script>
+<script src="assets/forge.js?v=live-20260919-fast-insert-qr"></script>
 <script>forgeBoot(async function(){ insertScannerPage() })</script>
 <script id="legacyBootFailsafe">
 (function(){
