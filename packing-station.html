@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Packing Station | PLA Forge</title><link rel="stylesheet" href="assets/forge.css?v=0264"><style>
-.packing-kpis-five{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0 0 14px}.packing-kpis-five .kpi{min-width:0}.packing-kpis-five .value{font-size:clamp(28px,3vw,42px);line-height:1}.packing-kpis-five .packing-kpi-limit{box-shadow:inset 0 0 0 2px rgba(255,170,0,.55)}.packing-kpis-five .packing-kpi-capacity{box-shadow:inset 0 0 0 2px rgba(70,190,120,.45)}@media(max-width:1100px){.packing-kpis-five{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:700px){.packing-kpis-five{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.packing-kpis-four{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 14px}.packing-kpis-four .kpi{min-width:0}.packing-kpis-four .value{font-size:clamp(28px,3vw,42px);line-height:1}.packing-kpis-four .packing-kpi-limit{box-shadow:inset 0 0 0 2px rgba(255,170,0,.55)}.packing-kpis-four .packing-kpi-capacity{box-shadow:inset 0 0 0 2px rgba(70,190,120,.45)}@media(max-width:1100px){.packing-kpis-four{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:700px){.packing-kpis-four{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style><link rel="stylesheet" href="assets/mixed-packing.css?v=2"></head><body class="forge-protected"><div class="app"><aside class="sidebar">
  <a class="brand forge-brand-lockup" href="index.html" aria-label="PLA Forge Dashboard"><img src="assets/pla-forge-logo.png" alt="PLA Forge — Manufacturing & Inventory System"></a>
  <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-expanded="false" aria-controls="forgeNav"><span>☰ Menu</span><span class="mobile-nav-current">Navigation</span><span class="mobile-nav-chevron">⌄</span></button>
@@ -32,10 +32,9 @@
  <div class="kitsu"><img class="kitsu-mark" src="assets/pla-forge-mark.png" alt="" aria-hidden="true"><div><strong>Kitsu</strong><div class="small">Prepare → Scan → Allocate.</div></div></div>
 </div>
 
-<div id="packingKpiStrip" class="grid kpis packing-kpis-five">
+<div id="packingKpiStrip" class="grid kpis packing-kpis-four">
  <div class="card kpi" id="packingKpiPalsCard"><div class="label">Pals Ready to Pack</div><div class="value accent" id="packingKpiPals">—</div><div class="small">individual Pals with ready inserts</div></div>
  <div class="card kpi" id="packingKpiBoxesCard"><div class="label">Clear Boxes</div><div class="value" id="packingKpiBoxes">—</div><div class="small">in inventory</div></div>
- <div class="card kpi" id="packingKpiStickersCard"><div class="label">Stickers</div><div class="value" id="packingKpiStickers">—</div><div class="small">in inventory</div></div>
  <div class="card kpi" id="packingKpiCardsCard"><div class="label">Bottom Cards</div><div class="value" id="packingKpiCards">—</div><div class="small">in inventory</div></div>
  <div class="card kpi packing-kpi-capacity" id="packingKpiCapacityCard"><div class="label">Packing Capacity</div><div class="value accent" id="packingKpiCapacity">—</div><div class="small" id="packingKpiCapacityNote">checking live stock…</div></div>
 </div>
@@ -56,11 +55,11 @@
 <section class="card mixed-recent"><h2>Recent allocations</h2><table><thead><tr><th>Pal</th><th>Quantity</th><th>Destination</th><th>Status when allocated</th></tr></thead><tbody id="mixedRecent"></tbody></table></section>
 
 <div class="footer-note forge-footer"><span class="forge-footer-brand"><img src="assets/pla-forge-mark.png" alt=""> <strong>PLA FORGE</strong></span><span>Every Pal. Every Part. Every Step. <b>Forged with care.</b></span><small>v0.26.4 · Manufacturing & Inventory System</small></div>
-</main></div><script src="assets/forge.js?v=live-20260919-shopify-locations"></script>
+</main></div><script src="assets/forge.js?v=live-20260920-no-stickers"></script>
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.12.1/dist/quagga.min.js"></script>
 <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
 <script src="https://unpkg.com/@zxing/browser@0.1.5"></script>
-<script src="assets/mixed-packing.js?v=11"></script>
+<script src="assets/mixed-packing.js?v=12"></script>
 <script>forgeBoot(mixedPackingPage)</script>
 <script id="legacyBootFailsafe">
 (function(){

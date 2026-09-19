@@ -5261,10 +5261,9 @@ function packingKpiSummary(s, pals) {
         return total + Math.min(quantity(assembled), quantity(s.inserts?.[sku]?.ready));
     }, 0);
     const boxes = quantity(s.consumables?.clear_boxes?.stock);
-    const stickers = quantity(s.consumables?.stickers?.stock);
     const cards = quantity(s.consumables?.bottom_cards?.stock);
-    const capacity = Math.min(palsReady, boxes, stickers, cards);
-    return { palsReady, boxes, stickers, cards, capacity };
+    const capacity = Math.min(palsReady, boxes, cards);
+    return { palsReady, boxes, cards, capacity };
 }
 function renderPackingKpis(s, pals) {
     if (!document.getElementById('packingKpiStrip')) return;
@@ -5272,7 +5271,6 @@ function renderPackingKpis(s, pals) {
     const resources = [
         ['Pals', 'Pals with ready inserts', kpi.palsReady],
         ['Boxes', 'Clear Boxes', kpi.boxes],
-        ['Stickers', 'Stickers', kpi.stickers],
         ['Cards', 'Bottom Cards', kpi.cards]
     ];
     resources.forEach(([id, label, value]) => {
@@ -5333,7 +5331,7 @@ async function packingStationPage() {
     }
     function ins(sku) { var _a, _b; return Number(((_b = (_a = s.inserts) === null || _a === void 0 ? void 0 : _a[sku]) === null || _b === void 0 ? void 0 : _b.ready) || 0); }
     function cs(k) { var _a, _b; return Number(((_b = (_a = s.consumables) === null || _a === void 0 ? void 0 : _a[k]) === null || _b === void 0 ? void 0 : _b.stock) || 0); }
-    function maxBatch(p) { return Math.max(0, Math.min(assembled(p.sku), ins(p.sku), cs('clear_boxes'), cs('bottom_cards'), cs('stickers'))); }
+    function maxBatch(p) { return Math.max(0, Math.min(assembled(p.sku), ins(p.sku), cs('clear_boxes'), cs('bottom_cards'))); }
     function blockers(p) {
         const b = [];
         if (assembled(p.sku) <= 0)
@@ -5344,12 +5342,10 @@ async function packingStationPage() {
             b.push('Need clear boxes');
         if (cs('bottom_cards') <= 0)
             b.push('Need bottom card squares');
-        if (cs('stickers') <= 0)
-            b.push('Need stickers');
         return b;
     }
-    function stockStrip(p) { return `<div class="packing-checks"><span class="${assembled(p.sku) > 0 ? 'stock-good' : 'stock-bad'}">${assembled(p.sku)} Assembled</span><span class="${ins(p.sku) > 0 ? 'stock-good' : 'stock-bad'}">${ins(p.sku)} Inserts</span><span>${cs('clear_boxes')} Clear Boxes</span><span>${cs('bottom_cards')} Bottom Cards</span><span>${cs('stickers')} Stickers</span></div>`; }
-    const steps = ['Fold Clear Boxes', 'Fold Printed Inserts', 'Place Bottom Cards', 'Place Stickers', 'Put Printed Inserts In', 'Place Pals', 'Close Boxes', 'Print & Apply Barcodes'];
+    function stockStrip(p) { return `<div class="packing-checks"><span class="${assembled(p.sku) > 0 ? 'stock-good' : 'stock-bad'}">${assembled(p.sku)} Assembled</span><span class="${ins(p.sku) > 0 ? 'stock-good' : 'stock-bad'}">${ins(p.sku)} Inserts</span><span>${cs('clear_boxes')} Clear Boxes</span><span>${cs('bottom_cards')} Bottom Cards</span></div>`; }
+    const steps = ['Fold Clear Boxes', 'Fold Printed Inserts', 'Place Bottom Cards', 'Put Printed Inserts In', 'Place Pals', 'Close Boxes', 'Print & Apply Barcodes'];
     function reworkRequirements(job) {
         // New v0.8.6 item-based damage jobs can contain several faults on one Pal.
         if (job.type === 'item') {
@@ -5359,7 +5355,7 @@ async function packingStationPage() {
                 inserts: req.insert ? q : 0,
                 pals: req.pal ? q : 0,
                 bottom_cards: req.writeoff ? q : 0,
-                stickers: req.writeoff ? q : 0,
+                stickers: 0,
                 label: req.writeoff ? 'Complete replacement' : [
                     req.box ? 'Replace box' : '',
                     req.insert ? 'Replace insert' : '',
@@ -5374,11 +5370,11 @@ async function packingStationPage() {
             return { clear_boxes: 0, inserts: job.qty, pals: 0, bottom_cards: 0, stickers: 0, label: 'Replace damaged insert' };
         if (job.type === 'pal')
             return { clear_boxes: 0, inserts: 0, pals: job.qty, bottom_cards: 0, stickers: 0, label: 'Replace broken Pal' };
-        return { clear_boxes: job.qty, inserts: job.qty, pals: job.qty, bottom_cards: job.qty, stickers: job.qty, label: 'Complete replacement' };
+        return { clear_boxes: job.qty, inserts: job.qty, pals: job.qty, bottom_cards: job.qty, stickers: 0, label: 'Complete replacement' };
     }
     function reworkReady(job) {
         const r = reworkRequirements(job);
-        return cs('clear_boxes') >= r.clear_boxes && cs('bottom_cards') >= r.bottom_cards && cs('stickers') >= r.stickers && ins(job.sku) >= r.inserts && assembled(job.sku) >= r.pals;
+        return cs('clear_boxes') >= r.clear_boxes && cs('bottom_cards') >= r.bottom_cards && ins(job.sku) >= r.inserts && assembled(job.sku) >= r.pals;
     }
     function drawDamageRework() {
         if (!damageReworkList)
@@ -5396,7 +5392,6 @@ async function packingStationPage() {
          ${r.inserts ? `<span class="${ins(job.sku) >= r.inserts ? 'stock-good' : 'stock-bad'}">Ready Inserts ${ins(job.sku)} / ${r.inserts}</span>` : ''}
          ${r.pals ? `<span class="${assembled(job.sku) >= r.pals ? 'stock-good' : 'stock-bad'}">Assembled Pals ${assembled(job.sku)} / ${r.pals}</span>` : ''}
          ${r.bottom_cards ? `<span class="${cs('bottom_cards') >= r.bottom_cards ? 'stock-good' : 'stock-bad'}">Bottom Cards ${cs('bottom_cards')} / ${r.bottom_cards}</span>` : ''}
-         ${r.stickers ? `<span class="${cs('stickers') >= r.stickers ? 'stock-good' : 'stock-bad'}">Stickers ${cs('stickers')} / ${r.stickers}</span>` : ''}
        </div>
        <div class="packing-actions"><button class="btn completeDamageRework" data-id="${job.id}" ${ready ? '' : 'disabled'}>Complete Rework × ${job.qty}</button></div>
      </div>`;
@@ -5451,7 +5446,7 @@ async function packingStationPage() {
       ${stockStrip(p)}
       <div class="batch-pack-bar"><div><strong>Batch Pack</strong><div class="small">Choose how many ${esc(p.name)} you are packing together.</div></div><div class="batch-qty"><button class="iconbtn batchMinus" data-sku="${p.sku}">−</button><input class="number batchQty" id="batch-${p.sku}" data-sku="${p.sku}" type="number" min="1" max="${maxBatch(p)}" value="${job.qty}"><button class="iconbtn batchPlus" data-sku="${p.sku}">+</button></div></div>
       <div class="packing-steps">${steps.map((n, i) => `<div class="${job.step > i + 1 ? 'done' : job.step === i + 1 ? 'active' : ''}"><b>${i + 1}</b><span>${n}</span>${job.qty > 1 ? `<em>× ${job.qty}</em>` : ''}</div>`).join('')}</div>
-      <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}">${job.step < 8 ? `Complete Step ${job.step} for all ${job.qty}` : `Print ${job.qty} Label${job.qty === 1 ? '' : 's'} via Pi`}</button>${job.step === 8 ? `<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>` : ''}</div>
+      <div class="packing-actions"><button class="btn nextPackStep" data-sku="${p.sku}">${job.step < 7 ? `Complete Step ${job.step} for all ${job.qty}` : `Print ${job.qty} Label${job.qty === 1 ? '' : 's'} via Pi`}</button>${job.step === 7 ? `<button class="btn secondary barcodeApplied" data-sku="${p.sku}">All ${job.qty} Barcodes Applied · Complete Batch</button>` : ''}</div>
     </div>`;
         }).join('') || '<div class="bench-empty">No Pals are currently ready to pack.</div>';
         awaitingList.innerHTML = awaiting.map(p => {
@@ -5490,7 +5485,7 @@ async function packingStationPage() {
         });
         document.querySelectorAll('.nextPackStep').forEach(b => b.onclick = async () => {
             const sku = b.dataset.sku, p = pals.find(x => x.sku === sku), j = s.packingJobs[sku] || { step: 1, qty: 1 };
-            if (j.step < 8) {
+            if (j.step < 7) {
                 const before = Number(j.step || 1);
                 j.step++;
                 s.packingJobs[sku] = j;
@@ -5532,7 +5527,7 @@ async function packingStationPage() {
         document.querySelectorAll('.barcodeApplied').forEach(b => b.onclick = async () => {
             var _a;
             const sku = b.dataset.sku, p = pals.find(x => x.sku === sku), j = s.packingJobs[sku];
-            if (!j || j.step !== 8)
+            if (!j || j.step !== 7)
                 return;
             const qty = Math.min(j.qty, maxBatch(p));
             if (qty <= 0)
