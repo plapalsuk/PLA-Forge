@@ -746,7 +746,7 @@ function installForgeNavigation() {
         '<div class="navgroup">Administration</div>',
         link('product-master.html', '▦ Pal Product Master'), link('illustrator-exports.html', '⇩ Illustrator Exports'), link('new-pal.html', '＋ New Pal Setup'), link('data-health.html', '! Data Health'),
         '<div class="navgroup">Settings</div>',
-        link('settings.html', '⚙ General'), link('settings-printers.html', '▱ 3D Printers'), link('settings-labels.html', '▤ Labels &amp; Printing'), link('settings-employees.html', '♙ Employees'), link('settings-system.html', '! System &amp; Data'), link('settings-shopify.html', '◈ Shopify')
+        link('settings.html', '⚙ General'), link('settings-printers.html', '▱ 3D Printers'), link('settings-labels.html', '▤ Labels &amp; Printing'), link('settings-inventory.html', '▤ Manual Inventory'), link('settings-employees.html', '♙ Employees'), link('settings-system.html', '! System &amp; Data'), link('settings-shopify.html', '◈ Shopify')
     ].join('');
     if (!sidebar.querySelector('#mobileNavToggle')) {
         const toggle = document.createElement('button');
@@ -7648,6 +7648,54 @@ async function generalSettingsPage() {
             setForgeCloudSync('error', e.message || 'Settings sync failed');
         }
     }, 2000);
+}
+
+async function manualInventorySettingsPage() {
+    installForgeCloudSyncBadge();
+    const palSelect = document.querySelector('#manualInventoryPal');
+    const locationSelect = document.querySelector('#manualInventoryLocation');
+    const quantityInput = document.querySelector('#manualInventoryQuantity');
+    const reasonInput = document.querySelector('#manualInventoryReason');
+    const button = document.querySelector('#manualInventorySave');
+    const status = document.querySelector('#manualInventoryStatus');
+    try {
+        const pals = (await load('products')).filter(p => p.type === 'pal').sort((a, b) => a.name.localeCompare(b.name));
+        palSelect.innerHTML = '<option value="">Choose a Pal…</option>' + pals.map(p => `<option value="${esc(p.sku)}">${esc(p.sku)} · ${esc(p.name)}</option>`).join('');
+        setForgeCloudSync('synced', 'Manual inventory ready');
+    }
+    catch (e) {
+        showCloudRequiredError(e.message);
+        return;
+    }
+    button.onclick = async () => {
+        const sku = palSelect.value;
+        const quantity = Number(quantityInput.value);
+        if (!sku || !Number.isInteger(quantity) || quantity < 0) {
+            status.textContent = 'Choose a Pal and enter a whole available quantity of zero or more.';
+            return;
+        }
+        const locationName = locationSelect.options[locationSelect.selectedIndex].text;
+        if (!confirm(`Set ${sku} available stock at ${locationName} to ${quantity} in Shopify?`)) return;
+        button.disabled = true;
+        button.textContent = 'Updating Shopify…';
+        status.textContent = '';
+        try {
+            const result = await cloudFetch('/shopify/inventory/manual-set', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sku, location: locationSelect.value, quantity, reason: reasonInput.value.trim() })
+            });
+            status.textContent = `${sku} at ${locationName} changed from ${result.previous_available} to ${result.available} in Shopify. Forge will refresh from Shopify automatically.`;
+            setForgeCloudSync('synced', 'Shopify inventory updated');
+        }
+        catch (e) {
+            status.textContent = `Shopify was not changed: ${e.message}`;
+            setForgeCloudSync('error', 'Shopify inventory update failed');
+        }
+        finally {
+            button.disabled = false;
+            button.textContent = 'Update Shopify Inventory';
+        }
+    };
 }
 function installMobileForgeMenu() {
     const toggle = document.getElementById('mobileNavToggle');
