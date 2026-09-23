@@ -3490,6 +3490,7 @@ async function inventory(type) {
             const rawNeed = useShopify ? totalShopNeed(x.sku) : totalNeed(s,x.sku);
             const w = useShopify ? shopStock(x.sku,'warehouse') : stock(s,x.sku,'warehouse');
             const wt = useShopify ? effectiveTarget(x.sku,'warehouse') : getTarget(s,x.sku,'warehouse');
+            const v = useShopify ? shopStock(x.sku,'van') : stock(s,x.sku,'van');
             const need = useShopify ? netManufacturingNeed(x.sku) : rawNeed;
             const demand = useShopify ? demandSnapshot.bySku[x.sku] : null;
             const sale = isOnSale(s, x.sku);
@@ -3508,6 +3509,7 @@ async function inventory(type) {
               <td class="target-cell" data-label="Cornwall Target">${useShopify ? targetControl(x.sku, 'cornwall') : `<input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}">`}</td>
               <td class="stock-cell" data-label="Warehouse Stock"><strong>${w}</strong></td>
               <td class="target-cell" data-label="Warehouse Target">${useShopify ? targetControl(x.sku,'warehouse') : `<input class="number t" data-sku="${x.sku}" data-loc="warehouse" type="number" min="0" value="${wt}">`}</td>
+              <td class="stock-cell shopify-stock-cell" data-label="Van Stock"><strong>${v}</strong>${useShopify ? '<small>available</small>' : ''}</td>
               <td class="need-cell" data-label="Need to Make"><strong>${need}</strong>${useShopify && demand ? `<small>${demand.gross_need} shortage · ${demand.assembled} assembled · ${demand.awaiting_dispatch} dispatch · ${demand.in_transit_cornwall} transit · ${demand.intact_rework} rework · ${demand.warehouse_surplus || 0} Warehouse spare</small>` : ''}</td>
             </tr>`;
         }).join('');
