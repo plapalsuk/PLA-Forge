@@ -1,7 +1,7 @@
 async function mixedPackingPage() {
   const $ = id => document.getElementById(id);
   const steps = ['Set out clear boxes', 'Add bottom cards', 'Add matching inserts', 'Place the Pals', 'Close the boxes'];
-  const labels = {boat:'Boat',cornwall:'Cornwall',warehouse:'Warehouse'};
+  const labels = {boat:'Boat',cornwall:'Cornwall',warehouse:'Warehouse',van:'Van'};
   let data = null, products = [], selected = null, busy = false, online = false, cameraStream = null, cameraVideo = null, barcodeDetector = null, qrScanner = null, qrVideo = null, zxingControls = null, zxingReader = null, zxingVideo = null, cameraRunning = false, nativeLoopToken = 0, nativeFallbackTimer = null, quaggaFallbackTimer = null, scannerKeyBuffer = '', scannerLastKeyAt = 0, revision = 0;
   const pendingKey = 'forge-test-packing-pending-v1';
   let pending = null;
@@ -55,7 +55,7 @@ async function mixedPackingPage() {
       const limit=available(selected);
       $('mixedQty').max=limit;
       $('mixedAvailable').textContent=`${limit} can be allocated · ${assembled(selected)} assembled · ${amount(s.inserts?.[selected.sku]?.ready)} matching inserts`;
-      $('mixedLocations').textContent=`Boat: ${amount(s.finishedStock?.boat?.[selected.sku])} · Warehouse: ${amount(s.finishedStock?.warehouse?.[selected.sku])} · Cornwall awaiting delivery: ${(s.transfers||[]).filter(t=>t.sku===selected.sku&&t.destination==='cornwall'&&t.status==='awaiting_delivery'&&t.transfer_type!=='cornwall_insert_spare').reduce((n,t)=>n+amount(t.qty),0)}`;
+      $('mixedLocations').textContent=`Boat: ${amount(s.finishedStock?.boat?.[selected.sku])} · Warehouse: ${amount(s.finishedStock?.warehouse?.[selected.sku])} · Van: ${amount(s.finishedStock?.van?.[selected.sku])} · Cornwall awaiting delivery: ${(s.transfers||[]).filter(t=>t.sku===selected.sku&&t.destination==='cornwall'&&t.status==='awaiting_delivery'&&t.transfer_type!=='cornwall_insert_spare').reduce((n,t)=>n+amount(t.qty),0)}`;
     }
     const qty=Number($('mixedQty').value), dest=$('mixedDestination').value;
     $('mixedConfirm').disabled=busy||!online||!!pending||!selected||!b||b.step!==5||!Number.isInteger(qty)||qty<1||qty>available(selected)||!labels[dest];

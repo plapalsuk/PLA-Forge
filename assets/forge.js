@@ -61,7 +61,7 @@ function blankOperationalState() {
         packingJobs: {},
         packingHistory: [],
         stock_revision: 0,
-        finishedStock: { boat: {}, cornwall: {}, warehouse: {} },
+        finishedStock: { boat: {}, cornwall: {}, warehouse: {}, van: {} },
         awaitingDispatch: [],
         transfers: [],
         damageHistory: [],
@@ -8022,7 +8022,7 @@ async function shopifyIntegrationPage() {
         const host = byId('shopifyLocationMappingRows');
         if (!host)
             return;
-        host.innerHTML = shopifyLocationsForMapping.length ? shopifyLocationsForMapping.map(loc => { var _m; const current = String(((_m = locationMapping.locations) === null || _m === void 0 ? void 0 : _m[loc.id]) || 'ignore'); return `<div class="shopify-location-map-row" data-location-id="${esc(loc.id)}"><div class="shopify-location-map-info"><strong>${esc(loc.name)}</strong><span>${esc([loc.city, loc.country].filter(Boolean).join(', ') || 'No address')} · ${loc.active ? 'Active' : 'Inactive'}</span></div><select class="input shopify-location-map-select"><option value="ignore"${current === 'ignore' ? ' selected' : ''}>Ignore</option><option value="boat"${current === 'boat' ? ' selected' : ''}>Kitsune Boat</option><option value="cornwall"${current === 'cornwall' ? ' selected' : ''}>Kitsune Cornwall</option><option value="warehouse"${current === 'warehouse' ? ' selected' : ''}>Warehouse</option></select></div>`; }).join('') : `<div class="dashboard-clear-state"><strong>No Shopify locations returned.</strong></div>`;
+        host.innerHTML = shopifyLocationsForMapping.length ? shopifyLocationsForMapping.map(loc => { var _m; const current = String(((_m = locationMapping.locations) === null || _m === void 0 ? void 0 : _m[loc.id]) || 'ignore'); return `<div class="shopify-location-map-row" data-location-id="${esc(loc.id)}"><div class="shopify-location-map-info"><strong>${esc(loc.name)}</strong><span>${esc([loc.city, loc.country].filter(Boolean).join(', ') || 'No address')} · ${loc.active ? 'Active' : 'Inactive'}</span></div><select class="input shopify-location-map-select"><option value="ignore"${current === 'ignore' ? ' selected' : ''}>Ignore</option><option value="boat"${current === 'boat' ? ' selected' : ''}>Kitsune Boat</option><option value="cornwall"${current === 'cornwall' ? ' selected' : ''}>Kitsune Cornwall</option><option value="warehouse"${current === 'warehouse' ? ' selected' : ''}>Warehouse</option><option value="van"${current === 'van' ? ' selected' : ''}>Van</option></select></div>`; }).join('') : `<div class="dashboard-clear-state"><strong>No Shopify locations returned.</strong></div>`;
         host.querySelectorAll('.shopify-location-map-row').forEach(row => { const id = row.getAttribute('data-location-id'), sel = row.querySelector('.shopify-location-map-select'); sel.onchange = () => { locationMapping.locations = locationMapping.locations || {}; locationMapping.locations[id] = sel.value; setLocationMappingDirty(true); }; });
     }
     async function loadLocationMapping() {
