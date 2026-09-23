@@ -4658,20 +4658,26 @@ async function printedParts() {
     const pals = Object.fromEntries(ps.filter(p => p.type === 'pal').map(p => [p.sku, p]));
     const q = document.querySelector('#q');
     const body = document.querySelector('#partsRows');
+    const palCount = document.querySelector('#partsPalCount');
     const failures = document.querySelector('#failedRows');
     let s = cloudOperationalState();
     function draw() {
         const text = (q.value || '').toLowerCase();
-        const rows = [];
+        const byPal = {};
         rs.forEach(r => {
             const qty = partQty(s, groupKey(r));
+            if (!byPal[r.sku]) {
+                byPal[r.sku] = {
+                    sku: r.sku,
+                    name: (pals[r.sku] || {}).name || r.name || r.animal || r.sku,
+                    parts: []
+                };
+            }
             // Show every part required by a Pal, including items at zero, so
             // the Parts page is a complete build checklist rather than only
             // a history of successful plates.
-            rows.push({
-                kind: 'Grouped set',
+            byPal[r.sku].parts.push({
                 sku: r.sku,
-                name: (pals[r.sku] || {}).name || r.name || r.animal,
                 filament: r.filament,
                 label: r.parts,
                 qty,
@@ -4685,30 +4691,37 @@ async function printedParts() {
             const sku = bits[1];
             const file = bits.slice(2).join('|');
             const r = rs.find(x => x.sku === sku && (x.separate_stls || '').includes(file));
-            rows.push({
-                kind: 'Recovery part',
+            if (!byPal[sku]) {
+                byPal[sku] = { sku, name: (pals[sku] || {}).name || sku, parts: [] };
+            }
+            byPal[sku].parts.push({
                 sku,
-                name: (pals[sku] || {}).name || sku,
                 filament: (r === null || r === void 0 ? void 0 : r.filament) || '',
-                label: file,
+                label: `Recovery spare · ${file}`,
                 qty: Number(v),
                 key: k
             });
         });
-        const shown = rows.filter(x => `${x.name} ${x.sku} ${x.filament} ${x.label}`.toLowerCase().includes(text));
+        const shown = Object.values(byPal)
+            .sort((a, b) => a.sku.localeCompare(b.sku))
+            .filter(p => `${p.name} ${p.sku} ${p.parts.map(x => `${x.filament} ${x.label}`).join(' ')}`.toLowerCase().includes(text));
+        if (palCount)
+            palCount.textContent = `${shown.length} Pal${shown.length === 1 ? '' : 's'}`;
         body.innerHTML = shown.length
-            ? shown.map(x => `<tr>
-       <td><strong>${esc(x.name)}</strong><br><span class="sku">${x.sku}</span></td>
-       <td>${badge(x.kind, x.kind === 'Grouped set' ? 'ok' : 'info')}</td>
-       <td>${esc(x.filament)}</td>
-       <td>${esc(x.label)}</td>
-       <td><strong>${x.qty}</strong></td>
-       <td>
-         <button class="iconbtn adjust" data-key="${esc(x.key)}" data-d="-1">−</button>
-         <button class="iconbtn adjust" data-key="${esc(x.key)}" data-d="1">+</button>
-       </td>
-     </tr>`).join('')
-            : '<tr><td colspan="6">No recipe parts have been created yet.</td></tr>';
+            ? shown.map(p => `<div class="assembly-card ready parts-card">
+       <div class="assembly-card-head">
+         <div><strong>${esc(p.name)}</strong><div class="sku">${esc(p.sku)}</div></div>
+         ${badge(`${p.parts.reduce((sum, x) => sum + Number(x.qty || 0), 0)} Parts`, 'info')}
+       </div>
+       <div class="assembly-parts">
+         ${p.parts.map(x => `<div class="assembly-part ${x.qty <= 0 ? 'missing' : ''}">
+           <span>${esc(x.filament)} · ${esc(x.label)}</span>
+           <strong>${x.qty}</strong>
+           <div class="part-adjust"><button class="iconbtn adjust" aria-label="Remove one ${esc(x.label)}" data-key="${esc(x.key)}" data-d="-1">−</button><button class="iconbtn adjust" aria-label="Add one ${esc(x.label)}" data-key="${esc(x.key)}" data-d="1">+</button></div>
+         </div>`).join('')}
+       </div>
+     </div>`).join('')
+            : '<div class="bench-empty">No recipe parts match this search.</div>';
         document.querySelectorAll('.adjust').forEach(b => b.onclick = async () => {
             const key = b.dataset.key;
             const before = partQty(s, key);
