@@ -3498,6 +3498,13 @@ async function inventory(type) {
             const v = useShopify ? shopStock(x.sku,'van') : stock(s,x.sku,'van');
             const vt = useShopify ? effectiveTarget(x.sku,'van') : getTarget(s,x.sku,'van');
             const need = useShopify ? netManufacturingNeed(x.sku) : rawNeed;
+            const needClass = need === 0 ? 'covered' : need <= 4 ? 'low' : 'high';
+            const stockClass = (available, target) => {
+                const shortage = Math.max(0, Number(target || 0) - Number(available || 0));
+                return shortage === 0 ? 'covered' : shortage <= 4 ? 'low' : 'high';
+            };
+            const boatClass = stockClass(b, bt), cornwallClass = stockClass(c, ct);
+            const warehouseClass = stockClass(w, wt), vanClass = stockClass(v, vt);
             const demand = useShopify ? demandSnapshot.bySku[x.sku] : null;
             const sale = isOnSale(s, x.sku);
             const mapped = !!shopifyBySku[x.sku];
@@ -3509,16 +3516,15 @@ async function inventory(type) {
               </td>
               <td data-label="On Sale">${sale ? badge('ON SALE', 'ok') : badge('NOT ON SALE', '')}</td>
               <td data-label="Recipe">${x.recipe_ready ? badge('Recipe ready', 'ok') : badge('No recipe', 'warning')}</td>
-              <td class="stock-cell shopify-stock-cell" data-label="Boat Stock"><strong>${b}</strong>${useShopify ? '<small>available</small>' : ''}</td>
+              <td class="stock-cell shopify-stock-cell ${boatClass}" data-label="Boat Stock"><strong>${b}</strong>${useShopify ? '<small>available</small>' : ''}</td>
               <td class="target-cell" data-label="Boat Target">${useShopify ? targetControl(x.sku, 'boat') : `<input class="number t" data-sku="${x.sku}" data-loc="boat" type="number" min="0" value="${bt}">`}</td>
-              <td class="stock-cell shopify-stock-cell" data-label="Cornwall Stock"><strong>${c}</strong>${useShopify ? '<small>available</small>' : ''}</td>
+              <td class="stock-cell shopify-stock-cell ${cornwallClass}" data-label="Cornwall Stock"><strong>${c}</strong>${useShopify ? '<small>available</small>' : ''}</td>
               <td class="target-cell" data-label="Cornwall Target">${useShopify ? targetControl(x.sku, 'cornwall') : `<input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}">`}</td>
-              <td class="stock-cell" data-label="Warehouse Stock"><strong>${w}</strong></td>
+              <td class="stock-cell shopify-stock-cell ${warehouseClass}" data-label="Warehouse Stock"><strong>${w}</strong>${useShopify ? '<small>available</small>' : ''}</td>
               <td class="target-cell" data-label="Warehouse Target">${useShopify ? targetControl(x.sku,'warehouse') : `<input class="number t" data-sku="${x.sku}" data-loc="warehouse" type="number" min="0" value="${wt}">`}</td>
-              <td class="stock-cell shopify-stock-cell" data-label="Van Stock"><strong>${v}</strong>${useShopify ? '<small>available</small>' : ''}</td>
+              <td class="stock-cell shopify-stock-cell ${vanClass}" data-label="Van Stock"><strong>${v}</strong>${useShopify ? '<small>available</small>' : ''}</td>
               <td class="target-cell" data-label="Van Target">${useShopify ? targetControl(x.sku,'van') : `<input class="number t" data-sku="${x.sku}" data-loc="van" type="number" min="0" value="${vt}">`}</td>
-              <td class="stock-cell shopify-stock-cell" data-label="Van Stock"><strong>${v}</strong>${useShopify ? '<small>available</small>' : ''}</td>
-              <td class="need-cell" data-label="Need to Make"><strong>${need}</strong>${useShopify && demand ? `<small>${demand.gross_need} shortage · ${demand.assembled} assembled · ${demand.awaiting_dispatch} dispatch · ${demand.in_transit_cornwall} transit · ${demand.intact_rework} rework · ${demand.warehouse_surplus || 0} Warehouse spare</small>` : ''}</td>
+              <td class="need-cell ${needClass}" data-label="Need to Make"><strong>${need}</strong>${useShopify && demand ? `<small>${demand.gross_need} shortage · ${demand.assembled} assembled · ${demand.awaiting_dispatch} dispatch · ${demand.in_transit_cornwall} transit · ${demand.intact_rework} rework · ${demand.warehouse_surplus || 0} Warehouse spare</small>` : ''}</td>
             </tr>`;
         }).join('');
         if (useShopifyPage()) {

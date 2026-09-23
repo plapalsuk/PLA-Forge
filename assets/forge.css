@@ -2777,6 +2777,12 @@ body[data-settings-section="system"] .nav a[href="settings-system.html"]{backgro
 .pal-inventory-source>div span{font-size:10px;color:var(--muted)}
 .shopify-stock-cell strong{color:#63dc97}
 .shopify-stock-cell small,.need-cell small{display:block;margin-top:3px;font-size:9px;color:var(--muted)}
+.shopify-stock-cell.covered strong{color:#63dc97}
+.shopify-stock-cell.low strong{color:#f6b94a}
+.shopify-stock-cell.high strong{color:#ff6b6b}
+.need-cell.covered strong{color:#63dc97}
+.need-cell.low strong{color:#f6b94a}
+.need-cell.high strong{color:#ff6b6b}
 .warning-text{color:#e6b94f!important;margin-top:4px}
 @media(max-width:850px){.pal-inventory-source{grid-template-columns:1fr 1fr}.pal-inventory-source>.badge{justify-self:start}}
 @media(max-width:560px){.pal-inventory-source{grid-template-columns:1fr}}
