@@ -3184,7 +3184,8 @@ function stockTargetDefaultsFromSettings(settings) {
     return {
         boat: Math.max(0, Number((_m = cfg.boat) !== null && _m !== void 0 ? _m : 3)),
         cornwall: Math.max(0, Number((_o = cfg.cornwall) !== null && _o !== void 0 ? _o : 3)),
-        warehouse: Math.max(0, Number(cfg.warehouse ?? 0))
+        warehouse: Math.max(0, Number(cfg.warehouse ?? 0)),
+        van: Math.max(0, Number(cfg.van ?? 0))
     };
 }
 function palTargetOverrideMap(settings) {
@@ -3314,10 +3315,11 @@ async function stockTargetSettingsPage() {
     const boatEl = document.getElementById('defaultBoatTarget');
     const cornwallEl = document.getElementById('defaultCornwallTarget');
     const warehouseEl = document.getElementById('defaultWarehouseTarget');
+    const vanEl = document.getElementById('defaultVanTarget');
     const saveBtn = document.getElementById('saveStockTargetDefaults');
     if (!boatEl || !cornwallEl || !saveBtn)
         return;
-    let current = { boat: 3, cornwall: 3, warehouse: 0 };
+    let current = { boat: 3, cornwall: 3, warehouse: 0, van: 0 };
     function setBadge(state, text) {
         if (!badgeEl)
             return;
@@ -3330,6 +3332,7 @@ async function stockTargetSettingsPage() {
         boatEl.value = current.boat;
         cornwallEl.value = current.cornwall;
         if(warehouseEl) warehouseEl.value = current.warehouse;
+        if(vanEl) vanEl.value = current.van;
         setBadge('ok', 'Saved');
     }
     catch (e) {
@@ -3339,7 +3342,8 @@ async function stockTargetSettingsPage() {
         const next = {
             boat: Math.max(0, Math.round(Number(boatEl.value || 0))),
             cornwall: Math.max(0, Math.round(Number(cornwallEl.value || 0))),
-            warehouse: Math.max(0, Math.round(Number(warehouseEl?.value || 0)))
+            warehouse: Math.max(0, Math.round(Number(warehouseEl?.value || 0))),
+            van: Math.max(0, Math.round(Number(vanEl?.value || 0)))
         };
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving…';
@@ -3353,6 +3357,7 @@ async function stockTargetSettingsPage() {
             boatEl.value = current.boat;
             cornwallEl.value = current.cornwall;
         if(warehouseEl) warehouseEl.value = current.warehouse;
+        if(vanEl) vanEl.value = current.van;
             setBadge('ok', 'Saved');
             setForgeCloudSync('synced', 'Stock target defaults saved');
         }
@@ -3385,7 +3390,7 @@ async function inventory(type) {
     const q = document.querySelector('#q');
     let shopifyInventory = { inventory: [], mapped_variants: 0, synced_at: null };
     let shopifyBySku = {};
-    let targetDefaults = { boat: 3, cornwall: 3, warehouse: 0 };
+    let targetDefaults = { boat: 3, cornwall: 3, warehouse: 0, van: 0 };
     let targetOverrides = {};
     let demandSnapshot = { bySku: {} };
     async function loadTargetSettings() {
@@ -3397,7 +3402,7 @@ async function inventory(type) {
             targetOverrides = palTargetOverrideMap(data.settings || {});
         }
         catch (e) {
-            targetDefaults = { boat: 3, cornwall: 3, warehouse: 0 };
+            targetDefaults = { boat: 3, cornwall: 3, warehouse: 0, van: 0 };
             targetOverrides = {};
         }
     }
@@ -3447,7 +3452,7 @@ async function inventory(type) {
         return Math.max(0, effectiveTarget(sku, loc) - shopStock(sku, loc));
     }
     function totalShopNeed(sku) {
-        return Math.max(0,shopNeed(sku, 'boat') + shopNeed(sku, 'cornwall') + shopNeed(sku, 'warehouse') - Math.max(0,shopStock(sku,'warehouse')-effectiveTarget(sku,'warehouse')));
+        return Math.max(0,shopNeed(sku, 'boat') + shopNeed(sku, 'cornwall') + shopNeed(sku, 'warehouse') + shopNeed(sku, 'van') - Math.max(0,shopStock(sku,'warehouse')-effectiveTarget(sku,'warehouse')));
     }
     function netManufacturingNeed(sku) {
         const d = demandSnapshot.bySku[sku];
@@ -3491,6 +3496,7 @@ async function inventory(type) {
             const w = useShopify ? shopStock(x.sku,'warehouse') : stock(s,x.sku,'warehouse');
             const wt = useShopify ? effectiveTarget(x.sku,'warehouse') : getTarget(s,x.sku,'warehouse');
             const v = useShopify ? shopStock(x.sku,'van') : stock(s,x.sku,'van');
+            const vt = useShopify ? effectiveTarget(x.sku,'van') : getTarget(s,x.sku,'van');
             const need = useShopify ? netManufacturingNeed(x.sku) : rawNeed;
             const demand = useShopify ? demandSnapshot.bySku[x.sku] : null;
             const sale = isOnSale(s, x.sku);
@@ -3509,6 +3515,8 @@ async function inventory(type) {
               <td class="target-cell" data-label="Cornwall Target">${useShopify ? targetControl(x.sku, 'cornwall') : `<input class="number t" data-sku="${x.sku}" data-loc="cornwall" type="number" min="0" value="${ct}">`}</td>
               <td class="stock-cell" data-label="Warehouse Stock"><strong>${w}</strong></td>
               <td class="target-cell" data-label="Warehouse Target">${useShopify ? targetControl(x.sku,'warehouse') : `<input class="number t" data-sku="${x.sku}" data-loc="warehouse" type="number" min="0" value="${wt}">`}</td>
+              <td class="stock-cell shopify-stock-cell" data-label="Van Stock"><strong>${v}</strong>${useShopify ? '<small>available</small>' : ''}</td>
+              <td class="target-cell" data-label="Van Target">${useShopify ? targetControl(x.sku,'van') : `<input class="number t" data-sku="${x.sku}" data-loc="van" type="number" min="0" value="${vt}">`}</td>
               <td class="stock-cell shopify-stock-cell" data-label="Van Stock"><strong>${v}</strong>${useShopify ? '<small>available</small>' : ''}</td>
               <td class="need-cell" data-label="Need to Make"><strong>${need}</strong>${useShopify && demand ? `<small>${demand.gross_need} shortage · ${demand.assembled} assembled · ${demand.awaiting_dispatch} dispatch · ${demand.in_transit_cornwall} transit · ${demand.intact_rework} rework · ${demand.warehouse_surplus || 0} Warehouse spare</small>` : ''}</td>
             </tr>`;
@@ -7735,7 +7743,7 @@ async function manualInventorySettingsPage() {
     }
     let pals = [];
     let shopifyBySku = {};
-    const locations = [['boat', 'Kitsune Boat'], ['cornwall', 'Kitsune Cornwall'], ['warehouse', 'Warehouse']];
+    const locations = [['boat', 'Kitsune Boat'], ['cornwall', 'Kitsune Cornwall'], ['warehouse', 'Warehouse'], ['van', 'Van']];
     function displayValue(sku, location) {
         return Math.max(0, Number(shopifyBySku[sku]?.[location]?.available || 0));
     }
