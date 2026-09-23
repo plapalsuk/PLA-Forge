@@ -4665,17 +4665,18 @@ async function printedParts() {
         const rows = [];
         rs.forEach(r => {
             const qty = partQty(s, groupKey(r));
-            if (qty > 0) {
-                rows.push({
-                    kind: 'Grouped set',
-                    sku: r.sku,
-                    name: (pals[r.sku] || {}).name || r.name || r.animal,
-                    filament: r.filament,
-                    label: r.parts,
-                    qty,
-                    key: groupKey(r)
-                });
-            }
+            // Show every part required by a Pal, including items at zero, so
+            // the Parts page is a complete build checklist rather than only
+            // a history of successful plates.
+            rows.push({
+                kind: 'Grouped set',
+                sku: r.sku,
+                name: (pals[r.sku] || {}).name || r.name || r.animal,
+                filament: r.filament,
+                label: r.parts,
+                qty,
+                key: groupKey(r)
+            });
         });
         Object.entries(s.parts)
             .filter(([k, v]) => k.startsWith('recovery|') && Number(v) > 0)
@@ -4707,7 +4708,7 @@ async function printedParts() {
          <button class="iconbtn adjust" data-key="${esc(x.key)}" data-d="1">+</button>
        </td>
      </tr>`).join('')
-            : '<tr><td colspan="6">No printed-part inventory yet. Complete a build plate to add stock.</td></tr>';
+            : '<tr><td colspan="6">No recipe parts have been created yet.</td></tr>';
         document.querySelectorAll('.adjust').forEach(b => b.onclick = async () => {
             const key = b.dataset.key;
             const before = partQty(s, key);
