@@ -1,6 +1,6 @@
 async function transfersPage(){
  const $=id=>document.getElementById(id),names={boat:'Boat',cornwall:'Cornwall',warehouse:'Warehouse',van:'Van'};
- let data=null,busy=false,online=false,revision=0,pending=null;
+ let data=null,shopifyInventory=null,busy=false,online=false,revision=0,pending=null;
  const storageKey='forge-test-transfer-pending-v1';
  try{pending=JSON.parse(localStorage.getItem(storageKey)||'null');}catch(_){}
  function status(text,bad=false){$('transferStatus').textContent=text;$('transferStatus').classList.toggle('stock-bad',bad);}
@@ -13,7 +13,8 @@ async function transfersPage(){
  function render(){
   if(!data)return;
   const p=product(),source=$('transferSource').value,destination=$('transferDestination').value,quantity=Number($('transferQty').value);
-  for(const [loc,name]of Object.entries(names)){$('transferTotal'+name).textContent=data.inventory.reduce((n,p)=>n+p[loc],0);}
+  const kpiInventory=shopifyInventory?.inventory||data.inventory;
+  for(const [loc,name]of Object.entries(names)){$('transferTotal'+name).textContent=kpiInventory.reduce((n,p)=>n+Number(p[loc]?.available??p[loc]??0),0);}
   const waiting=data.transfers.filter(t=>t.destination==='cornwall'&&t.status==='awaiting_delivery'&&t.transfer_type!=='cornwall_insert_spare');
   $('transferTransit').textContent=waiting.reduce((n,t)=>n+Number(t.qty||0),0);
   $('transferAvailable').textContent=p?`${p[source]} available at ${names[source]}`:'Choose a product to check its stock.';
@@ -31,7 +32,7 @@ async function transfersPage(){
   $('transferHistory').innerHTML=data.transfers.filter(t=>t.transfer_type==='location_stock').slice(0,30).map(t=>`<tr><td>${esc(t.name||t.sku)}<div class="small">${esc(t.sku)}</div></td><td data-label="Route">${esc(names[t.source])} → ${esc(names[t.destination])}</td><td data-label="Quantity">${Number(t.qty)}</td><td data-label="Status">${t.status==='awaiting_delivery'?'Awaiting Delivery':'Received'}</td><td data-label="When">${esc(new Date(t.dispatched_at).toLocaleString('en-GB'))}</td></tr>`).join('')||'<tr><td colspan="5">Stock transfers will appear here.</td></tr>';
  }
  function accept(fresh){const old=$('transferProduct').value;data=fresh;online=true;$('transferProduct').innerHTML='<option value="">Choose product</option>'+data.inventory.map(p=>`<option value="${esc(p.sku)}">${esc(p.sku)} · ${esc(p.name)}</option>`).join('');$('transferProduct').value=old;render();}
- async function refresh(){if(busy||document.hidden)return;const version=revision;try{const fresh=await api('/stock/locations');if(version!==revision||busy)return;if(!online&&!pending)status('Stock connected. Select a route to transfer finished items.');accept(fresh);}catch(e){if(version!==revision)return;online=false;status('Stock could not refresh. Reconnecting…',true);render();}}
+ async function refresh(){if(busy||document.hidden)return;const version=revision;try{const fresh=await api('/stock/locations');if(version!==revision||busy)return;accept(fresh);try{shopifyInventory=await api('/shopify/pal-inventory');if(version!==revision||busy)return;if(!pending)status('Shopify stock connected. Select a route to transfer finished items.');}catch(e){shopifyInventory=null;status('Transfers connected, but Shopify stock could not refresh. KPI cards are showing Forge stock.',true);}render();}catch(e){if(version!==revision)return;online=false;status('Stock could not refresh. Reconnecting…',true);render();}}
  async function send(path,body){
   if(busy||!online)return;
   if(!pending){try{remember({path,body:{...body,request_id:crypto.randomUUID()}});}catch(_){status('Browser storage is unavailable. Enable it before transferring stock so retries stay safe.',true);return;}}
